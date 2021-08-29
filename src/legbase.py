@@ -60,7 +60,6 @@ class LegBase:
         if JEE is None:
             JEE = self.gen_jacEE(q=q)
 
-        print(Mq)
         Mx_inv = np.dot(JEE, np.dot(np.linalg.inv(Mq), JEE.T))
         u, s, v = np.linalg.svd(Mx_inv)
         # cut off any singular values that could cause control problems

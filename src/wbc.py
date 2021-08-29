@@ -58,10 +58,7 @@ class Control(control.Control):
         self.kn[2, 2] = 0
         self.kn[3, 3] = 10
 
-        self.kf = np.zeros((3, 3))
-        self.kf[0, 0] = 0.01
-        self.kf[1, 1] = 0.01
-        self.kf[2, 2] = 0.01
+        self.kf = 1
 
         self.Mq = None
         self.Mx = None
@@ -98,7 +95,7 @@ class Control(control.Control):
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
 
         # multiply with rotation matrix for base to world
-        self.x = np.dot(b_orient, leg.position()[:, -1])  # select last position value to get EE xyz
+        self.x = np.dot(b_orient, leg.position())
         # self.x = leg.position()[:, -1]
 
         # calculate operational space velocity vector
@@ -139,8 +136,7 @@ class Control(control.Control):
             Fr = np.dot(b_orient, force)
             force_control = (np.dot(JEE.T, Fr).reshape(-1, ))
 
-        k_force = 1
-        self.u = Aq_dd - self.grav - force_control*k_force
+        self.u = Aq_dd - self.grav - force_control*self.kf
         self.x_dd_des = x_dd_des
         self.Mx = Mx
         self.J = JEE

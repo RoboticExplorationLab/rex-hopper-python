@@ -72,7 +72,7 @@ class Sim:
 
         # Disable the default velocity/position motor:
         for i in range(p.getNumJoints(bot)):
-            p.setJointMotorControl2(bot, i, p.VELOCITY_CONTROL, force=0.5)
+            p.setJointMotorControl2(bot, i, p.VELOCITY_CONTROL, force=0.5)  # force=0.5
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(bot, i, 1)  # enable joint torque sensing
 
@@ -89,8 +89,7 @@ class Sim:
         b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
         torque = u
-        # torque[0] *= -1  # readjust to match motor polarity
-        # torque[1] *= -1  # readjust to match motor polarity
+        torque[0] *= -1  # readjust to match motor polarity
 
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(bot, jointArray, p.TORQUE_CONTROL, forces=torque)
@@ -103,6 +102,7 @@ class Sim:
 
         # Pull values in from simulator, select relevant ones, reshape to 2D array
         q = np.reshape([j[0] for j in p.getJointStates(1, range(0, 2))], (-1, 1))
+        # q[1] *= -1
 
         # Detect contact of feet with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(bot, plane, 2)]))

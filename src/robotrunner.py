@@ -48,7 +48,7 @@ class Runner:
         self.u = np.zeros(2)
 
         # height constant
-        self.hconst = 0.8325
+        self.hconst = 0.3
 
         self.leg = leg.Leg(dt=dt)
         controller_class = wbc
@@ -57,7 +57,10 @@ class Runner:
         self.state = statemachine.Char()
 
         # gait scheduler values
-        self.target_init = np.array([0, 0, -self.hconst])  # , self.init_alpha, self.init_beta, self.init_gamma])
+        self.init_alpha = 0
+        self.init_beta = 0
+        self.init_gamma = 0
+        self.target_init = np.array([0, 0, -self.hconst, self.init_alpha, self.init_beta, self.init_gamma])
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
         self.dist_force = np.array([0, 0, 0])
@@ -75,6 +78,8 @@ class Runner:
         self.force_control_test = False
         self.qvis_animate = False
         self.plot = True
+        self.cycle = False
+        self.closedform_invkin = False
 
     def run(self):
 
@@ -96,7 +101,7 @@ class Runner:
 
         total = 3000  # number of timesteps to plot
         if self.plot:
-            fig, axs = plt.subplots(2, 3, sharey=False)
+            fig, axs = plt.subplots(1, 2, sharey=False)
             value1 = np.zeros((total, 3))
             value2 = np.zeros((total, 3))
         else:
@@ -152,8 +157,9 @@ class Runner:
             rz_phi[1, 1] = c_phi
             rz_phi[2, 2] = 1
 
-            if state is not 'stance' and prev_state is 'stance':
-                self.r = self.footstep(rz_phi=rz_phi, pdot=pdot, pdot_des=self.pdot_des)
+            # TODO: Bring back footstep planner method to use this
+            # if state is not 'stance' and prev_state is 'stance':
+            #     self.r = self.footstep(rz_phi=rz_phi, pdot=pdot, pdot_des=self.pdot_des)
 
             omega = np.array(self.simulator.omega_xyz)
 
@@ -161,31 +167,41 @@ class Runner:
             x_ref = np.hstack([np.zeros(3), np.zeros(3), self.omega_d, self.pdot_des]).T  # reference pose (desired)
             # x_ref = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T
 
-            mpc_force = np.zeros(3)
-            mpc_force[2] = 118  # TODO: Fix this
+            # mpc_force = np.zeros(3)
+            # mpc_force[2] = 118  # TODO: Fix this
+            mpc_force = None
 
             delp = pdot*self.dt
             # calculate wbc control signal
-            self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
-                                        b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
+            if self.cycle is True:
+                self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
+                                            b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
+            elif self.closedform_invkin is True:
+                # TODO: could use an integral term due to friction
+                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 2 + self.leg.dq * 0.15
+            else:
+                self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
+                # self.u[1] *= -1
+                # self.u = np.zeros(2)  # TODO: Remove
             prev_state = state
 
             if self.plot and steps <= total-1:
-                # value1[steps-1, :] = self.gait_left.target[0:3]
-                # value2[steps-1, :] = self.gait_right.target[0:3]
-                # value1[steps - 1, :] = mpc_force[0:3]
-                # value2[steps - 1, :] = mpc_force[3:6]
-                value[steps - 1, :] = c
+                value1[steps-1, :] = self.u[0]
+                value2[steps-1, :] = self.u[1]
+
                 if steps == total-1:
-                    axs[0, 0].plot(range(total-1), value[:-1, 0], color='blue')
+                    axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
                     # axs[0, 1].plot(range(total-1), value1[:-1, 1], color='blue')
                     # axs[0, 2].plot(range(total-1), value1[:-1, 2], color='blue')
-                    axs[1, 0].plot(range(total-1), value2[:-1, 0], color='blue')
+                    axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
                     # axs[1, 1].plot(range(total-1), value2[:-1, 1], color='blue')
                     # axs[1, 2].plot(range(total-1), value2[:-1, 2], color='blue')
                     plt.show()
 
+            print(t)
+            # print(self.leg.q * 180/np.pi)
+            # print("encoder = ", self.leg.q* 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 

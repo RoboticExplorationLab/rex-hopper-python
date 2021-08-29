@@ -36,6 +36,7 @@ class Gait:
         self.x_last = None
         self.target = None
         self.hconst = hconst
+        # TODO: should come from robotrunner.py
         self.r_save = np.array([0, 0, -self.hconst])
         self.target = np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
 

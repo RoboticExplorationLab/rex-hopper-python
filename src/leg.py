@@ -40,6 +40,17 @@ class Leg(LegBase):
 
         LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
+        # link lengths (mm) must be manually updated
+        L0 = .3
+        L1 = .3
+        self.L = np.array([L0, L1])
+
+        with open('res/flyhopper_mockup/urdf/flyhopper_mockup.csv', 'r') as csvfile:
+            data_direct = csv.reader(csvfile, delimiter=',')
+            next(data_direct)  # skip headers
+            values_direct = list(zip(*(row for row in data_direct)))  # transpose rows to columns
+            values_direct = np.array(values_direct)  # convert list of nested lists to array
+
         # values = []
         self.inertial_data = False
 
@@ -61,27 +72,17 @@ class Leg(LegBase):
             self.coml = values[7].astype(np.float)
 
         else:
-            ixx = np.zeros(2)
-            ixy = np.zeros(2)
-            ixz = np.zeros(2)
-            iyy = np.zeros(2)
-            iyz = np.zeros(2)
-            izz = np.zeros(2)
-            self.coml = np.zeros(2)
 
-        with open('res/flyhopper_mockup/urdf/flyhopper_mockup.csv', 'r') as csvfile:
-            data_direct = csv.reader(csvfile, delimiter=',')
-            next(data_direct)  # skip headers
-            values_direct = list(zip(*(row for row in data_direct)))  # transpose rows to columns
-            values_direct = np.array(values_direct)  # convert list of nested lists to array
+            self.coml = 0.5*self.L
+            ixx = values_direct[8].astype(np.float)
+            ixy = values_direct[9].astype(np.float)
+            ixz = values_direct[10].astype(np.float)
+            iyy = values_direct[11].astype(np.float)
+            iyz = values_direct[12].astype(np.float)
+            izz = values_direct[13].astype(np.float)
 
         self.mass = values_direct[7].astype(np.float)
         self.mass = np.delete(self.mass, 0)  # remove body value
-
-        # link lengths (mm) must be manually updated
-        L0 = .3
-        L1 = .3
-        self.L = np.array([L0, L1])
 
         # mass matrices and gravity
         self.MM = []
@@ -168,7 +169,6 @@ class Leg(LegBase):
                             [sym.sin(q1), 0, sym.cos(q1)]])
         self.R_1_org_init = R_0_org.multiply(R_1_0)
 
-
     def gen_jacCOM0(self, q=None):
         """Generates the Jacobian from the COM of the first
         link to the origin frame"""
@@ -234,7 +234,7 @@ class Leg(LegBase):
         q1 = np.arccos((- L0**2 - L1**2 + x**2 + z**2)/(2*L0*L1))
         beta = np.arctan2(L1*np.sin(q1), L0 + L1*np.cos(q1))
         gamma = np.arctan2(z, x)  # TODO: Check the sign on this
-        q0 = np.pi - gamma - beta
+        q0 = -(np.pi + gamma + beta)
 
         return np.array([q0, q1], dtype=float)
 
@@ -255,16 +255,17 @@ class Leg(LegBase):
         L0 = self.L[0]
         L1 = self.L[1]
 
-        x = L0 * np.cos(q0) + L1 * np.cos(q1) * np.cos(q0)
+        x = L0 * np.cos(q0) + L1 * np.cos(q0 + q1)
 
         y = 0
 
-        z = L0 * np.sin(q0) + L1 * np.cos(q1) * np.sin(q0)
+        z = L0 * np.sin(q0) + L1 * np.sin(q0 + q1)
 
         return np.array([x, y, z], dtype=float)
 
-    def velocity(self):  # dq=None
+    def velocity(self, q=None):  # dq=None
         # Calculate operational space linear velocity vector
+        q = self.q if q is None else q
         # if dq is None:
         #     dq = self.dq
         JEE = self.gen_jacEE(q=q)
@@ -272,18 +273,13 @@ class Leg(LegBase):
 
     def orientation(self, b_orient, q=None):
         # Calculate orientation of end effector in quaternions
-        if q is None:
-            q0 = self.q[0]
-            q1 = self.q[1]
-
-        else:
-            q0 = q[0]
-            q1 = q[1]
+        q = self.q if q is None else q
 
         # REE = np.zeros((3, 3))  # rotation matrix
         REE = self.R_1_org_init.subs({q0: q[0], q1: q[1]})
 
         REE = np.dot(b_orient, REE)
+        REE = np.array(REE).astype(np.float64)
         q_e = transforms3d.quaternions.mat2quat(REE)
         q_e = q_e / np.linalg.norm(q_e)  # convert to unit vector quaternion
 
