@@ -32,6 +32,8 @@ bot = p.loadURDF("res/flyhopper_mockup/urdf/flyhopper_mockup.urdf", [0, 0, 0.8],
                  robotStartOrientation, useFixedBase=1,
                  flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
+vert = p.createConstraint(bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+
 p.setGravity(0, 0, GRAVITY)
 
 # p.changeDynamics(bot, 2, lateralFriction=0.5)
@@ -90,6 +92,7 @@ class Sim:
 
         torque = u
         torque[0] *= -1  # readjust to match motor polarity
+        # torque[1] *= -1  # readjust to match motor polarity
 
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(bot, jointArray, p.TORQUE_CONTROL, forces=torque)
@@ -102,7 +105,7 @@ class Sim:
 
         # Pull values in from simulator, select relevant ones, reshape to 2D array
         q = np.reshape([j[0] for j in p.getJointStates(1, range(0, 2))], (-1, 1))
-        # q[1] *= -1
+        q[1] *= -1  # This seems to be correct 8-25-21
 
         # Detect contact of feet with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(bot, plane, 2)]))

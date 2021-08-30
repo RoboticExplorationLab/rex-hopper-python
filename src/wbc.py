@@ -27,7 +27,7 @@ class Control(control.Control):
     Controls the (x,y,z) position of the end-effector.
     """
 
-    def __init__(self, dt=1e-3, null_control=False, **kwargs):
+    def __init__(self, dt=1e-3, null_control=True, **kwargs):
         """
         null_control boolean: apply second controller in null space or not
         """
@@ -52,11 +52,9 @@ class Control(control.Control):
         self.ko[1, 1] = 1000
         self.ko[2, 2] = 1000
 
-        self.kn = np.zeros((4, 4))
-        self.kn[0, 0] = 0
-        self.kn[1, 1] = 0  # 100
-        self.kn[2, 2] = 0
-        self.kn[3, 3] = 10
+        self.kn = np.zeros((2, 2))
+        self.kn[0, 0] = 10
+        self.kn[1, 1] = 10
 
         self.kf = 1
 
@@ -121,7 +119,7 @@ class Control(control.Control):
         # ------------------------------------------------------------------------------------------------#
 
         x_dd_des = x_dd_des[ctrlr_dof]  # get rid of dim not being controlled
-
+        # print(x_dd_des)
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # calculate force
@@ -151,7 +149,8 @@ class Control(control.Control):
         if self.null_control:
             # calculate our secondary control signal
             # calculated desired joint angle acceleration
-            prop_val = ((leg.ee_angle() - leg.q) + np.pi) % (np.pi * 2) - np.pi
+            leg_des_angle = np.array([-150, 120])
+            prop_val = ((leg_des_angle - leg.q) + np.pi) % (np.pi * 2) - np.pi
             q_des = (np.dot(self.kn, prop_val))
             #        + np.dot(self.knd, -leg.dq.reshape(-1, )))
 

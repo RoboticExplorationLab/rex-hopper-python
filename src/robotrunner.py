@@ -167,23 +167,22 @@ class Runner:
             x_ref = np.hstack([np.zeros(3), np.zeros(3), self.omega_d, self.pdot_des]).T  # reference pose (desired)
             # x_ref = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T
 
-            # mpc_force = np.zeros(3)
-            # mpc_force[2] = 118  # TODO: Fix this
-            mpc_force = None
+            mpc_force = np.zeros(3)
+            mpc_force[2] = -118  # TODO: Fix this
 
             delp = pdot*self.dt
             # calculate wbc control signal
             if self.cycle is True:
                 self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
+                self.u[1] *= -1
             elif self.closedform_invkin is True:
                 # TODO: could use an integral term due to friction
                 self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 2 + self.leg.dq * 0.15
+                self.u[1] *= -1
             else:
                 self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
-
-                # self.u[1] *= -1
-                # self.u = np.zeros(2)  # TODO: Remove
+                self.u[1] *= -1
             prev_state = state
 
             if self.plot and steps <= total-1:
@@ -199,9 +198,9 @@ class Runner:
                     # axs[1, 2].plot(range(total-1), value2[:-1, 2], color='blue')
                     plt.show()
 
-            print(t)
-            # print(self.leg.q * 180/np.pi)
-            # print("encoder = ", self.leg.q* 180/np.pi)
+            # print(self.leg.position())
+            # print("kin = ", self.leg.inv_kinematics(xyz=self.target[0:3]) * 180/np.pi)
+            print("encoder = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 

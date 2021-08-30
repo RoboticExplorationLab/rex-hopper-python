@@ -120,24 +120,30 @@ class Leg(LegBase):
         sym.var('q0 q1')
         T_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0), L0 * sym.cos(q0)],
                               [0, 1, 0, 0],
-                              [sym.sin(q0), 0, sym.cos(q0), -L0 * sym.sin(q0)],
+                              [sym.sin(q0), 0, sym.cos(q0), L0 * sym.sin(q0)],
                               [0, 0, 0, 1]])
         T_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1), L1 * sym.cos(q1)],
                             [0, 1, 0, 0],
                             [sym.sin(q1), 0, sym.cos(q1), L1 * sym.sin(q1)],
                             [0, 0, 0, 1]])
+
+        com0 = sym.Matrix([[l0 * sym.cos(q0)],
+                           [0],
+                           [l0 * sym.sin(q0)],
+                           [1]])
         com1 = sym.Matrix([[l1 * sym.cos(q1)],
                            [0],
                            [l1 * sym.sin(q1)],
                            [1]])
-
-        com0 = sym.Matrix([[l0 * sym.cos(q0)],
-                           [0],
-                           [-l0 * sym.sin(q0)],
-                           [1]])
+        '''
         xee = sym.Matrix([[0],  # L1*sym.cos(q1)],
                           [0],
                           [0],  # L1*sym.sin(q1)],
+                          [1]])
+        '''
+        xee = sym.Matrix([[L1*sym.cos(q1)],
+                          [0],
+                          [L1*sym.sin(q1)],
                           [1]])
 
         JCOM0 = com0.jacobian([q0, q1])
@@ -152,8 +158,9 @@ class Leg(LegBase):
                                                           [1, 1],
                                                           [0, 0]]))
 
-        T_1_org = T_0_org.multiply(T_1_0)
-        JEE_v = (T_1_org.multiply(xee)).jacobian([q0, q1])
+        # T_1_org = T_0_org.multiply(T_1_0)
+        # JEE_v = (T_1_org.multiply(xee)).jacobian([q0, q1])
+        JEE_v = (T_0_org.multiply(xee)).jacobian([q0, q1])
         JEE_v.row_del(3)
         JEE_w = sym.Matrix([[0, 0],
                             [1, 1],
@@ -277,9 +284,8 @@ class Leg(LegBase):
 
         # REE = np.zeros((3, 3))  # rotation matrix
         REE = self.R_1_org_init.subs({q0: q[0], q1: q[1]})
-
-        REE = np.dot(b_orient, REE)
         REE = np.array(REE).astype(np.float64)
+        REE = np.dot(b_orient, REE)
         q_e = transforms3d.quaternions.mat2quat(REE)
         q_e = q_e / np.linalg.norm(q_e)  # convert to unit vector quaternion
 
