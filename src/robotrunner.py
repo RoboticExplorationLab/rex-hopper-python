@@ -101,12 +101,23 @@ class Runner:
 
         total = 3000  # number of timesteps to plot
         if self.plot:
-            fig, axs = plt.subplots(1, 2, sharey=False)
+            fig, axs = plt.subplots(1, 3, sharey=False)
             value1 = np.zeros((total, 3))
             value2 = np.zeros((total, 3))
+            value3 = np.zeros((total, 3))
+            axs[0].set_title('q0 torque')
+            axs[0].set_xlabel("Timesteps")
+            axs[0].set_ylabel("q0 torque (Nm)")
+            axs[1].set_title('q1 torque')
+            axs[1].set_xlabel("Timesteps")
+            axs[1].set_ylabel("q1 torque (Nm)")
+            axs[2].set_title('base z position')
+            axs[2].set_xlabel("Timesteps")
+            axs[2].set_ylabel("z position (m)")
         else:
             value1 = None
             value2 = None
+            value3 = None
 
         while 1:
             steps += 1
@@ -168,7 +179,7 @@ class Runner:
             # x_ref = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T
 
             mpc_force = np.zeros(3)
-            mpc_force[2] = 218  # TODO: Fix this
+            mpc_force[2] = 218  # just a static number for now (removed mpc)
 
             delp = pdot*self.dt
             # calculate wbc control signal
@@ -185,10 +196,12 @@ class Runner:
 
             prev_state = state
 
+            p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
+
             if self.plot and steps <= total-1:
                 value1[steps-1, :] = self.u[0]
                 value2[steps-1, :] = self.u[1]
-
+                value3[steps-1, :] = p_base_z
                 if steps == total-1:
                     axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
                     # axs[0, 1].plot(range(total-1), value1[:-1, 1], color='blue')
@@ -196,10 +209,12 @@ class Runner:
                     axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
                     # axs[1, 1].plot(range(total-1), value2[:-1, 1], color='blue')
                     # axs[1, 2].plot(range(total-1), value2[:-1, 2], color='blue')
+                    axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
                     plt.show()
 
             # print(t, state)
-            print(self.leg.position())
+            # print(p_base_z)
+            # print(self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target[0:3]) * 180/np.pi)
             # print("encoder = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line

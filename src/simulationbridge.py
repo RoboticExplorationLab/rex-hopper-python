@@ -70,7 +70,8 @@ class Sim:
 
         p.setTimeStep(self.dt)
 
-        p.setRealTimeSimulation(useRealTime)
+        # p.setRealTimeSimulation(useRealTime)
+        p.setRealTimeSimulation(0)
 
         # Disable the default velocity/position motor:
         for i in range(p.getNumJoints(bot)):
@@ -99,6 +100,7 @@ class Sim:
         velocities = p.getBaseVelocity(bot)
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
         self.omega_xyz = velocities[1]  # base angular velocity in Euler XYZ
+        self.base_pos = p.getBasePositionAndOrientation(bot)
         # base angular velocity in quaternions
         # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
         # found to be intrinsic Euler angles (r)

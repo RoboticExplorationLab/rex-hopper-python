@@ -126,14 +126,13 @@ class Control(control.Control):
         Fx = np.dot(Mx, x_dd_des)
         Aq_dd = (np.dot(JEE.T, Fx).reshape(-1, ))
 
-        self.grav = leg.gen_grav(b_orient=b_orient)
-
         if force is None:
             force_control = 0
         else:
             Fr = np.dot(b_orient, force)
             force_control = (np.dot(JEE.T, Fr).reshape(-1, ))
 
+        self.grav = leg.gen_grav(b_orient=b_orient)
         self.u = Aq_dd - self.grav - force_control*self.kf
         self.x_dd_des = x_dd_des
         self.Mx = Mx
