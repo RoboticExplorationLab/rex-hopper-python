@@ -64,8 +64,8 @@ class Runner:
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
         self.dist_force = np.array([0, 0, 0])
-        self.t_p = 0.5  # gait period, seconds 0.5
-        self.phi_switch = 0.75  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+        self.t_p = 1.4  # gait period, seconds 0.5
+        self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, t_p=self.t_p, phi_switch=self.phi_switch,
                               hconst=self.hconst, dt=dt)
 
@@ -78,7 +78,7 @@ class Runner:
         self.force_control_test = False
         self.qvis_animate = False
         self.plot = True
-        self.cycle = False
+        self.cycle = True
         self.closedform_invkin = False
 
     def run(self):
@@ -136,8 +136,6 @@ class Runner:
 
             c_prev = c
 
-            state = self.state.FSM.execute(s, sh, go)
-
             # forward kinematics
             pos = np.dot(b_orient, self.leg.position())  # [:, -1])  TODO: Check
 
@@ -157,6 +155,8 @@ class Runner:
             rz_phi[1, 1] = c_phi
             rz_phi[2, 2] = 1
 
+            state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
+
             # TODO: Bring back footstep planner method to use this
             # if state is not 'stance' and prev_state is 'stance':
             #     self.r = self.footstep(rz_phi=rz_phi, pdot=pdot, pdot_des=self.pdot_des)
@@ -168,21 +168,21 @@ class Runner:
             # x_ref = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T
 
             mpc_force = np.zeros(3)
-            mpc_force[2] = -118  # TODO: Fix this
+            mpc_force[2] = 218  # TODO: Fix this
 
             delp = pdot*self.dt
             # calculate wbc control signal
             if self.cycle is True:
                 self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
-                self.u[1] *= -1
+
             elif self.closedform_invkin is True:
                 # TODO: could use an integral term due to friction
                 self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 2 + self.leg.dq * 0.15
-                self.u[1] *= -1
+
             else:
                 self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
-                self.u[1] *= -1
+
             prev_state = state
 
             if self.plot and steps <= total-1:
@@ -198,9 +198,10 @@ class Runner:
                     # axs[1, 2].plot(range(total-1), value2[:-1, 2], color='blue')
                     plt.show()
 
-            # print(self.leg.position())
+            # print(t, state)
+            print(self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target[0:3]) * 180/np.pi)
-            print("encoder = ", self.leg.q * 180/np.pi)
+            # print("encoder = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 

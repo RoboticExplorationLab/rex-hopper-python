@@ -28,8 +28,8 @@ p.resetSimulation()
 plane = p.loadURDF("plane.urdf")
 robotStartOrientation = p.getQuaternionFromEuler([0, 0, 0])
 
-bot = p.loadURDF("res/flyhopper_mockup/urdf/flyhopper_mockup.urdf", [0, 0, 0.8],
-                 robotStartOrientation, useFixedBase=1,
+bot = p.loadURDF("res/flyhopper_mockup/urdf/flyhopper_mockup.urdf", [0, 0, 0.31],
+                 robotStartOrientation, useFixedBase=0,
                  flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
 vert = p.createConstraint(bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
@@ -90,8 +90,8 @@ class Sim:
         b_orient[3] = base_or_p[2]  # z
         b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
-        torque = u
-        torque[0] *= -1  # readjust to match motor polarity
+        torque = -u
+        # torque[0] *= -1  # readjust to match motor polarity
         # torque[1] *= -1  # readjust to match motor polarity
 
         # print(self.reaction_torques()[0:4])
@@ -108,7 +108,7 @@ class Sim:
         q[1] *= -1  # This seems to be correct 8-25-21
 
         # Detect contact of feet with ground plane
-        c = bool(len([c[8] for c in p.getContactPoints(bot, plane, 2)]))
+        c = bool(len([c[8] for c in p.getContactPoints(bot, plane, 1)]))
 
         # dq = [j[1] for j in p.getJointStates(bot, range(8))]
 

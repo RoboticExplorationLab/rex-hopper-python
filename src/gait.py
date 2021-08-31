@@ -41,34 +41,37 @@ class Gait:
 
     def u(self, state, prev_state, r_in, r_d, delp, b_orient, fr_mpc, skip):
 
-        if state == 'swing':
+        if state == 'Return':
             # set target position
-            self.target = np.hstack(np.append(np.array([0, 0, 0.5]), self.init_angle))
+            self.target = np.hstack(np.append(np.array([0, 0, -0.5]), self.init_angle))
             # calculate wbc control signal
             u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
-        elif state == 'stance' or state == 'early':
+        elif state == 'HeelStrike':
 
-            if prev_state != state and prev_state != 'early':
+            if prev_state != state:
                 # if contact has just been made, save that contact point as the new target to stay at
                 # (stop following through with trajectory)
                 self.r_save = r_in
             self.r_save = self.r_save - delp
             self.target = np.hstack(np.append(self.r_save, self.init_angle))
-            self.target[2] = -self.hconst  # maintain height estimate at constant to keep ctrl simple
-
-            if delp[2] <= 0 and self.leg.position()[2] >= -0.3 and skip is False:
-                force = fr_mpc
-            else:
-                force = None
-
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=force)
-
-        elif state == 'late':
-            # calculate wbc control signal
+            self.target[2] = -self.hconst
             u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+
+        elif state == 'Crouch':
+            self.target[2] = -self.hconst  # go to crouch
+            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+
+        elif state == 'Leap':
+            # calculate wbc control signal
+            if skip is True:
+                fr_mpc = None
+
+            self.target = np.hstack(np.append(np.array([0, 0, -0.55]), self.init_angle))
+            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=fr_mpc)
 
         else:
             u = None
+            print("error! state not determined")
 
         return u

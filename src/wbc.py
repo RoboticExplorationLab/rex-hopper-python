@@ -38,14 +38,14 @@ class Control(control.Control):
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        self.kp[0, 0] = 2000
-        self.kp[1, 1] = 2000
-        self.kp[2, 2] = 2000
+        self.kp[0, 0] = 5000
+        self.kp[1, 1] = 5000
+        self.kp[2, 2] = 5000
 
         self.kv = np.zeros((3, 3))
-        self.kv[0, 0] = 100
-        self.kv[1, 1] = 100
-        self.kv[2, 2] = 100
+        self.kv[0, 0] = 200
+        self.kv[1, 1] = 200
+        self.kv[2, 2] = 200
 
         self.ko = np.zeros((3, 3))
         self.ko[0, 0] = 1000

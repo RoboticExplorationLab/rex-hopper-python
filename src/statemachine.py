@@ -31,53 +31,48 @@ class State:
         pass
 
 
-class Swing(State):
+class Leap(State):
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.s == 1 and self.FSM.sh == 1:
-            self.FSM.to_transition("toStance")
-        # "go" var stops toEarly from being triggered, well, early (causing stuck-in-stance bug)
-        elif self.FSM.s == 0 and self.FSM.sh == 1 and self.FSM.go == 1:
-            self.FSM.to_transition("toEarly")
-        elif self.FSM.s == 1 and self.FSM.sh == 0:
-            self.FSM.to_transition("toLate")
+        if self.FSM.sh == 0:
+            self.FSM.to_transition("toReturn")
 
-        return str("swing")
+        return str("Leap")
 
 
-class Stance(State):
+class Return(State):
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.s == 0:
-            self.FSM.to_transition("toSwing")
+        if self.FSM.sh == 1: # and self.FSM.pdot[1] <= 0:  # Recognize that the bot is falling
+            self.FSM.to_transition("toHeelStrike")
 
-        return str("stance")
+        return str("Return")
 
 
-class Early(State):
+class HeelStrike(State):
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.s == 1:
-            self.FSM.to_transition("toStance")
 
-        return str("early")
+        if self.FSM.sh == 1 and self.FSM.leg_pos[2] >= -0.3:
+            self.FSM.to_transition("toCrouch")
+
+        return str("HeelStrike")
 
 
-class Late(State):
+class Crouch(State):
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.sh == 1:
-            self.FSM.to_transition("toStance")
-        # MUST recognize ground reaction force before leaving "late" state
-        return str("late")
+        if self.FSM.s == 0: # wait to jump until scheduled to
+            self.FSM.to_transition("toLeap")
+        return str("Crouch")
 
 
 class Transition:
@@ -100,6 +95,8 @@ class FSM:
         self.s = None
         self.sh = None
         self.go = None  # Prevents stuck-in-stance bug
+        self.pdot = None
+        self.leg_pos = None
 
     def add_transition(self, transname, transition):
         self.transitions[transname] = transition
@@ -116,11 +113,13 @@ class FSM:
         # set the transition state
         self.trans = self.transitions[to_trans]
 
-    def execute(self, s, sh, go):
+    def execute(self, s, sh, go, pdot, leg_pos):
         self.s = s
         self.sh = sh
         self.go = go
-
+        self.pdot = pdot
+        self.leg_pos = leg_pos
+        
         if self.trans:
             self.curState.exit()
             self.trans.execute()
@@ -136,19 +135,19 @@ class FSM:
 class Char:
     def __init__(self):
         self.FSM = FSM(self)
-        self.Swing = True
+        self.Leap = True
 
-        self.FSM.add_state("Swing", Swing(self.FSM))
-        self.FSM.add_state("Stance", Stance(self.FSM))
-        self.FSM.add_state("Early", Early(self.FSM))
-        self.FSM.add_state("Late", Late(self.FSM))
+        self.FSM.add_state("Leap", Leap(self.FSM))
+        self.FSM.add_state("Return", Return(self.FSM))
+        self.FSM.add_state("HeelStrike", HeelStrike(self.FSM))
+        self.FSM.add_state("Crouch", Crouch(self.FSM))
 
-        self.FSM.add_transition("toSwing", Transition("Swing"))
-        self.FSM.add_transition("toStance", Transition("Stance"))
-        self.FSM.add_transition("toEarly", Transition("Early"))
-        self.FSM.add_transition("toLate", Transition("Late"))
+        self.FSM.add_transition("toLeap", Transition("Leap"))
+        self.FSM.add_transition("toReturn", Transition("Return"))
+        self.FSM.add_transition("toHeelStrike", Transition("HeelStrike"))
+        self.FSM.add_transition("toCrouch", Transition("Crouch"))
 
-        self.FSM.setstate("Stance")
+        self.FSM.setstate("Return")
 
     def execute(self):
-        self.FSM.execute(s, sh)
+        self.FSM.execute(s, sh, go, pdot, leg_pos)
