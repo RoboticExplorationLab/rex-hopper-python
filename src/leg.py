@@ -148,15 +148,18 @@ class Leg(LegBase):
 
         JCOM0 = com0.jacobian([q0, q1])
         JCOM0.row_del(3)
-        self.JCOM0_init = JCOM0.row_insert(4, sym.Matrix([[0, 0],
-                                                          [1, 0],
-                                                          [0, 0]]))
+
+        JCOM0_init = JCOM0.row_insert(4, sym.Matrix([[0, 0],
+                                                     [1, 0],
+                                                     [0, 0]]))
+        self.JCOM0_init = sym.lambdify([q0, q1], JCOM0_init)
 
         JCOM1 = (T_0_org.multiply(com1)).jacobian([q0, q1])
         JCOM1.row_del(3)
-        self.JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0],
-                                                          [1, 1],
-                                                          [0, 0]]))
+        JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0],
+                                                     [1, 1],
+                                                     [0, 0]]))
+        self.JCOM1_init = sym.lambdify([q0, q1], JCOM1_init)
 
         # T_1_org = T_0_org.multiply(T_1_0)
         # JEE_v = (T_1_org.multiply(xee)).jacobian([q0, q1])
@@ -165,7 +168,8 @@ class Leg(LegBase):
         JEE_w = sym.Matrix([[0, 0],
                             [1, 1],
                             [0, 0]])
-        self.JEE_init = JEE_v.row_insert(4, JEE_w)
+        JEE_init = JEE_v.row_insert(4, JEE_w)
+        self.JEE_init = sym.lambdify([q0, q1], JEE_init)
 
         #----Rotation------------#
         R_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0)],
@@ -174,14 +178,15 @@ class Leg(LegBase):
         R_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1)],
                             [0, 1, 0],
                             [sym.sin(q1), 0, sym.cos(q1)]])
-        self.R_1_org_init = R_0_org.multiply(R_1_0)
+        R_1_org_init = R_0_org.multiply(R_1_0)
+        self.R_1_org_init = sym.lambdify([q0, q1], R_1_org_init)
 
     def gen_jacCOM0(self, q=None):
         """Generates the Jacobian from the COM of the first
         link to the origin frame"""
         q = self.q if q is None else q
         # JCOM0 = np.zeros((6, 4))
-        JCOM0 = self.JCOM0_init.subs({q0: q[0], q1: q[1]})
+        JCOM0 = self.JCOM0_init(q[0], q[1])
         JCOM0 = np.array(JCOM0).astype(np.float64)
         return JCOM0
 
@@ -190,7 +195,7 @@ class Leg(LegBase):
         link to the origin frame"""
         q = self.q if q is None else q
 
-        JCOM1 = self.JCOM1_init.subs({q0: q[0], q1: q[1]})
+        JCOM1 = self.JCOM1_init(q[0], q[1])
         JCOM1 = np.array(JCOM1).astype(np.float64)
         return JCOM1
 
@@ -198,7 +203,7 @@ class Leg(LegBase):
         """Generates the Jacobian from the end effector to the origin frame"""
         q = self.q if q is None else q
 
-        JEE = self.JEE_init.subs({q0: q[0], q1: q[1]})
+        JEE = self.JEE_init(q[0], q[1])
         JEE = np.array(JEE).astype(np.float64)
         return JEE
 
@@ -283,7 +288,7 @@ class Leg(LegBase):
         q = self.q if q is None else q
 
         # REE = np.zeros((3, 3))  # rotation matrix
-        REE = self.R_1_org_init.subs({q0: q[0], q1: q[1]})
+        REE = self.R_1_org_init(q[0], q[1])
         REE = np.array(REE).astype(np.float64)
         REE = np.dot(b_orient, REE)
         q_e = transforms3d.quaternions.mat2quat(REE)
