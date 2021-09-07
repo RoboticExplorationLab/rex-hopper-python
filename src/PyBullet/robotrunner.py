@@ -15,13 +15,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import simulationbridge
-import leg
+import leg_serial
+import leg_parallel
 import wbc
 import statemachine
 import gait
 
 import time
-import sys
+# import sys
 
 import transforms3d
 import numpy as np
@@ -49,11 +50,15 @@ class Runner:
 
         # height constant
         self.hconst = 0.3
+        model = 'parallel'
+        if model is 'serial':
+            self.leg = leg_serial.Leg(dt=dt)
+        elif model is 'parallel':
+            self.leg = leg_parallel.Leg(dt=dt)
 
-        self.leg = leg.Leg(dt=dt)
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
-        self.simulator = simulationbridge.Sim(dt=dt)
+        self.simulator = simulationbridge.Sim(dt=dt, model=model)
         self.state = statemachine.Char()
 
         # gait scheduler values
@@ -78,8 +83,8 @@ class Runner:
         self.force_control_test = False
         self.qvis_animate = False
         self.plot = True
-        self.cycle = True
-        self.closedform_invkin = False
+        self.cycle = False
+        self.closedform_invkin = True
 
     def run(self):
 
@@ -188,8 +193,23 @@ class Runner:
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
 
             elif self.closedform_invkin is True:
+
                 # TODO: could use an integral term due to friction
-                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 2 + self.leg.dq * 0.15
+                # self.target[2] = -0.5
+                if state == 'Return':
+                    # set target position
+                    self.target = np.array([0, 0, -0.5])
+
+                elif state == 'HeelStrike':
+                    self.target[2] = -self.hconst
+
+                elif state == 'Crouch':
+                    self.target[2] = -self.hconst  # go to crouch
+
+                elif state == 'Leap':
+                    self.target = np.array([0, 0, -0.55])
+
+                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 1 + self.leg.dq * 0.1
 
             else:
                 self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
@@ -204,19 +224,16 @@ class Runner:
                 value3[steps-1, :] = p_base_z
                 if steps == total-1:
                     axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
-                    # axs[0, 1].plot(range(total-1), value1[:-1, 1], color='blue')
-                    # axs[0, 2].plot(range(total-1), value1[:-1, 2], color='blue')
                     axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
-                    # axs[1, 1].plot(range(total-1), value2[:-1, 1], color='blue')
-                    # axs[1, 2].plot(range(total-1), value2[:-1, 2], color='blue')
                     axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
                     plt.show()
 
             # print(t, state)
             # print(p_base_z)
             # print(self.leg.position())
-            # print("kin = ", self.leg.inv_kinematics(xyz=self.target[0:3]) * 180/np.pi)
-            # print("encoder = ", self.leg.q * 180/np.pi)
+            # print(self.target)
+            print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
+            print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 

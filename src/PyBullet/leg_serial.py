@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import sympy as sym
 import csv
+import os
 
 import transforms3d
 
@@ -45,7 +46,11 @@ class Leg(LegBase):
         L1 = .3
         self.L = np.array([L0, L1])
 
-        with open('res/flyhopper_mockup/urdf/flyhopper_mockup.csv', 'r') as csvfile:
+        curdir = os.getcwd()
+        path_parent = os.path.dirname(curdir)
+        model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.csv"
+        path = os.path.join(path_parent, model_path)
+        with open(path, 'r') as csvfile:
             data_direct = csv.reader(csvfile, delimiter=',')
             next(data_direct)  # skip headers
             values_direct = list(zip(*(row for row in data_direct)))  # transpose rows to columns
@@ -55,7 +60,7 @@ class Leg(LegBase):
         self.inertial_data = False
 
         if self.inertial_data is True:
-            inertia_data = str('path/inertia_data.csv')
+            inertia_data = str('path/inertia_data.csv')  # TODO: Add
 
             with open(inertia_data, 'r') as csvfile:
                 data = csv.reader(csvfile, delimiter=',')
@@ -72,7 +77,6 @@ class Leg(LegBase):
             self.coml = values[7].astype(np.float)
 
         else:
-
             self.coml = 0.5*self.L
             ixx = values_direct[8].astype(np.float)
             ixy = values_direct[9].astype(np.float)
@@ -135,12 +139,7 @@ class Leg(LegBase):
                            [0],
                            [l1 * sym.sin(q1)],
                            [1]])
-        '''
-        xee = sym.Matrix([[0],  # L1*sym.cos(q1)],
-                          [0],
-                          [0],  # L1*sym.sin(q1)],
-                          [1]])
-        '''
+
         xee = sym.Matrix([[L1*sym.cos(q1)],
                           [0],
                           [L1*sym.sin(q1)],

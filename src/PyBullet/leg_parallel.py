@@ -34,21 +34,24 @@ class Leg(LegBase):
             init_dq = [0., 0.]
 
         if init_q is None:
-            init_q = [-150 * np.pi / 180,
-                      120 * np.pi / 180]
+            init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
 
         self.DOF = 4
 
         LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
         # link lengths (mm) must be manually updated
-        L0 = .3
+        L0 = .15
         L1 = .3
-        self.L = np.array([L0, L1])
+        L2 = .15
+        L3 = .3
+        L4 = .15
+        self.L = np.array([L0, L1, L2, L3, L4])
 
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
-        path = os.path.join(path_parent, "res/flyhopper_mockup/urdf/flyhopper_mockup.csv")
+        model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.csv"
+        path = os.path.join(path_parent, model_path)
         with open(path, 'r') as csvfile:
             data_direct = csv.reader(csvfile, delimiter=',')
             next(data_direct)  # skip headers
@@ -236,16 +239,26 @@ class Leg(LegBase):
     def inv_kinematics(self, xyz):
         L0 = self.L[0]
         L1 = self.L[1]
+        L2 = self.L[2]
+        L3 = self.L[3]
+        L4 = self.L[4]
+        d = 0  # distance along x b/t motors, 0 for 4-bar link
 
         x = xyz[0]
         # y = xyz[1]
         z = xyz[2]
-
-        q1 = np.arccos((- L0**2 - L1**2 + x**2 + z**2)/(2*L0*L1))
-        beta = np.arctan2(L1*np.sin(q1), L0 + L1*np.cos(q1))
-        gamma = np.arctan2(z, x)  # TODO: Check the sign on this
-        q0 = -(np.pi + gamma + beta)
-
+        r1 = np.sqrt((x+d)**2 + z**2)
+        phi = np.arccos((L1**2 + (L2 + L4)**2 - (x + d)**2 - z**2)/(2*L1*(L2+L4)))
+        ksi = np.arctan2(z, (x+d))
+        epsilon = np.arccos((r1**2 + L1**2 - (L2 + L4)**2)/(2*r1*L1))
+        q1 = ksi - epsilon
+        # print((phi - np.pi - q1)*180/np.pi)
+        xm = L1 * np.cos(q1) + L2 * np.cos(phi - np.pi - q1) - d
+        zm = L1 * np.sin(q1) - L2 * np.sin(phi - np.pi - q1)
+        r2 = np.sqrt(xm**2 + zm**2)
+        sigma = np.arccos((-L3**2 + r2**2 + L0**2)/(2*r2*L0))
+        q0 = np.arctan2(zm, xm) + sigma
+        # print(np.array([q0, q1])*180/np.pi)
         return np.array([q0, q1], dtype=float)
 
     def position(self, q=None):
@@ -264,12 +277,26 @@ class Leg(LegBase):
 
         L0 = self.L[0]
         L1 = self.L[1]
+        L2 = self.L[2]
+        L3 = self.L[3]
+        L4 = self.L[4]
+        d = 0
 
-        x = L0 * np.cos(q0) + L1 * np.cos(q0 + q1)
+        x0 = L0*np.cos(q0)
+        y0 = L0*np.sin(q0)
+        x1 = L1*np.cos(q1)
+        y1 = L1*np.sin(q1)
 
+        rho = np.sqrt((x0 + d)**2 + y0**2)
+        h0 = np.sqrt((x0 - x1)**2 + (y0 - y1)**2)
+        omega = np.arccos((L2**2 + L3**2 - h0**2)/(2*L2*L3))
+        mu = np.arcsin(L3*np.sin(omega)/h0)
+        eta = np.arccos((h0**2 + L1**2 - rho**2)/(2*h0*L1))
+        # print((np.pi - (eta + mu) + q1)*180/np.pi) # 33
+        # print((omega) * 180 / np.pi)
+        x = L1 * np.cos(q1) + (L2 + L4) * np.cos(np.pi - (eta + mu) + q1) - d
         y = 0
-
-        z = L0 * np.sin(q0) + L1 * np.sin(q0 + q1)
+        z = L1 * np.sin(q1) + (L2 + L4) * np.sin(np.pi - (eta + mu) + q1)
 
         return np.array([x, y, z], dtype=float)
 
