@@ -62,8 +62,8 @@ class Sim:
             print("error: model choice invalid")
             model_path = None
 
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.6],  # 0.31
-                         robotStartOrientation, useFixedBase=1,
+        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7],  # 0.31
+                         robotStartOrientation, useFixedBase=0,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
         vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
@@ -73,11 +73,11 @@ class Sim:
         self.numJoints = p.getNumJoints(self.bot)
         p.setRealTimeSimulation(useRealTime)
         # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
-
+        # '''
         if model is 'parallel':
             cid = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
-
+        # '''
         # print(p.getJointInfo(self.bot, 3))
         # Record Video in real time
         if self.record_rt is True:
@@ -85,7 +85,7 @@ class Sim:
 
         # Disable the default velocity/position motor:
         for i in range(self.numJoints):
-            p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0.5)  # force=0.5
+            p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0.1)  # force=0.5
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
 
@@ -110,8 +110,8 @@ class Sim:
             q[1] *= -1  # This seems to be correct 8-25-21
         elif self.model is "parallel":
             torque = np.zeros(4)
-            torque[0] = u[0]  # readjust to match motor polarity
-            torque[2] = -u[1]  # readjust to match motor polarity
+            torque[0] = -u[1]  # readjust to match motor polarity
+            torque[2] = -u[0]  # readjust to match motor polarity
             q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q = np.zeros(2)
             q[0] = q_all[2]
@@ -126,8 +126,6 @@ class Sim:
         # base angular velocity in quaternions
         # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
         # found to be intrinsic Euler angles (r)
-
-
 
         # Detect contact of feet with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, 1)]))

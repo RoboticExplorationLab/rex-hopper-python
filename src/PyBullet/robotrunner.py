@@ -80,8 +80,7 @@ class Runner:
         # footstep planner values
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
-        self.force_control_test = False
-        self.qvis_animate = False
+
         self.plot = True
         self.cycle = False
         self.closedform_invkin = True
@@ -104,7 +103,7 @@ class Runner:
         con_c = 0
         c_s = 0
 
-        total = 3000  # number of timesteps to plot
+        total = 15000  # number of timesteps to plot
         if self.plot:
             fig, axs = plt.subplots(1, 3, sharey=False)
             value1 = np.zeros((total, 3))
@@ -191,7 +190,7 @@ class Runner:
             if self.cycle is True:
                 self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
-
+                print("whoops")
             elif self.closedform_invkin is True:
 
                 # TODO: could use an integral term due to friction
@@ -209,9 +208,12 @@ class Runner:
                 elif state == 'Leap':
                     self.target = np.array([0, 0, -0.55])
 
-                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 1 + self.leg.dq * 0.1
+                # self.target[2] = -0.5
+                # print((self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]))* 180/np.pi)
+                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 200 + self.leg.dq * 5
 
             else:
+                print("whoops")
                 self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             prev_state = state
@@ -228,12 +230,12 @@ class Runner:
                     axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
                     plt.show()
 
-            # print(t, state)
+            print(t, sh, state)
             # print(p_base_z)
             # print(self.leg.position())
             # print(self.target)
-            print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
-            print("enc = ", self.leg.q * 180/np.pi)
+            # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
+            # print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 
@@ -250,10 +252,10 @@ class Runner:
         return s
 
     def gait_check(self, s, s_prev, ct, t):
-        # To ensure that after state has been changed from stance to swing, it cannot change to "early" immediately...
+        # To ensure that after state has been changed, it cannot change to again immediately...
         # Generates "go" variable as True only when criteria for time passed since gait change is met
         if s_prev != s:
-            ct = t  # record time of gait change
+            ct = t  # record time of state change
         if ct - t >= self.t_p * (1 - self.phi_switch) * 0.5:
             go = True
         else:
