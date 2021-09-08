@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import simulationbridge
 import leg_serial
 import leg_parallel
+import leg_belt
 import wbc
 import statemachine
 import gait
@@ -43,18 +44,27 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 
 class Runner:
 
-    def __init__(self, dt=1e-3):
+    def __init__(self, dt=1e-3, model='serial'):
 
         self.dt = dt
         self.u = np.zeros(2)
 
         # height constant
         self.hconst = 0.3
-        model = 'parallel'
+        model = 'belt'
+        # model = 'parallel'
+        # model = 'serial'
         if model is 'serial':
             self.leg = leg_serial.Leg(dt=dt)
+            self.k_kin = 70
         elif model is 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
+            self.k_kin = 120
+            print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
+        if model is 'belt':
+            self.k_kin = 220
+            self.leg = leg_belt.Leg(dt=dt)
+            print("WARNING: Belt model only works with closed form inv kin, do not attempt wbc (WIP)")
 
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
@@ -81,6 +91,7 @@ class Runner:
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
 
+        self.model = model
         self.plot = True
         self.cycle = False
         self.closedform_invkin = True
@@ -103,21 +114,30 @@ class Runner:
         con_c = 0
         c_s = 0
 
-        total = 15000  # number of timesteps to plot
+        total = 7000  # number of timesteps to plot
         if self.plot:
-            fig, axs = plt.subplots(1, 3, sharey=False)
             value1 = np.zeros((total, 3))
             value2 = np.zeros((total, 3))
             value3 = np.zeros((total, 3))
-            axs[0].set_title('q0 torque')
-            axs[0].set_xlabel("Timesteps")
-            axs[0].set_ylabel("q0 torque (Nm)")
-            axs[1].set_title('q1 torque')
-            axs[1].set_xlabel("Timesteps")
-            axs[1].set_ylabel("q1 torque (Nm)")
-            axs[2].set_title('base z position')
-            axs[2].set_xlabel("Timesteps")
-            axs[2].set_ylabel("z position (m)")
+            if self.model is 'serial' or self.model is 'parallel':
+                fig, axs = plt.subplots(1, 3, sharey=False)
+                axs[0].set_title('q0 torque')
+                axs[0].set_xlabel("Timesteps")
+                axs[0].set_ylabel("q0 torque (Nm)")
+                axs[1].set_title('q1 torque')
+                axs[1].set_xlabel("Timesteps")
+                axs[1].set_ylabel("q1 torque (Nm)")
+                axs[2].set_title('base z position')
+                axs[2].set_xlabel("Timesteps")
+                axs[2].set_ylabel("z position (m)")
+            elif self.model is 'belt':
+                fig, axs = plt.subplots(1, 2, sharey=False)
+                axs[0].set_title('q0 torque')
+                axs[0].set_xlabel("Timesteps")
+                axs[0].set_ylabel("q0 torque (Nm)")
+                axs[1].set_title('base z position')
+                axs[1].set_xlabel("Timesteps")
+                axs[1].set_ylabel("z position (m)")
         else:
             value1 = None
             value2 = None
@@ -132,7 +152,6 @@ class Runner:
             # run simulator to get encoder and IMU feedback
             # put an if statement here once we have hardware bridge too
             q, b_orient, c = self.simulator.sim_run(u=self.u)
-            q[1] *= -1
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -190,9 +209,9 @@ class Runner:
             if self.cycle is True:
                 self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
-                print("whoops")
-            elif self.closedform_invkin is True:
 
+            elif self.closedform_invkin is True:
+                time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
                 # TODO: could use an integral term due to friction
                 # self.target[2] = -0.5
                 if state == 'Return':
@@ -208,34 +227,40 @@ class Runner:
                 elif state == 'Leap':
                     self.target = np.array([0, 0, -0.55])
 
-                # self.target[2] = -0.5
-                # print((self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]))* 180/np.pi)
-                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * 200 + self.leg.dq * 5
+                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin + self.leg.dq * 2
 
             else:
-                print("whoops")
                 self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             prev_state = state
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
 
-            if self.plot and steps <= total-1:
-                value1[steps-1, :] = self.u[0]
-                value2[steps-1, :] = self.u[1]
-                value3[steps-1, :] = p_base_z
-                if steps == total-1:
-                    axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
-                    axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
-                    axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
-                    plt.show()
 
-            print(t, sh, state)
+            if self.plot and steps <= total-1:
+                if self.model is 'serial' or self.model is 'parallel':
+                    value1[steps-1, :] = self.u[0]
+                    value2[steps-1, :] = self.u[1]
+                    value3[steps-1, :] = p_base_z
+                    if steps == total-1:
+                        axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
+                        axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
+                        axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
+                        plt.show()
+                elif self.model is 'belt':
+                    value1[steps-1, :] = self.u
+                    value2[steps-1, :] = p_base_z
+                    if steps == total-1:
+                        axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
+                        axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
+                        plt.show()
+
+            # print(t, sh, state)
             # print(p_base_z)
             # print(self.leg.position())
             # print(self.target)
-            # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
-            # print("enc = ", self.leg.q * 180/np.pi)
+            print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
+            print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 

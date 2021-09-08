@@ -54,7 +54,7 @@ class Sim:
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
 
-        if model is 'serial':
+        if model is 'serial' or 'belt':
             model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf"
         elif model is 'parallel':
             model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf"
@@ -77,6 +77,11 @@ class Sim:
         if model is 'parallel':
             cid = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
+        elif model is 'belt':
+            # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
+            belt = p.createConstraint(self.bot, 0, self.bot, 1,
+                                     p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
+            p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=10000)
         # '''
         # print(p.getJointInfo(self.bot, 3))
         # Record Video in real time
@@ -85,7 +90,7 @@ class Sim:
 
         # Disable the default velocity/position motor:
         for i in range(self.numJoints):
-            p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0.1)  # force=0.5
+            p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0)  # force=0.5
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
 
@@ -107,7 +112,8 @@ class Sim:
             torque = -u
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q[1] *= -1  # This seems to be correct 8-25-21
+            # q[1] *= -1  # This seems to be correct 8-25-21
+
         elif self.model is "parallel":
             torque = np.zeros(4)
             torque[0] = -u[1]  # readjust to match motor polarity
@@ -115,7 +121,14 @@ class Sim:
             q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q = np.zeros(2)
             q[0] = q_all[2]
-            q[1] = -q_all[0]  # This seems to be correct 9-06-21
+            q[1] = q_all[0]  # This seems to be correct 9-06-21
+
+        elif self.model is "belt":
+            torque = np.zeros(2)
+            torque[0] = -u[0] # only 1 DoF actuated
+            # Pull values in from simulator, select relevant ones, reshape to 2D array
+            q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q = q[0] # only 1 DoF actuated, remove extra.
 
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
