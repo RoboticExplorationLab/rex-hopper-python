@@ -54,9 +54,9 @@ class Sim:
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
 
-        if model is 'serial' or 'belt':
+        if model == 'serial' or model == 'belt':
             model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf"
-        elif model is 'parallel':
+        elif model == 'parallel':
             model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf"
         else:
             print("error: model choice invalid")
@@ -74,10 +74,10 @@ class Sim:
         p.setRealTimeSimulation(useRealTime)
         # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
         # '''
-        if model is 'parallel':
+        if model == 'parallel':
             cid = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
-        elif model is 'belt':
+        elif model == 'belt':
             # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
                                      p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
@@ -108,13 +108,13 @@ class Sim:
         b_orient[3] = base_or_p[2]  # z
         b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
-        if self.model is "serial":
+        if self.model == "serial":
             torque = -u
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             # q[1] *= -1  # This seems to be correct 8-25-21
 
-        elif self.model is "parallel":
+        elif self.model == "parallel":
             torque = np.zeros(4)
             torque[0] = -u[1]  # readjust to match motor polarity
             torque[2] = -u[0]  # readjust to match motor polarity
@@ -123,12 +123,14 @@ class Sim:
             q[0] = q_all[2]
             q[1] = q_all[0]  # This seems to be correct 9-06-21
 
-        elif self.model is "belt":
+        elif self.model == "belt":
             torque = np.zeros(2)
             torque[0] = -u[0] # only 1 DoF actuated
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q = q[0] # only 1 DoF actuated, remove extra.
+
+        torque = np.clip(torque, -54, 54)  # Motor Max Torque
 
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)

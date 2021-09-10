@@ -44,26 +44,27 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 
 class Runner:
 
-    def __init__(self, dt=1e-3, model='serial'):
+    def __init__(self, dt=1e-3, plot=False, model='serial', ctrl_type='wbc_cycle'):
 
         self.dt = dt
         self.u = np.zeros(2)
 
         # height constant
         self.hconst = 0.3
-        model = 'belt'
-        # model = 'parallel'
-        # model = 'serial'
-        if model is 'serial':
+        self.model = model
+        self.ctrl_type = ctrl_type
+        self.plot = plot
+
+        if model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
             self.k_kin = 70
-        elif model is 'parallel':
+        elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
             self.k_kin = 120
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
-        if model is 'belt':
-            self.k_kin = 220
+        elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
+            self.k_kin = 220
             print("WARNING: Belt model only works with closed form inv kin, do not attempt wbc (WIP)")
 
         controller_class = wbc
@@ -91,10 +92,6 @@ class Runner:
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
 
-        self.model = model
-        self.plot = True
-        self.cycle = False
-        self.closedform_invkin = True
 
     def run(self):
 
@@ -119,7 +116,7 @@ class Runner:
             value1 = np.zeros((total, 3))
             value2 = np.zeros((total, 3))
             value3 = np.zeros((total, 3))
-            if self.model is 'serial' or self.model is 'parallel':
+            if self.model == 'serial' or self.model == 'parallel':
                 fig, axs = plt.subplots(1, 3, sharey=False)
                 axs[0].set_title('q0 torque')
                 axs[0].set_xlabel("Timesteps")
@@ -130,7 +127,7 @@ class Runner:
                 axs[2].set_title('base z position')
                 axs[2].set_xlabel("Timesteps")
                 axs[2].set_ylabel("z position (m)")
-            elif self.model is 'belt':
+            elif self.model == 'belt':
                 fig, axs = plt.subplots(1, 2, sharey=False)
                 axs[0].set_title('q0 torque')
                 axs[0].set_xlabel("Timesteps")
@@ -206,11 +203,11 @@ class Runner:
 
             delp = pdot*self.dt
             # calculate wbc control signal
-            if self.cycle is True:
+            if self.ctrl_type == 'wbc_cycle':
                 self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
 
-            elif self.closedform_invkin is True:
+            elif self.ctrl_type == 'simple_invkin':
                 time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
                 # TODO: could use an integral term due to friction
                 # self.target[2] = -0.5
@@ -237,8 +234,8 @@ class Runner:
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
 
 
-            if self.plot and steps <= total-1:
-                if self.model is 'serial' or self.model is 'parallel':
+            if self.plot == True and steps <= total-1:
+                if self.model == 'serial' or self.model == 'parallel':
                     value1[steps-1, :] = self.u[0]
                     value2[steps-1, :] = self.u[1]
                     value3[steps-1, :] = p_base_z
@@ -247,7 +244,7 @@ class Runner:
                         axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
                         axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
                         plt.show()
-                elif self.model is 'belt':
+                elif self.model == 'belt':
                     value1[steps-1, :] = self.u
                     value2[steps-1, :] = p_base_z
                     if steps == total-1:
