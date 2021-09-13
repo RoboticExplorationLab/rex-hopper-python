@@ -44,10 +44,10 @@ class Runner:
 
         if model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
-            self.k_kin = 70 # 25  # 70
+            self.k_kin = 70
         elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
-            self.k_kin = 120
+            self.k_kin = 80 # 120
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
@@ -97,6 +97,10 @@ class Runner:
         c_prev = 0
         con_c = 0
         c_s = 0
+
+        sh_prev = 0
+        t_l = 0
+        t_f = 0
 
         total = 7000  # number of timesteps to plot
         if self.plot:
@@ -152,6 +156,14 @@ class Runner:
             c, c_s, con_c = contact_check(c, c_s, c_prev, steps, con_c)
             sh = int(c)
 
+            if sh == 0 and sh_prev == 1:
+                t_f = t  # time of flight
+            if sh == 1 and sh_prev == 0:
+                t_l = t  # time of landing
+                t_ft = t_l - t_f  # last flight time
+                print(t_ft)
+
+            sh_prev = sh
             c_prev = c
 
             # forward kinematics

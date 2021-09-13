@@ -65,8 +65,9 @@ class Sim:
         # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
         # '''
         if model == 'parallel':
-            cid = p.createConstraint(self.bot, 1, self.bot, 3,
+            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
+            p.changeConstraint(linkjoint, maxForce=10000)
         elif model == 'belt':
             # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
@@ -108,8 +109,8 @@ class Sim:
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
-            torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1])
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=7)
+            torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1], gr_out=12)
             # q[1] *= -1  # This seems to be correct 8-25-21
 
         elif self.model == "parallel":
@@ -120,14 +121,14 @@ class Sim:
             q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q[0] = q_all[2]
             q[1] = q_all[0]  # This seems to be correct 9-06-21
-
+            q_dot = np.zeros(4)
             q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot[0] = q_dot_all[2]
             q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
-
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
+            torque = np.zeros(4)
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=12)
             torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1])
-            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2])
+            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2], gr_out=12)
             torque[3] = actuator.actuate(v=command[3], q_dot=q_dot[3])
 
         elif self.model == "belt":
@@ -142,7 +143,7 @@ class Sim:
             q_dot[0] = q_dot_all[0]
 
             torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
-        print(q_dot)
+
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
