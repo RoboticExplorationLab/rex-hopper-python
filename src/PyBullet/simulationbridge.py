@@ -1,18 +1,5 @@
 """
 Copyright (C) 2020 Benjamin Bokser
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
@@ -20,6 +7,8 @@ import transforms3d
 import pybullet as p
 import pybullet_data
 import os
+
+import actuator
 
 useRealTime = 0
 
@@ -42,6 +31,7 @@ class Sim:
         self.omega = None
         self.v = None
         self.record_rt = False  # record video in real time
+        self.base_pos = None
 
         GRAVITY = -9.807
         # physicsClient = p.connect(p.GUI)
@@ -108,30 +98,51 @@ class Sim:
         b_orient[3] = base_or_p[2]  # z
         b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
+        q_dot = np.zeros(2)
+        torque = np.zeros(2)
+        q = np.zeros(2)
+
         if self.model == "serial":
-            torque = -u
+            command = -u
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
+            torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1])
             # q[1] *= -1  # This seems to be correct 8-25-21
 
         elif self.model == "parallel":
-            torque = np.zeros(4)
-            torque[0] = -u[1]  # readjust to match motor polarity
-            torque[2] = -u[0]  # readjust to match motor polarity
+            command = np.zeros(4)
+            command[0] = -u[1]  # readjust to match motor polarity
+            command[2] = -u[0]  # readjust to match motor polarity
+
             q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q = np.zeros(2)
             q[0] = q_all[2]
             q[1] = q_all[0]  # This seems to be correct 9-06-21
 
+            q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q_dot[0] = q_dot_all[2]
+            q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
+
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
+            torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1])
+            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2])
+            torque[3] = actuator.actuate(v=command[3], q_dot=q_dot[3])
+
         elif self.model == "belt":
-            torque = np.zeros(2)
-            torque[0] = -u[0] # only 1 DoF actuated
+            command = np.zeros(2)
+            command[0] = -u[0] # only 1 DoF actuated
+
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q = q[0] # only 1 DoF actuated, remove extra.
 
-        torque = np.clip(torque, -54, 54)  # Motor Max Torque
+            q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q_dot[0] = q_dot_all[0]
 
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
+        print(q_dot)
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
@@ -150,4 +161,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, b_orient, c
+        return q, b_orient, c, torque

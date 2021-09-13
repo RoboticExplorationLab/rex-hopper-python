@@ -1,18 +1,5 @@
 """
 Copyright (C) 2020 Benjamin Bokser
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import simulationbridge
 import leg_serial
@@ -57,7 +44,7 @@ class Runner:
 
         if model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
-            self.k_kin = 70
+            self.k_kin = 70 # 25  # 70
         elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
             self.k_kin = 120
@@ -148,7 +135,7 @@ class Runner:
             skip = False
             # run simulator to get encoder and IMU feedback
             # put an if statement here once we have hardware bridge too
-            q, b_orient, c = self.simulator.sim_run(u=self.u)
+            q, b_orient, c, torque = self.simulator.sim_run(u=self.u)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -224,10 +211,13 @@ class Runner:
                 elif state == 'Leap':
                     self.target = np.array([0, 0, -0.55])
 
-                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin + self.leg.dq * 2
+                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
+                         + self.leg.dq * self.k_kin*0.03
 
-            else:
-                self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+            elif self.ctrl_type == 'static_invkin':
+                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
+                         + self.leg.dq * self.k_kin*0.03
+                # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             prev_state = state
 
@@ -235,19 +225,30 @@ class Runner:
 
 
             if self.plot == True and steps <= total-1:
-                if self.model == 'serial' or self.model == 'parallel':
-                    value1[steps-1, :] = self.u[0]
-                    value2[steps-1, :] = self.u[1]
+                if self.model == 'serial':
+                    value1[steps-1, :] = torque[0] # self.u[0]
+                    value2[steps-1, :] = torque[1] # self.u[1]
                     value3[steps-1, :] = p_base_z
-                    if steps == total-1:
+                    if steps == total - 1:
                         axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
                         axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
                         axs[2].plot(range(total-1), value3[:-1, 0], color='blue')
                         plt.show()
+
+                elif self.model == 'parallel':
+                    value1[steps - 1, :] = torque[0]  # self.u[0]
+                    value2[steps - 1, :] = torque[2]  # self.u[1]
+                    value3[steps - 1, :] = p_base_z
+                    if steps == total - 1:
+                        axs[0].plot(range(total - 1), value1[:-1, 0], color='blue')
+                        axs[1].plot(range(total - 1), value2[:-1, 0], color='blue')
+                        axs[2].plot(range(total - 1), value3[:-1, 0], color='blue')
+                        plt.show()
+
                 elif self.model == 'belt':
                     value1[steps-1, :] = self.u
                     value2[steps-1, :] = p_base_z
-                    if steps == total-1:
+                    if steps == total - 1:
                         axs[0].plot(range(total-1), value1[:-1, 0], color='blue')
                         axs[1].plot(range(total-1), value2[:-1, 0], color='blue')
                         plt.show()
@@ -256,8 +257,8 @@ class Runner:
             # print(p_base_z)
             # print(self.leg.position())
             # print(self.target)
-            print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
-            print("enc = ", self.leg.q * 180/np.pi)
+            # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
+            # print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 

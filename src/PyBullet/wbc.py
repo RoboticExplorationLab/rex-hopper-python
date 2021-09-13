@@ -1,19 +1,6 @@
 """
 Copyright (C) 2013 Travis DeWolf
 Copyright (C) 2020 Benjamin Bokser
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 import transforms3d
@@ -38,7 +25,7 @@ class Control(control.Control):
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        self.kp[0, 0] = 5000
+        self.kp[0, 0] = 5000  # 5000
         self.kp[1, 1] = 5000
         self.kp[2, 2] = 5000
 
@@ -119,7 +106,6 @@ class Control(control.Control):
         # ------------------------------------------------------------------------------------------------#
 
         x_dd_des = x_dd_des[ctrlr_dof]  # get rid of dim not being controlled
-        # print(x_dd_des)
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # calculate force
@@ -137,11 +123,6 @@ class Control(control.Control):
         self.x_dd_des = x_dd_des
         self.Mx = Mx
         self.J = JEE
-        # self.u = (np.dot(JEE.T, Fx).reshape(-1, )) - self.grav + (np.dot(JEE.T, Fr).reshape(-1, ))
-
-        # add in velocity compensation in GC space for stability
-        # self.u = np.dot(JEE.T, Fx).reshape(-1, ) \
-        #     - np.dot(Mq, np.dot(self.kd, leg.dq)).flatten() - self.grav
 
         # if null_control is selected, add a control signal in the
         # null space to try to move the leg to selected position
