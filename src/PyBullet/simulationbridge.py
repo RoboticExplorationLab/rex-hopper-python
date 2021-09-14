@@ -126,10 +126,8 @@ class Sim:
             q_dot[0] = q_dot_all[2]
             q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
             torque = np.zeros(4)
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=12)
-            torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1])
-            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2], gr_out=12)
-            torque[3] = actuator.actuate(v=command[3], q_dot=q_dot[3])
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=7)
+            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2], gr_out=7)
 
         elif self.model == "belt":
             command = np.zeros(2)
@@ -142,7 +140,7 @@ class Sim:
             q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot[0] = q_dot_all[0]
 
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0])
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=21)
 
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
@@ -162,4 +160,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, b_orient, c, torque
+        return q, b_orient, c, torque, q_dot
