@@ -34,13 +34,14 @@ class Gait:
             u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
         elif state == 'HeelStrike':
-
+            '''
             if prev_state != state:
                 # if contact has just been made, save that contact point as the new target to stay at
                 # (stop following through with trajectory)
                 self.r_save = r_in
             self.r_save = self.r_save - delp
             self.target = np.hstack(np.append(self.r_save, self.init_angle))
+            '''
             self.target[2] = -self.hconst
             u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 

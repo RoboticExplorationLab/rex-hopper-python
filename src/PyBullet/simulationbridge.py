@@ -126,8 +126,8 @@ class Sim:
             q_dot[0] = q_dot_all[2]
             q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
             torque = np.zeros(4)
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=7)
-            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2], gr_out=7)
+            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=14)
+            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2], gr_out=14)
 
         elif self.model == "belt":
             command = np.zeros(2)

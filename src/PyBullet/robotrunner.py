@@ -47,7 +47,7 @@ class Runner:
             self.k_kin = 70
         elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
-            self.k_kin = 120
+            self.k_kin = 40 # 120
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)

@@ -15,7 +15,7 @@ def actuate(v, q_dot, gr=7, gr_out=7, tau_stall=50, kt=3.85, r=0.38, l=0.45/1000
     if omega > omega_max:
         print("WARNING: Max NO-LOAD speed surpassed with omega = ", omega)
 
-    omega = np.clip(omega, -omega_max, omega_max)
+    # omega = np.clip(omega, -omega_max, omega_max)
     tau_m = - omega*(kt_m**2)/r + v*kt_m/r  # motor torque
     tau = tau_m * e * gr_out  # actuator output torque
     tau = np.clip(tau, -tau_stall_out, tau_stall_out)
