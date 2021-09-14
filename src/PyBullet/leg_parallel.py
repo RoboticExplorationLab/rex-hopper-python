@@ -38,7 +38,7 @@ class Leg(LegBase):
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
         model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.csv"
-        path = os.path.join(path_parent, model_path)
+        path = os.path.join(path_parent, '..', model_path)
         with open(path, 'r') as csvfile:
             data_direct = csv.reader(csvfile, delimiter=',')
             next(data_direct)  # skip headers

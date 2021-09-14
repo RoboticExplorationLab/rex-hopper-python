@@ -52,7 +52,7 @@ class Sim:
             print("error: model choice invalid")
             model_path = None
 
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7],  # 0.31
+        self.bot = p.loadURDF(os.path.join(path_parent, '..', model_path), [0, 0, 0.7],  # 0.31
                          robotStartOrientation, useFixedBase=0,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
