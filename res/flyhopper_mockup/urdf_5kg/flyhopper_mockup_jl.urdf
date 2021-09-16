@@ -11,7 +11,7 @@
         xyz="2.9532E-21 -5.2832E-18 -6.047E-34"
         rpy="0 0 0" />
       <mass
-        value="10" />
+        value="5" />
       <inertia
         ixx="0.016546"
         ixy="8.3198E-20"
@@ -26,7 +26,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://../../res/flyhopper_mockup/meshes/base_link.stl" />  # package://../res/flyhopper_mockup/meshes/base_link.STL
+          filename="../../res/flyhopper_mockup/meshes/base_link.stl" />  # package://../res/flyhopper_mockup/meshes/base_link.stl
       </geometry>
       <material
         name="">
@@ -40,7 +40,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://../../res/flyhopper_mockup/meshes/base_link.stl" />  # package://../res/flyhopper_mockup/meshes/base_link.STL
+          filename="../../res/flyhopper_mockup/meshes/base_link.stl" />  # package://../res/flyhopper_mockup/meshes/base_link.stl
       </geometry>
     </collision>
   </link>
@@ -66,7 +66,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://../../res/flyhopper_mockup/meshes/Link 1.stl" />
+          filename="../../res/flyhopper_mockup/meshes/Link 1.stl" />
       </geometry>
       <material
         name="">
@@ -80,7 +80,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://../../res/flyhopper_mockup/meshes/Link 1.stl" />
+          filename="../../res/flyhopper_mockup/meshes/Link 1.stl" />
       </geometry>
     </collision>
   </link>
@@ -124,7 +124,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://../../res/flyhopper_mockup/meshes/Link 2.stl" />
+          filename="../../res/flyhopper_mockup/meshes/Link 2.stl" />
       </geometry>
       <material
         name="">
@@ -138,7 +138,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://../../res/flyhopper_mockup/meshes/Link 2.stl" />
+          filename="../../res/flyhopper_mockup/meshes/Link 2.stl" />
       </geometry>
     </collision>
   </link>

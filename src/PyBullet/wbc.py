@@ -14,7 +14,7 @@ class Control(control.Control):
     Controls the (x,y,z) position of the end-effector.
     """
 
-    def __init__(self, dt=1e-3, null_control=True, **kwargs):
+    def __init__(self, dt=1e-3, null_control=False, **kwargs):
         """
         null_control boolean: apply second controller in null space or not
         """
@@ -25,11 +25,11 @@ class Control(control.Control):
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        self.kp[0, 0] = 10000  # 5000
-        self.kp[1, 1] = 10000
-        self.kp[2, 2] = 5000
+        self.kp[0, 0] = 60 # 5000
+        self.kp[1, 1] = 60
+        self.kp[2, 2] = 60
 
-        self.kv = np.array(self.kp)*0.02
+        self.kv = np.array(self.kp)*0.1
 
         self.ko = np.zeros((3, 3))
         self.ko[0, 0] = 1000
@@ -37,8 +37,8 @@ class Control(control.Control):
         self.ko[2, 2] = 1000
 
         self.kn = np.zeros((2, 2))
-        self.kn[0, 0] = 10
-        self.kn[1, 1] = 10
+        self.kn[0, 0] = 100
+        self.kn[1, 1] = 100
 
         self.kf = 1
 

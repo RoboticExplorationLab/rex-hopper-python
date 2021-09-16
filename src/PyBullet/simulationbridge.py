@@ -25,7 +25,7 @@ def reaction_torques():
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial'):
+    def __init__(self, dt=1e-3, model='serial', fixed=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -53,7 +53,7 @@ class Sim:
             model_path = None
 
         self.bot = p.loadURDF(os.path.join(path_parent, '..', model_path), [0, 0, 0.7],  # 0.31
-                         robotStartOrientation, useFixedBase=0,
+                         robotStartOrientation, useFixedBase=fixed,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
         vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
@@ -109,8 +109,8 @@ class Sim:
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=7)
-            torque[1] = actuator.actuate(v=command[1], q_dot=q_dot[1], gr_out=12)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=12)
+            torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
             # q[1] *= -1  # This seems to be correct 8-25-21
 
         elif self.model == "parallel":
@@ -126,8 +126,8 @@ class Sim:
             q_dot[0] = q_dot_all[2]
             q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
             torque = np.zeros(4)
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=14)
-            torque[2] = actuator.actuate(v=command[2], q_dot=q_dot[2], gr_out=14)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=12)
+            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=12)
 
         elif self.model == "belt":
             command = np.zeros(2)
@@ -140,7 +140,7 @@ class Sim:
             q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot[0] = q_dot_all[0]
 
-            torque[0] = actuator.actuate(v=command[0], q_dot=q_dot[0], gr_out=21)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=21)
 
         # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)

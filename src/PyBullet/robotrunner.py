@@ -31,7 +31,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 
 class Runner:
 
-    def __init__(self, dt=1e-3, plot=False, model='serial', ctrl_type='wbc_cycle'):
+    def __init__(self, dt=1e-3, model='serial', ctrl_type='wbc_cycle', plot=False, fixed=False):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -44,19 +44,22 @@ class Runner:
 
         if model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
-            self.k_kin = 70
+            self.k_kin = 70 # np.array([70, 70])
+            self.k_d = self.k_kin * 0.02
         elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
-            self.k_kin = 40 # 120
+            self.k_kin = 50
+            self.k_d = self.k_kin * 0.02
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
-            self.k_kin = 210
+            self.k_kin = 15 # 210
+            self.k_d = self.k_kin * 0.02
             print("WARNING: Belt model only works with closed form inv kin, do not attempt wbc (WIP)")
 
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
-        self.simulator = simulationbridge.Sim(dt=dt, model=model)
+        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed)
         self.state = statemachine.Char()
 
         # gait scheduler values
@@ -102,7 +105,7 @@ class Runner:
         t_l = 0
         t_f = 0
 
-        total = 7000  # number of timesteps to plot
+        total = 4000  # number of timesteps to plot
         if self.plot:
             value1 = np.zeros((total, 3))
             value2 = np.zeros((total, 3))
@@ -237,11 +240,12 @@ class Runner:
                     self.target = np.array([0, 0, -0.55])
 
                 self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
-                         + self.leg.dq * self.k_kin*0.03
+                         + self.leg.dq * self.k_d
 
             elif self.ctrl_type == 'static_invkin':
+                time.sleep(self.dt / 2)  # closed form inv kin runs much faster than full wbc, slow it down
                 self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
-                         + self.leg.dq * self.k_kin*0.03
+                         + self.leg.dq * self.k_d
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             prev_state = state
