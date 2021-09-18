@@ -13,12 +13,12 @@ import actuator
 useRealTime = 0
 
 def reaction_force(numjoints, bot):
-    # returns joint reaction torques
+    # returns joint reaction force
     reaction = [j[2] for j in p.getJointStates(bot, range(numjoints))]  # j[2]=jointReactionForces
     #  [Fx, Fy, Fz, Mx, My, Mz]
     reaction = np.array(reaction)
-    f_z = reaction[:, 2]  # selected all joints Fz
-    return f_z
+    f = np.linalg.norm(reaction[:, 0:3], axis=1)  # selected all joints Fz
+    return f
 
 
 class Sim:
@@ -61,7 +61,7 @@ class Sim:
         self.numJoints = p.getNumJoints(self.bot)
         p.setRealTimeSimulation(useRealTime)
         # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
-        # '''
+
         if model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
@@ -71,8 +71,7 @@ class Sim:
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
                                      p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
             p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=10000)
-        # '''
-        # print(p.getJointInfo(self.bot, 3))
+
         # Record Video in real time
         if self.record_rt is True:
             p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
@@ -85,7 +84,7 @@ class Sim:
 
         self.model = model
 
-    def sim_run(self, u):
+    def sim_run(self, u, tau_s):
 
         base_or_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format
@@ -124,8 +123,8 @@ class Sim:
             q_dot[0] = q_dot_all[2]
             q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
             torque = np.zeros(4)
-            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7)
-            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
+            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
 
         elif self.model == "belt":
             command = np.zeros(2)
@@ -149,7 +148,7 @@ class Sim:
         # base angular velocity in quaternions
         # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
         # found to be intrinsic Euler angles (r)
-        f_z = reaction_force(self.numJoints, self.bot)
+        f = reaction_force(self.numJoints, self.bot)
         # Detect contact of feet with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, 1)]))
 
@@ -158,4 +157,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, b_orient, c, torque, q_dot, f_z
+        return q, b_orient, c, torque, q_dot, f

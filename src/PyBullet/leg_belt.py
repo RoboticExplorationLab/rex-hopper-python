@@ -27,7 +27,7 @@ class Leg(LegBase):
 
         LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
-        # link lengths (mm) must be manually updated
+        # link lengths (m) must be manually updated
         L0 = .3
         L1 = .3
         self.L = np.array([L0, L1])

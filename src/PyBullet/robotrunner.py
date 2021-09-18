@@ -18,6 +18,34 @@ import matplotlib.pyplot as plt
 
 np.set_printoptions(suppress=True, linewidth=np.nan)
 
+def spring(q):
+    """
+    adds linear extension spring b/t joints 1 and 3 of parallel mechanism
+    approximated by applying torques to joints 0 and 2
+    """
+    init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
+    if q is None:
+        q0 = init_q[0]
+        q1 = init_q[1]
+    else:
+        q0 = q[0]
+        q1 = q[1]
+    k = 500  # spring constant, N/m
+    # link lengths (m) must be manually updated
+    L0 = .15
+    L1 = .3
+    gamma = abs(q1 - q0)
+
+    rmin = 0
+    r = np.sqrt(L0 ** 2 + L1 ** 2 - 2 * L0 * L1 * np.cos(gamma))  # length of spring
+    T = k * abs(rmin - r)  # spring tension force
+    alpha = np.arccos((-L0 ** 2 + L1 ** 2 + r ** 2) / (2 * L1 * r))
+    beta = np.arccos((-L1 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
+    tau_s0 = T * np.sin(beta) * L0
+    tau_s1 = -T * np.sin(alpha) * L1
+    tau_s = np.array([tau_s0, tau_s1])
+
+    return tau_s
 
 def contact_check(c, c_s, c_prev, steps, con_c):
     if c_prev != c:
@@ -31,7 +59,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 
 class Runner:
 
-    def __init__(self, dt=1e-3, model='serial', ctrl_type='wbc_cycle', plot=False, fixed=False):
+    def __init__(self, dt=1e-3, model='serial', ctrl_type='wbc_cycle', plot=False, fixed=False, spring=False):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -41,14 +69,14 @@ class Runner:
         self.model = model
         self.ctrl_type = ctrl_type
         self.plot = plot
-
+        self.spring = spring
         if model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
             self.k_kin = 70 # np.array([70, 70])
             self.k_d = self.k_kin * 0.02
         elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
-            self.k_kin = 40
+            self.k_kin = 70
             self.k_d = self.k_kin * 0.02
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
@@ -126,7 +154,7 @@ class Runner:
                 axs[1, 0].set_ylabel("angular velocity, rpm")
                 axs[1, 1].set_title('angular velocity q1_dot')
                 axs[1, 1].set_ylabel("angular velocity, rpm")
-                axs[1, 2].set_title('Vertical Reaction Force on q0')
+                axs[1, 2].set_title('Magnitude of Reaction Force on q0')
                 axs[1, 2].set_ylabel("Reaction Force Fz, N")
             elif self.model == 'belt':
                 fig, axs = plt.subplots(1, 3, sharey=False, sharex=True)
@@ -153,7 +181,11 @@ class Runner:
             skip = False
             # run simulator to get encoder and IMU feedback
             # put an if statement here once we have hardware bridge too
-            q, b_orient, c, torque, q_dot, f_z = self.simulator.sim_run(u=self.u)
+            if self.spring == True:
+                tau_s = spring(self.leg.q)
+            else:
+                tau_s = np.zeros(2)
+            q, b_orient, c, torque, q_dot, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -249,7 +281,6 @@ class Runner:
             prev_state = state
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
-            print(np.shape(f_z))
 
             if self.plot == True and steps <= total-1:
                 if self.model == 'serial':
@@ -258,7 +289,7 @@ class Runner:
                     value3[steps-1, :] = p_base_z
                     value4[steps - 1, :] = q_dot[0]*60/(2*np.pi)  # conversion to RPM
                     value5[steps - 1, :] = q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = f_z[0]
+                    value6[steps - 1, :] = f[0]
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
@@ -274,7 +305,7 @@ class Runner:
                     value3[steps - 1, :] = p_base_z
                     value4[steps - 1, :] = q_dot[0]*60/(2*np.pi)
                     value5[steps - 1, :] = q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = f_z[0]
+                    value6[steps - 1, :] = f[0]
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
