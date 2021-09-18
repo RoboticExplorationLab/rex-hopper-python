@@ -48,7 +48,7 @@ class Runner:
             self.k_d = self.k_kin * 0.02
         elif model == 'parallel':
             self.leg = leg_parallel.Leg(dt=dt)
-            self.k_kin = 50
+            self.k_kin = 40
             self.k_d = self.k_kin * 0.02
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
@@ -112,33 +112,30 @@ class Runner:
             value3 = np.zeros((total, 3))
             value4 = np.zeros((total, 3))
             value5 = np.zeros((total, 3))
+            value6 = np.zeros((total, 3))
             if self.model == 'serial' or self.model == 'parallel':
-                fig, axs = plt.subplots(2, 3, sharey=False)
+                fig, axs = plt.subplots(2, 3, sharey=False, sharex=True)
                 axs[0, 0].set_title('q0 torque')
-                axs[0, 0].set_xlabel("Timesteps")
+                plt.xlabel("Timesteps")
                 axs[0, 0].set_ylabel("q0 torque (Nm)")
                 axs[0, 1].set_title('q1 torque')
-                axs[0, 1].set_xlabel("Timesteps")
                 axs[0, 1].set_ylabel("q1 torque (Nm)")
                 axs[0, 2].set_title('base z position')
-                axs[0, 2].set_xlabel("Timesteps")
                 axs[0, 2].set_ylabel("z position (m)")
                 axs[1, 0].set_title('angular velocity q0_dot')
-                axs[1, 0].set_xlabel("Timesteps")
                 axs[1, 0].set_ylabel("angular velocity, rpm")
                 axs[1, 1].set_title('angular velocity q1_dot')
-                axs[1, 1].set_xlabel("Timesteps")
                 axs[1, 1].set_ylabel("angular velocity, rpm")
+                axs[1, 2].set_title('Vertical Reaction Force on q0')
+                axs[1, 2].set_ylabel("Reaction Force Fz, N")
             elif self.model == 'belt':
-                fig, axs = plt.subplots(1, 3, sharey=False)
+                fig, axs = plt.subplots(1, 3, sharey=False, sharex=True)
                 axs[0].set_title('q0 torque')
-                axs[0].set_xlabel("Timesteps")
+                plt.xlabel("Timesteps")
                 axs[0].set_ylabel("q0 torque (Nm)")
                 axs[1].set_title('angular velocity q0_dot')
-                axs[1].set_xlabel("Timesteps")
                 axs[1].set_ylabel("angular velocity, rpm")
                 axs[2].set_title('base z position')
-                axs[2].set_xlabel("Timesteps")
                 axs[2].set_ylabel("z position (m)")
         else:
             value1 = None
@@ -146,6 +143,7 @@ class Runner:
             value3 = None
             value4 = None
             value5 = None
+            value6 = None
 
         while 1:
             steps += 1
@@ -155,7 +153,7 @@ class Runner:
             skip = False
             # run simulator to get encoder and IMU feedback
             # put an if statement here once we have hardware bridge too
-            q, b_orient, c, torque, q_dot = self.simulator.sim_run(u=self.u)
+            q, b_orient, c, torque, q_dot, f_z = self.simulator.sim_run(u=self.u)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -251,7 +249,7 @@ class Runner:
             prev_state = state
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
-
+            print(np.shape(f_z))
 
             if self.plot == True and steps <= total-1:
                 if self.model == 'serial':
@@ -260,12 +258,14 @@ class Runner:
                     value3[steps-1, :] = p_base_z
                     value4[steps - 1, :] = q_dot[0]*60/(2*np.pi)  # conversion to RPM
                     value5[steps - 1, :] = q_dot[1]*60/(2*np.pi)
+                    value6[steps - 1, :] = f_z[0]
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
                         axs[0, 2].plot(range(total - 1), value3[:-1, 0], color='blue')
                         axs[1, 0].plot(range(total - 1), value4[:-1, 0], color='blue')
                         axs[1, 1].plot(range(total - 1), value5[:-1, 0], color='blue')
+                        axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
                         plt.show()
 
                 elif self.model == 'parallel':
@@ -274,12 +274,14 @@ class Runner:
                     value3[steps - 1, :] = p_base_z
                     value4[steps - 1, :] = q_dot[0]*60/(2*np.pi)
                     value5[steps - 1, :] = q_dot[1]*60/(2*np.pi)
+                    value6[steps - 1, :] = f_z[0]
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
                         axs[0, 2].plot(range(total - 1), value3[:-1, 0], color='blue')
                         axs[1, 0].plot(range(total - 1), value4[:-1, 0], color='blue')
                         axs[1, 1].plot(range(total - 1), value5[:-1, 0], color='blue')
+                        axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
                         plt.show()
 
                 elif self.model == 'belt':

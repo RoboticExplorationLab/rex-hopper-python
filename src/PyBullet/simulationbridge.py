@@ -12,15 +12,13 @@ import actuator
 
 useRealTime = 0
 
-def reaction_torques():
+def reaction_force(numjoints, bot):
     # returns joint reaction torques
-    reaction_force = [j[2] for j in p.getJointStates(bot, range(2))]  # j[2]=jointReactionForces
+    reaction = [j[2] for j in p.getJointStates(bot, range(numjoints))]  # j[2]=jointReactionForces
     #  [Fx, Fy, Fz, Mx, My, Mz]
-    reaction_force = np.array(reaction_force)
-    torques = reaction_force  # selected all joints My
-    # torques[0] = reaction_force[0, 5]  # selected joint 1 Mz
-    # torques[4] = reaction_force[4, 5]  # selected joint 5 Mz
-    return torques
+    reaction = np.array(reaction)
+    f_z = reaction[:, 2]  # selected all joints Fz
+    return f_z
 
 
 class Sim:
@@ -109,7 +107,7 @@ class Sim:
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
-            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=12)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7)
             torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
             # q[1] *= -1  # This seems to be correct 8-25-21
 
@@ -126,8 +124,8 @@ class Sim:
             q_dot[0] = q_dot_all[2]
             q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
             torque = np.zeros(4)
-            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=12)
-            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=12)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7)
+            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7)
 
         elif self.model == "belt":
             command = np.zeros(2)
@@ -151,7 +149,7 @@ class Sim:
         # base angular velocity in quaternions
         # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
         # found to be intrinsic Euler angles (r)
-
+        f_z = reaction_force(self.numJoints, self.bot)
         # Detect contact of feet with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, 1)]))
 
@@ -160,4 +158,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, b_orient, c, torque, q_dot
+        return q, b_orient, c, torque, q_dot, f_z
