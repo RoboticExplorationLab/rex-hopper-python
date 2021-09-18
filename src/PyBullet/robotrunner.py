@@ -30,15 +30,17 @@ def spring(q):
     else:
         q0 = q[0]
         q1 = q[1]
-    k = 500  # spring constant, N/m
+    k = 1500  # spring constant, N/m
     # link lengths (m) must be manually updated
     L0 = .15
     L1 = .3
     gamma = abs(q1 - q0)
-
-    rmin = 0
+    rmin = 0.250
     r = np.sqrt(L0 ** 2 + L1 ** 2 - 2 * L0 * L1 * np.cos(gamma))  # length of spring
-    T = k * abs(rmin - r)  # spring tension force
+    print(r)
+    if r < rmin:
+        print("error: incorrect spring params")
+    T = k * (r - rmin)  # spring tension force
     alpha = np.arccos((-L0 ** 2 + L1 ** 2 + r ** 2) / (2 * L1 * r))
     beta = np.arccos((-L1 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
     tau_s0 = T * np.sin(beta) * L0
