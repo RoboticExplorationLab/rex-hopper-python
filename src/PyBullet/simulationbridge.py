@@ -42,7 +42,9 @@ class Sim:
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
 
-        if model == 'serial' or model == 'belt':
+        if model == 'design':
+            model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
+        elif model == 'serial' or model == 'belt':
             model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf"
         elif model == 'parallel':
             model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf"
@@ -62,6 +64,10 @@ class Sim:
         p.setRealTimeSimulation(useRealTime)
         # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
 
+        if model == 'design':
+            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
+                                     p.JOINT_POINT2POINT, [0, 0, 0], [0.15, 0, 0], [-0.01317691945, 0, 0.0153328498])
+            p.changeConstraint(linkjoint, maxForce=10000)
         if model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
@@ -110,7 +116,7 @@ class Sim:
             torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
             # q[1] *= -1  # This seems to be correct 8-25-21
 
-        elif self.model == "parallel":
+        elif self.model == "parallel" or "design":
             command = np.zeros(4)
             command[0] = -u[1]  # readjust to match motor polarity
             command[2] = -u[0]  # readjust to match motor polarity

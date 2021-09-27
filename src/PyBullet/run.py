@@ -10,7 +10,7 @@ dt = 1e-3
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("model", help="serial, parallel, or belt", type=str)
+parser.add_argument("model", help="design, serial, parallel, or belt", type=str)
 parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle", type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
@@ -32,7 +32,7 @@ if args.spring:
 else:
     spring = False
 
-if args.model == 'parallel' or args.model == 'belt':
+if args.model == 'parallel' or args.model == 'belt' or args.model == 'design':
     if args.ctrl == 'wbc_cycle':
         print("WARNING: This won't work")
 

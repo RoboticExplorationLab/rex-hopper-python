@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 np.set_printoptions(suppress=True, linewidth=np.nan)
 
-def spring(q):
+def spring(q, l):
     """
     adds linear extension spring b/t joints 1 and 3 of parallel mechanism
     approximated by applying torques to joints 0 and 2
@@ -31,20 +31,18 @@ def spring(q):
         q0 = q[0]
         q1 = q[1]
     k = 1500  # spring constant, N/m
-    # link lengths (m) must be manually updated
-    L0 = .15
-    L1 = .3
+    L0 = l[0]  # .15
+    L2 = l[2]  # .3
     gamma = abs(q1 - q0)
     rmin = 0.250
-    r = np.sqrt(L0 ** 2 + L1 ** 2 - 2 * L0 * L1 * np.cos(gamma))  # length of spring
-    print(r)
+    r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
     if r < rmin:
         print("error: incorrect spring params")
     T = k * (r - rmin)  # spring tension force
-    alpha = np.arccos((-L0 ** 2 + L1 ** 2 + r ** 2) / (2 * L1 * r))
-    beta = np.arccos((-L1 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
+    alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
+    beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
     tau_s0 = T * np.sin(beta) * L0
-    tau_s1 = -T * np.sin(alpha) * L1
+    tau_s1 = -T * np.sin(alpha) * L2
     tau_s = np.array([tau_s0, tau_s1])
 
     return tau_s
@@ -72,12 +70,29 @@ class Runner:
         self.ctrl_type = ctrl_type
         self.plot = plot
         self.spring = spring
-        if model == 'serial':
+        if model == 'design':
+            L0 = .1
+            L1 = .3
+            L2 = .3
+            L3 = .1
+            L4 = .2
+            self.L = np.array([L0, L1, L2, L3, L4])
+            self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
+            self.k_kin = 20
+            self.k_d = self.k_kin * 0.02
+            print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
+        elif model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
             self.k_kin = 70 # np.array([70, 70])
             self.k_d = self.k_kin * 0.02
         elif model == 'parallel':
-            self.leg = leg_parallel.Leg(dt=dt)
+            L0 = .15
+            L1 = .3
+            L2 = .3
+            L3 = .15
+            L4 = .15
+            self.L = np.array([L0, L1, L2, L3, L4])
+            self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
             self.k_kin = 70
             self.k_d = self.k_kin * 0.02
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
@@ -184,7 +199,7 @@ class Runner:
             # run simulator to get encoder and IMU feedback
             # put an if statement here once we have hardware bridge too
             if self.spring == True:
-                tau_s = spring(self.leg.q)
+                tau_s = spring(self.leg.q, self.L)
             else:
                 tau_s = np.zeros(2)
             q, b_orient, c, torque, q_dot, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
@@ -329,7 +344,7 @@ class Runner:
 
             # print(t, sh, state)
             # print(p_base_z)
-            # print(self.leg.position())
+            print(self.leg.position())
             # print(self.target)
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
             # print("enc = ", self.leg.q * 180/np.pi)
