@@ -23,12 +23,12 @@ def reaction_force(numjoints, bot):
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial', fixed=False):
+    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
         self.v = None
-        self.record_rt = False  # record video in real time
+        self.record_rt = record  # record video in real time
         self.base_pos = None
 
         GRAVITY = -9.807
@@ -62,13 +62,14 @@ class Sim:
         p.setTimeStep(self.dt)
         self.numJoints = p.getNumJoints(self.bot)
         p.setRealTimeSimulation(useRealTime)
-        # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
+
         self.c_link = 1
         if model == 'design':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0.15, 0, 0], [-0.01317691945, 0, 0.0153328498])
             p.changeConstraint(linkjoint, maxForce=10000)
             self.c_link = 3
+
         if model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
@@ -78,6 +79,9 @@ class Sim:
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
                                      p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
             p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=10000)
+
+        # increase friction of toe to ideal
+        p.changeDynamics(self.bot, self.c_link, lateralFriction=1)
 
         # Record Video in real time
         if self.record_rt is True:

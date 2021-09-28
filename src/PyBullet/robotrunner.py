@@ -59,7 +59,8 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 
 class Runner:
 
-    def __init__(self, dt=1e-3, model='serial', ctrl_type='wbc_cycle', plot=False, fixed=False, spring=False):
+    def __init__(self, dt=1e-3, model='serial', ctrl_type='wbc_cycle', plot=False, fixed=False, spring=False,
+                 record=False):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -116,7 +117,7 @@ class Runner:
 
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
-        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed)
+        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record)
         self.state = statemachine.Char()
 
         # gait scheduler values
@@ -291,6 +292,7 @@ class Runner:
                     self.target[2] = -self.hconst
 
                 elif state == 'Crouch':
+                    # self.target = np.array([-0.1, 0, -self.hconst])
                     self.target[2] = -self.hconst  # go to crouch
 
                 elif state == 'Leap':
@@ -351,7 +353,8 @@ class Runner:
                         axs[1].plot(range(total - 1), value2[:-1, 0], color='blue')
                         axs[2].plot(range(total - 1), value3[:-1, 0], color='blue')
                         plt.show()
-            print(tau_s)
+            # print(tau_s)
+            print(t)
             # print(s, sh, state)
             # print(p_base_z)
             # print(self.leg.position())

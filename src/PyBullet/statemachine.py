@@ -46,7 +46,7 @@ class HeelStrike(State):
 
     def execute(self):
 
-        if self.FSM.sh == 1 and self.FSM.leg_pos[2] >= -0.3:
+        if self.FSM.sh == 1 and self.FSM.leg_pos[2] >= -0.5:
             self.FSM.to_transition("toCrouch")
 
         return str("HeelStrike")
@@ -57,7 +57,8 @@ class Crouch(State):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.s == 0: # wait to jump until scheduled to
+        if self.FSM.leg_pos[2] >= -0.4:
+        # if self.FSM.s == 0: # wait to jump until scheduled to
             self.FSM.to_transition("toLeap")
         return str("Crouch")
 

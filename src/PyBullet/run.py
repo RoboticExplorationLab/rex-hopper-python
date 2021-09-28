@@ -15,6 +15,7 @@ parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle", ty
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
+parser.add_argument("--record", help="add spring: True or False", action="store_true")
 args = parser.parse_args()
 
 if args.plot:
@@ -32,6 +33,11 @@ if args.spring:
 else:
     spring = False
 
+if args.record:
+    record = True
+else:
+    record = False
+
 if args.model == 'parallel' or args.model == 'belt' or args.model == 'design':
     if args.ctrl == 'wbc_cycle':
         print("WARNING: This won't work")
@@ -41,5 +47,5 @@ print("model = ", args.model)
 print("ctrl = ", args.ctrl)
 print("\n")
 
-runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed, spring=spring)
+runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed, spring=spring, record=record)
 runner.run()
