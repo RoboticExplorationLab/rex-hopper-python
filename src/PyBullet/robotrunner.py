@@ -34,15 +34,15 @@ def spring(q, l):
     L0 = l[0]  # .15
     L2 = l[2]  # .3
     gamma = abs(q1 - q0)
-    rmin = 0.250
+    rmin = 0.204
     r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
     if r < rmin:
         print("error: incorrect spring params")
     T = k * (r - rmin)  # spring tension force
     alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
     beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
-    tau_s0 = T * np.sin(beta) * L0
-    tau_s1 = -T * np.sin(alpha) * L2
+    tau_s0 = -T * np.sin(beta) * L0
+    tau_s1 = T * np.sin(alpha) * L2
     tau_s = np.array([tau_s0, tau_s1])
 
     return tau_s
@@ -76,30 +76,42 @@ class Runner:
             L2 = .3
             L3 = .1
             L4 = .2
-            self.L = np.array([L0, L1, L2, L3, L4])
+            L5 = 0.0205
+            self.L = np.array([L0, L1, L2, L3, L4, L5])
             self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
             self.k_kin = 20
             self.k_d = self.k_kin * 0.02
+            self.t_p = 0.9  # gait period, seconds 0.5
+            self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+            self.dir_s = 1  # spring "direction" (accounts for swapped leg config)
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
             self.k_kin = 70 # np.array([70, 70])
             self.k_d = self.k_kin * 0.02
+            self.t_p = 1.4  # gait period, seconds 0.5
+            self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
         elif model == 'parallel':
             L0 = .15
             L1 = .3
             L2 = .3
             L3 = .15
             L4 = .15
-            self.L = np.array([L0, L1, L2, L3, L4])
+            L5 = 0
+            self.L = np.array([L0, L1, L2, L3, L4, L5])
             self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
             self.k_kin = 70
             self.k_d = self.k_kin * 0.02
+            self.t_p = 1.4  # gait period, seconds 0.5
+            self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+            self.dir_s = -1  # spring "direction" (accounts for swapped leg config)
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
             self.k_kin = 15 # 210
             self.k_d = self.k_kin * 0.02
+            self.t_p = 1.4  # gait period, seconds 0.5
+            self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
             print("WARNING: Belt model only works with closed form inv kin, do not attempt wbc (WIP)")
 
         controller_class = wbc
@@ -115,8 +127,7 @@ class Runner:
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
         self.dist_force = np.array([0, 0, 0])
-        self.t_p = 1.4  # gait period, seconds 0.5
-        self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, t_p=self.t_p, phi_switch=self.phi_switch,
                               hconst=self.hconst, dt=dt)
 
@@ -158,7 +169,7 @@ class Runner:
             value4 = np.zeros((total, 3))
             value5 = np.zeros((total, 3))
             value6 = np.zeros((total, 3))
-            if self.model == 'serial' or self.model == 'parallel':
+            if self.model == 'serial' or self.model == 'parallel' or self.model == 'design':
                 fig, axs = plt.subplots(2, 3, sharey=False, sharex=True)
                 axs[0, 0].set_title('q0 torque')
                 plt.xlabel("Timesteps")
@@ -198,8 +209,8 @@ class Runner:
             skip = False
             # run simulator to get encoder and IMU feedback
             # put an if statement here once we have hardware bridge too
-            if self.spring == True:
-                tau_s = spring(self.leg.q, self.L)
+            if self.spring:
+                tau_s = spring(self.leg.q, self.L)*self.dir_s
             else:
                 tau_s = np.zeros(2)
             q, b_orient, c, torque, q_dot, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
@@ -271,7 +282,6 @@ class Runner:
 
             elif self.ctrl_type == 'simple_invkin':
                 time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
-                # TODO: could use an integral term due to friction
                 # self.target[2] = -0.5
                 if state == 'Return':
                     # set target position
@@ -316,7 +326,7 @@ class Runner:
                         axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
                         plt.show()
 
-                elif self.model == 'parallel':
+                elif self.model == 'parallel' or self.model == 'design':
                     value1[steps - 1, :] = torque[0]  # self.u[0]
                     value2[steps - 1, :] = torque[2]  # self.u[1]
                     value3[steps - 1, :] = p_base_z
@@ -341,10 +351,10 @@ class Runner:
                         axs[1].plot(range(total - 1), value2[:-1, 0], color='blue')
                         axs[2].plot(range(total - 1), value3[:-1, 0], color='blue')
                         plt.show()
-
-            # print(t, sh, state)
+            print(tau_s)
+            # print(s, sh, state)
             # print(p_base_z)
-            print(self.leg.position())
+            # print(self.leg.position())
             # print(self.target)
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
             # print("enc = ", self.leg.q * 180/np.pi)

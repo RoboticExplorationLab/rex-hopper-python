@@ -23,9 +23,9 @@ class Leap(State):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.sh == 0:
+        if self.FSM.sh == 0 and self.FSM.leg_pos[2] <= -0.4:
             self.FSM.to_transition("toReturn")
-
+        # print(self.FSM.leg_pos[2])
         return str("Leap")
 
 

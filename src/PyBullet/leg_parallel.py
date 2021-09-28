@@ -226,15 +226,18 @@ class Leg(LegBase):
         L2 = self.L[2]
         L3 = self.L[3]
         L4 = self.L[4]
+        L5 = self.L[5]
         d = 0  # distance along x b/t motors, 0 for 4-bar link
 
         x = xyz[0]
         # y = xyz[1]
         z = xyz[2]
+        zeta = np.arctan(L5/(L3 + L4))
+        rho = np.sqrt(L5**2 + (L3 + L4)**2)
+        phi = np.arccos((L2**2 + rho**2 - (x + d)**2 - z**2)/(2*L2*rho)) - zeta
         r1 = np.sqrt((x+d)**2 + z**2)
-        phi = np.arccos((L2**2 + (L3 + L4)**2 - (x + d)**2 - z**2)/(2*L2*(L3+L4)))
         ksi = np.arctan2(z, (x+d))
-        epsilon = np.arccos((r1**2 + L2**2 - (L3 + L4)**2)/(2*r1*L2))
+        epsilon = np.arccos((r1**2 + L2**2 - rho**2)/(2*r1*L2))
         q2 = ksi - epsilon
         # print((phi - np.pi - q2)*180/np.pi)
         xm = L2 * np.cos(q2) + L3 * np.cos(phi - np.pi - q2) - d
@@ -264,23 +267,26 @@ class Leg(LegBase):
         L2 = self.L[2]
         L3 = self.L[3]
         L4 = self.L[4]
+        L5 = self.L[5]
         d = 0
 
-        x0 = L0*np.cos(q0)
-        y0 = L0*np.sin(q0)
-        x1 = L2*np.cos(q2)
-        y1 = L2*np.sin(q2)
+        x0 = L0 * np.cos(q0)
+        y0 = L0 * np.sin(q0)
+        rho = np.sqrt((x0 + d) ** 2 + y0 ** 2)
 
-        rho = np.sqrt((x0 + d)**2 + y0**2)
-        h0 = np.sqrt((x0 - x1)**2 + (y0 - y1)**2)
-        omega = np.arccos((L3**2 + L1**2 - h0**2)/(2*L3*L1))
-        mu = np.arcsin(L1*np.sin(omega)/h0)
-        eta = np.arccos((h0**2 + L2**2 - rho**2)/(2*h0*L2))
-        # print((np.pi - (eta + mu) + q2)*180/np.pi) # 33
-        # print((omega) * 180 / np.pi)
-        x = L2 * np.cos(q2) + (L3 + L4) * np.cos(np.pi - (eta + mu) + q2) - d
+        # This works to calculate h as well, but might be slightly slower bc more trig
+        # x1 = L2 * np.cos(q2)
+        # y1 = L2 * np.sin(q2)
+        # h = np.sqrt((x0 - x1)**2 + (y0 - y1)**2)
+
+        gamma = abs(q2 - q0)
+        h = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
+        mu = np.arccos((L3 ** 2 + h ** 2 - L1 ** 2) / (2 * L3 * h))
+        eta = np.arccos((h**2 + L2**2 - rho**2)/(2*h*L2))
+        alpha = np.pi - (eta + mu) + q2
+        x = L2 * np.cos(q2) + (L3 + L4) * np.cos(alpha) - d + L5 * np.cos(alpha - np.pi/2)
         y = 0
-        z = L2 * np.sin(q2) + (L3 + L4) * np.sin(np.pi - (eta + mu) + q2)
+        z = L2 * np.sin(q2) + (L3 + L4) * np.sin(alpha) + L5 * np.cos(alpha - np.pi/2)
 
         return np.array([x, y, z], dtype=float)
 

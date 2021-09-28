@@ -63,11 +63,12 @@ class Sim:
         self.numJoints = p.getNumJoints(self.bot)
         p.setRealTimeSimulation(useRealTime)
         # p.changeDynamics(self.bot, 2, lateralFriction=0.5)
-
+        self.c_link = 1
         if model == 'design':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0.15, 0, 0], [-0.01317691945, 0, 0.0153328498])
             p.changeConstraint(linkjoint, maxForce=10000)
+            self.c_link = 3
         if model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
@@ -106,7 +107,23 @@ class Sim:
         torque = np.zeros(2)
         q = np.zeros(2)
 
-        if self.model == "serial":
+        if self.model == "design":
+            command = np.zeros(4)
+            command[0] = -u[0]  # readjust to match motor polarity
+            command[2] = -u[1]  # readjust to match motor polarity
+
+            q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q[0] = q_all[0]
+            q[1] = q_all[2]  # This seems to be correct 9-06-21
+            q_dot = np.zeros(4)
+            q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q_dot[0] = q_dot_all[0]
+            q_dot[1] = q_dot_all[2]  # This seems to be correct 9-06-21
+            torque = np.zeros(4)
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
+            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
+
+        elif self.model == "serial":
             command = -u
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
@@ -116,7 +133,7 @@ class Sim:
             torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
             # q[1] *= -1  # This seems to be correct 8-25-21
 
-        elif self.model == "parallel" or "design":
+        elif self.model == "parallel":
             command = np.zeros(4)
             command[0] = -u[1]  # readjust to match motor polarity
             command[2] = -u[0]  # readjust to match motor polarity
@@ -155,8 +172,8 @@ class Sim:
         # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
         # found to be intrinsic Euler angles (r)
         f = reaction_force(self.numJoints, self.bot)
-        # Detect contact of feet with ground plane
-        c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, 1)]))
+        # Detect contact with ground plane
+        c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]))
 
         # dq = [j[1] for j in p.getJointStates(self.bot, range(8))]
 
