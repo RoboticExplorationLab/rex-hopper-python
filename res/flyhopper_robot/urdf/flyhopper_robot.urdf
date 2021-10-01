@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.5.1-0-g916b5db  Build Version: 1.5.7152.31018
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="flyhopper_robot">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-1.5589E-15 -8.0444E-16 0.0039379"
+        rpy="0 0 0" />
+      <mass
+        value="10" />
+      <inertia
+        ixx="0.0024241"
+        ixy="5.252E-06"
+        ixz="2.0733E-19"
+        iyy="0.0044176"
+        iyz="-3.1153E-19"
+        izz="0.0022481" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.89804 0.89804 0.89804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="Link 0">
+    <inertial>
+      <origin
+        xyz="0.0125108364230515 0.0182983605546842 0.00117191218927888"
+        rpy="0 0 0" />
+      <mass
+        value="0.24644240965487" />
+      <inertia
+        ixx="3.83120149546952E-05"
+        ixy="1.46925714738609E-05"
+        ixz="-8.60106401672571E-06"
+        iyy="0.000172067745507247"
+        iyz="1.0427260925207E-06"
+        izz="0.00014745218068435" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 0.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.898039215686275 0.898039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 0.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 0"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0.5236 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="Link 0" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link 1">
+    <inertial>
+      <origin
+        xyz="0.149359714867044 0.00668699341343205 -8.64184791782296E-09"
+        rpy="0 0 0" />
+      <mass
+        value="0.0707939028219395" />
+      <inertia
+        ixx="3.06999775886187E-06"
+        ixy="7.91090301514898E-12"
+        ixz="-1.43705963146176E-12"
+        iyy="0.000147960574744097"
+        iyz="1.30742394049546E-11"
+        izz="0.000147884231885009" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.776470588235294 0.756862745098039 0.737254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 1"
+    type="revolute">
+    <origin
+      xyz="0.1 0 0"
+      rpy="-3.1416 1.0739 -3.1416" />
+    <parent
+      link="Link 0" />
+    <child
+      link="Link 1" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.7597"
+      upper="1.823"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link 2">
+    <inertial>
+      <origin
+        xyz="0.0469412900551914 -0.0169660102564163 -0.000869831686102471"
+        rpy="0 0 0" />
+      <mass
+        value="0.276735496985514" />
+      <inertia
+        ixx="3.43038397803592E-05"
+        ixy="-2.90339844227483E-07"
+        ixz="6.18680397558952E-06"
+        iyy="0.000302324068012293"
+        iyz="2.25016327583562E-08"
+        izz="0.00028292376778719" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.898039215686275 0.898039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 2"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="3.1416 0.55027 3.1416" />
+    <parent
+      link="base_link" />
+    <child
+      link="Link 2" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link 3">
+    <inertial>
+      <origin
+        xyz="0.113177000131857 -0.00273485454367594 -0.015332867880069"
+        rpy="0 0 0" />
+      <mass
+        value="0.130824780046739" />
+      <inertia
+        ixx="1.76996970020568E-05"
+        ixy="-5.3695427116208E-07"
+        ixz="7.62350214406387E-07"
+        iyy="0.000164188445564489"
+        iyz="-2.77843753828047E-07"
+        izz="0.000160656046697151" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://flyhopper_robot/meshes/Link 3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 3"
+    type="revolute">
+    <origin
+      xyz="0.3 0 0"
+      rpy="-3.1416 -1.0739 3.1416" />
+    <parent
+      link="Link 2" />
+    <child
+      link="Link 3" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-1.823"
+      upper="0.7597"
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>
