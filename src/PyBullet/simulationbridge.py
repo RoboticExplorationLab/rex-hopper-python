@@ -12,12 +12,14 @@ import actuator
 
 useRealTime = 0
 
+
 def reaction_force(numjoints, bot):
     # returns joint reaction force
-    reaction = [j[2] for j in p.getJointStates(bot, range(numjoints))]  # j[2]=jointReactionForces
-    #  [Fx, Fy, Fz, Mx, My, Mz]
-    reaction = np.array(reaction)
-    f = np.linalg.norm(reaction[:, 0:3], axis=1)  # selected all joints Fz
+    reaction = np.array([j[2] for j in p.getJointStates(bot, range(numjoints))])  # j[2]=jointReactionForces
+    # 4x6 array [Fx, Fy, Fz, Mx, My, Mz]
+    f = reaction[:, 0:3]  # selected all joints Fz
+    # 4x3 array [Fx, Fy, Fz]
+    # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # selected all joints Fz
     return f
 
 
@@ -52,7 +54,7 @@ class Sim:
             print("error: model choice invalid")
             model_path = None
 
-        self.bot = p.loadURDF(os.path.join(path_parent, '..', model_path), [0, 0, 0.7],  # 0.31
+        self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7],  # 0.31
                          robotStartOrientation, useFixedBase=fixed,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
@@ -67,18 +69,18 @@ class Sim:
         if model == 'design':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0.15, 0, 0], [-0.01317691945, 0, 0.0153328498])
-            p.changeConstraint(linkjoint, maxForce=10000)
+            p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
 
         if model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
-            p.changeConstraint(linkjoint, maxForce=10000)
+            p.changeConstraint(linkjoint, maxForce=1000)
         elif model == 'belt':
             # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
                                      p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
-            p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=10000)
+            p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=1000)
 
         # increase friction of toe to ideal
         p.changeDynamics(self.bot, self.c_link, lateralFriction=1)

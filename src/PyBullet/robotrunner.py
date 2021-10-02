@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 
 np.set_printoptions(suppress=True, linewidth=np.nan)
 
+
 def spring(q, l):
     """
     adds linear extension spring b/t joints 1 and 3 of parallel mechanism
@@ -46,6 +47,7 @@ def spring(q, l):
     tau_s = np.array([tau_s0, tau_s1])
 
     return tau_s
+
 
 def contact_check(c, c_s, c_prev, steps, con_c):
     if c_prev != c:
@@ -139,7 +141,6 @@ class Runner:
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
 
-
     def run(self):
 
         steps = 0
@@ -179,11 +180,11 @@ class Runner:
                 axs[0, 1].set_ylabel("q1 torque (Nm)")
                 axs[0, 2].set_title('base z position')
                 axs[0, 2].set_ylabel("z position (m)")
-                axs[1, 0].set_title('angular velocity q0_dot')
-                axs[1, 0].set_ylabel("angular velocity, rpm")
-                axs[1, 1].set_title('angular velocity q1_dot')
-                axs[1, 1].set_ylabel("angular velocity, rpm")
-                axs[1, 2].set_title('Magnitude of Reaction Force on q0')
+                axs[1, 0].set_title('Magnitude of Reaction Force on joint1')
+                axs[1, 0].set_ylabel("Reaction Force Fx, N")
+                axs[1, 1].set_title('Magnitude of Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
+                axs[1, 1].set_ylabel("Reaction Force Fy, N")  # .set_ylabel("angular velocity, rpm")
+                axs[1, 2].set_title('Magnitude of Reaction Force on joint1')
                 axs[1, 2].set_ylabel("Reaction Force Fz, N")
             elif self.model == 'belt':
                 fig, axs = plt.subplots(1, 3, sharey=False, sharex=True)
@@ -332,9 +333,9 @@ class Runner:
                     value1[steps - 1, :] = torque[0]  # self.u[0]
                     value2[steps - 1, :] = torque[2]  # self.u[1]
                     value3[steps - 1, :] = p_base_z
-                    value4[steps - 1, :] = q_dot[0]*60/(2*np.pi)
-                    value5[steps - 1, :] = q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = f[0]
+                    value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
+                    value5[steps - 1, :] = f[1, 1] - 1000  # q_dot[1]*60/(2*np.pi)
+                    value6[steps - 1, :] = f[1, 2]
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
@@ -353,8 +354,9 @@ class Runner:
                         axs[1].plot(range(total - 1), value2[:-1, 0], color='blue')
                         axs[2].plot(range(total - 1), value3[:-1, 0], color='blue')
                         plt.show()
-            # print(tau_s)
-            print(t)
+
+            # print(f[0, :])
+            # print(t)
             # print(s, sh, state)
             # print(p_base_z)
             # print(self.leg.position())
