@@ -90,7 +90,7 @@ class Runner:
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
-            self.k_kin = 70 # np.array([70, 70])
+            self.k_kin = 70  # np.array([70, 70])
             self.k_d = self.k_kin * 0.02
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
@@ -326,9 +326,9 @@ class Runner:
                     value1[steps-1, :] = torque[0] # self.u[0]
                     value2[steps-1, :] = torque[1] # self.u[1]
                     value3[steps-1, :] = p_base_z
-                    value4[steps - 1, :] = q_dot[0]*60/(2*np.pi)  # conversion to RPM
-                    value5[steps - 1, :] = q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = f[0]
+                    value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
+                    value5[steps - 1, :] = f[1, 2]  # q_dot[1]*60/(2*np.pi)
+                    value6[steps - 1, :] = t_ft_s
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
