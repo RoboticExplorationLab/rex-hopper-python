@@ -53,16 +53,16 @@ def contact_check(c, c_s, c_prev, steps, con_c):
     if c_prev != c:
         con_c = steps  # timestep at contact change
         c_s = c  # saved contact value
-    if con_c - steps <= 300:  # TODO: reset con_c
+    if c_prev != c and con_c - steps <= 10:  # TODO: reset con_c
         c = c_s
-
+    # print(c)
     return c, c_s, con_c
 
 
 class Runner:
 
-    def __init__(self, dt=1e-3, model='serial', ctrl_type='wbc_cycle', plot=False, fixed=False, spring=False,
-                 record=False):
+    def __init__(self, dt=1e-3, model='design', ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
+                 record=False, altsize=1):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -81,8 +81,8 @@ class Runner:
             L4 = .2
             L5 = 0.0205
             self.L = np.array([L0, L1, L2, L3, L4, L5])
-            self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
-            self.k_kin = 20
+            self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model, altsize=altsize)
+            self.k_kin = 25
             self.k_d = self.k_kin * 0.02
             self.t_p = 0.9  # gait period, seconds 0.5
             self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
@@ -119,7 +119,7 @@ class Runner:
 
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
-        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record)
+        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record, altsize=altsize)
         self.state = statemachine.Char()
 
         # gait scheduler values
@@ -163,7 +163,11 @@ class Runner:
         t_l = 0
         t_f = 0
 
-        total = 4000  # number of timesteps to plot
+        k_ft = 0  # counter for flight timer
+        t_ft_s = 0 # stored flight time
+
+        total = 6000  # number of timesteps to plot
+
         if self.plot:
             value1 = np.zeros((total, 3))
             value2 = np.zeros((total, 3))
@@ -180,12 +184,12 @@ class Runner:
                 axs[0, 1].set_ylabel("q1 torque (Nm)")
                 axs[0, 2].set_title('base z position')
                 axs[0, 2].set_ylabel("z position (m)")
-                axs[1, 0].set_title('Magnitude of Reaction Force on joint1')
+                axs[1, 0].set_title('Magnitude of X Reaction Force on joint1')
                 axs[1, 0].set_ylabel("Reaction Force Fx, N")
-                axs[1, 1].set_title('Magnitude of Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
-                axs[1, 1].set_ylabel("Reaction Force Fy, N")  # .set_ylabel("angular velocity, rpm")
-                axs[1, 2].set_title('Magnitude of Reaction Force on joint1')
-                axs[1, 2].set_ylabel("Reaction Force Fz, N")
+                axs[1, 1].set_title('Magnitude of Z Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
+                axs[1, 1].set_ylabel("Reaction Force Fz, N")  # .set_ylabel("angular velocity, rpm")
+                axs[1, 2].set_title('Flight Time')
+                axs[1, 2].set_ylabel("Flight Time, s")
             elif self.model == 'belt':
                 fig, axs = plt.subplots(1, 3, sharey=False, sharex=True)
                 axs[0].set_title('q0 torque')
@@ -215,6 +219,7 @@ class Runner:
                 tau_s = spring(self.leg.q, self.L)*self.dir_s
             else:
                 tau_s = np.zeros(2)
+
             q, b_orient, c, torque, q_dot, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
 
             # enter encoder values into leg kinematics/dynamics
@@ -237,7 +242,11 @@ class Runner:
             if sh == 1 and sh_prev == 0:
                 t_l = t  # time of landing
                 t_ft = t_l - t_f  # last flight time
-                print(t_ft)
+                if t_ft > 0.1:
+                    print(t_ft)
+                    t_ft_s = t_ft
+            else:
+                t_ft_s = 0
 
             sh_prev = sh
             c_prev = c
@@ -334,8 +343,8 @@ class Runner:
                     value2[steps - 1, :] = torque[2]  # self.u[1]
                     value3[steps - 1, :] = p_base_z
                     value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
-                    value5[steps - 1, :] = f[1, 1] - 1000  # q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = f[1, 2]
+                    value5[steps - 1, :] = f[1, 2]  # q_dot[1]*60/(2*np.pi)
+                    value6[steps - 1, :] = t_ft_s
                     if steps == total - 1:
                         axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
                         axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')

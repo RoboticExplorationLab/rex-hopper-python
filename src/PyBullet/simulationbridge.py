@@ -25,7 +25,7 @@ def reaction_force(numjoints, bot):
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False):
+    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, altsize=1):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -43,9 +43,24 @@ class Sim:
 
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
-
+        jconn_1 = None
+        jconn_2 = None
         if model == 'design':
-            model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
+            if altsize == 1:
+                model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
+                jconn_1 = [0.15, 0, 0]
+                jconn_2 = [-0.01317691945, 0, 0.0153328498]
+            elif altsize == 0.8:
+                model_path = "res/flyhopper_robot_0_8/urdf/flyhopper_robot_0_8.urdf"
+                jconn_1 = [0.12, 0, 0]
+                jconn_2 = [-0.01317691945+0.06/2, 0, 0.0153328498]
+            elif altsize == 1.2:
+                model_path = "res/flyhopper_robot_1_2/urdf/flyhopper_robot_1_2.urdf"
+                jconn_1 = [0.18, 0, 0]
+                jconn_2 = [-0.01317691945-0.06/2, 0, 0.0153328498]
+            else:
+                print("error: invalid size")
+                model_path = None
         elif model == 'serial' or model == 'belt':
             model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf"
         elif model == 'parallel':
@@ -68,7 +83,7 @@ class Sim:
         self.c_link = 1
         if model == 'design':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
-                                     p.JOINT_POINT2POINT, [0, 0, 0], [0.15, 0, 0], [-0.01317691945, 0, 0.0153328498])
+                                     p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
 
@@ -83,7 +98,7 @@ class Sim:
             p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=1000)
 
         # increase friction of toe to ideal
-        p.changeDynamics(self.bot, self.c_link, lateralFriction=1)
+        p.changeDynamics(self.bot, self.c_link, lateralFriction=2)
 
         # Record Video in real time
         if self.record_rt is True:

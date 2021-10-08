@@ -15,7 +15,8 @@ parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle", ty
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
-parser.add_argument("--record", help="add spring: True or False", action="store_true")
+parser.add_argument("--record", help="record: True or False", action="store_true")
+parser.add_argument("--altsize", help="0.8 or 1.2", type=float, choices=[0.8, 1.2], default=1)
 args = parser.parse_args()
 
 if args.plot:
@@ -45,7 +46,12 @@ if args.model == 'parallel' or args.model == 'belt' or args.model == 'design':
 print("\n")
 print("model = ", args.model)
 print("ctrl = ", args.ctrl)
+if args.altsize is None:
+    print("size = x1")
+else:
+    print("size = x", args.altsize)
 print("\n")
 
-runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed, spring=spring, record=record)
+runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed,
+                spring=spring, record=record, altsize=args.altsize)
 runner.run()
