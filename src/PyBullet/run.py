@@ -17,6 +17,7 @@ parser.add_argument("--fixed", help="fixed base: True or False", action="store_t
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
 parser.add_argument("--record", help="record: True or False", action="store_true")
 parser.add_argument("--altsize", help="0.8 or 1.2", type=float, choices=[0.8, 1.2], default=1)
+parser.add_argument("--scale", help="change scale of robot (doesn't change mass)", type=float, default=1)
 args = parser.parse_args()
 
 if args.plot:
@@ -53,5 +54,5 @@ else:
 print("\n")
 
 runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed,
-                spring=spring, record=record, altsize=args.altsize)
+                spring=spring, record=record, altsize=args.altsize, scale=args.scale)
 runner.run()

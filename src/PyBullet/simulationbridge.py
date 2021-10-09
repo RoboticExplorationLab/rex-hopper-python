@@ -25,7 +25,7 @@ def reaction_force(numjoints, bot):
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, altsize=1):
+    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, altsize=1, scale=1):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -48,8 +48,8 @@ class Sim:
         if model == 'design':
             if altsize == 1:
                 model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
-                jconn_1 = [0.15, 0, 0]
-                jconn_2 = [-0.01317691945, 0, 0.0153328498]
+                jconn_1 = [x*scale for x in [0.15, 0, 0]]
+                jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
             elif altsize == 0.8:
                 model_path = "res/flyhopper_robot_0_8/urdf/flyhopper_robot_0_8.urdf"
                 jconn_1 = [0.12, 0, 0]
@@ -70,7 +70,7 @@ class Sim:
             model_path = None
 
         self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7],  # 0.31
-                         robotStartOrientation, useFixedBase=fixed,
+                         robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
         vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])

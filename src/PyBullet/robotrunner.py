@@ -62,7 +62,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 class Runner:
 
     def __init__(self, dt=1e-3, model='design', ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, altsize=1):
+                 record=False, altsize=1, scale=1):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -82,7 +82,7 @@ class Runner:
             L5 = 0.0205
             self.L = np.array([L0, L1, L2, L3, L4, L5])
             self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model, altsize=altsize)
-            self.k_kin = 25
+            self.k_kin = 25*1.5
             self.k_d = self.k_kin * 0.02
             self.t_p = 0.9  # gait period, seconds 0.5
             self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
@@ -111,7 +111,7 @@ class Runner:
             print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
-            self.k_kin = 15 # 210
+            self.k_kin = 15  # 210
             self.k_d = self.k_kin * 0.02
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
@@ -119,7 +119,8 @@ class Runner:
 
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
-        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record, altsize=altsize)
+        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record, altsize=altsize,
+                                              scale=scale)
         self.state = statemachine.Char()
 
         # gait scheduler values
