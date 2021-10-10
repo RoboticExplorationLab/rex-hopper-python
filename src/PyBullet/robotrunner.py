@@ -62,11 +62,11 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 class Runner:
 
     def __init__(self, dt=1e-3, model='design', ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, altsize=1, scale=1):
+                 record=False, altsize=1, scale=1, direct=False, total_run=10000):
 
         self.dt = dt
         self.u = np.zeros(2)
-
+        self.total_run = total_run
         # height constant
         self.hconst = 0.3
         self.model = model
@@ -87,7 +87,6 @@ class Runner:
             self.t_p = 0.9  # gait period, seconds 0.5
             self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
             self.dir_s = 1  # spring "direction" (accounts for swapped leg config)
-            print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
             self.k_kin = 70  # np.array([70, 70])
@@ -108,19 +107,17 @@ class Runner:
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
             self.dir_s = -1  # spring "direction" (accounts for swapped leg config)
-            print("WARNING: Parallel model only works with closed form inv kin, do not attempt wbc (WIP)")
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
             self.k_kin = 15  # 210
             self.k_d = self.k_kin * 0.02
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-            print("WARNING: Belt model only works with closed form inv kin, do not attempt wbc (WIP)")
 
         controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record, altsize=altsize,
-                                              scale=scale)
+                                              scale=scale, direct=direct)
         self.state = statemachine.Char()
 
         # gait scheduler values
@@ -164,8 +161,9 @@ class Runner:
         t_l = 0
         t_f = 0
 
-        k_ft = 0  # counter for flight timer
         t_ft_s = 0 # stored flight time
+        ft_saved = np.zeros(self.total_run)
+        i_ft = 0  # flight timer counter
 
         total = 6000  # number of timesteps to plot
 
@@ -208,7 +206,7 @@ class Runner:
             value5 = None
             value6 = None
 
-        while 1:
+        while steps < self.total_run:
             steps += 1
             t = t + self.dt
             # t_diff = time.clock() - t_prev
@@ -246,8 +244,10 @@ class Runner:
                 if t_ft > 0.1:
                     print(t_ft)
                     t_ft_s = t_ft
+                    ft_saved[i_ft] = t_ft
+                    i_ft += 1
             else:
-                t_ft_s = 0
+                t_ft_s = None  # 0
 
             sh_prev = sh
             c_prev = c
@@ -293,7 +293,7 @@ class Runner:
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
 
             elif self.ctrl_type == 'simple_invkin':
-                time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
+                # time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
                 # self.target[2] = -0.5
                 if state == 'Return':
                     # set target position
@@ -313,7 +313,7 @@ class Runner:
                          + self.leg.dq * self.k_d
 
             elif self.ctrl_type == 'static_invkin':
-                time.sleep(self.dt / 2)  # closed form inv kin runs much faster than full wbc, slow it down
+                # time.sleep(self.dt / 2)  # closed form inv kin runs much faster than full wbc, slow it down
                 self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
                          + self.leg.dq * self.k_d
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
@@ -365,16 +365,14 @@ class Runner:
                         axs[2].plot(range(total - 1), value3[:-1, 0], color='blue')
                         plt.show()
 
-            # print(f[0, :])
-            # print(t)
-            # print(s, sh, state)
-            # print(p_base_z)
             # print(self.leg.position())
             # print(self.target)
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
             # print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
+
+        return ft_saved
 
     def gait_scheduler(self, t, t0):
         # Schedules gait, obviously

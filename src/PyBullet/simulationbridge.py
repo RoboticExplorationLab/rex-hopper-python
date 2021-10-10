@@ -25,7 +25,7 @@ def reaction_force(numjoints, bot):
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, altsize=1, scale=1):
+    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, altsize=1, scale=1, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -35,7 +35,10 @@ class Sim:
 
         GRAVITY = -9.807
         # physicsClient = p.connect(p.GUI)
-        p.connect(p.GUI)
+        if direct is True:
+            p.connect(p.DIRECT)
+        else:
+            p.connect(p.GUI)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.resetSimulation()
         self.plane = p.loadURDF("plane.urdf")
@@ -69,7 +72,7 @@ class Sim:
             print("error: model choice invalid")
             model_path = None
 
-        self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7],  # 0.31
+        self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7*scale],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
