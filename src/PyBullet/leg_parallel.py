@@ -340,7 +340,7 @@ class Leg(LegBase):
         self.q = np.add(q_in.flatten(), self.q_calibration)
         # self.dq = np.reshape([j[1] for j in p.getJointStates(1, range(0, 4))], (-1, 1))
         # self.dq = [i * self.kv for i in self.dq_previous] + (self.q - self.q_previous) / self.dt
-        self.dq = (self.q - self.q_previous) / self.dt
+        self.dq = (self.q - self.q_previous) / self.dt  # TODO: upgrade from Euler to rk4 or something
         # Make sure this only happens once per time step
         # self.d2q = [i * self.kv for i in self.d2q_previous] + (self.dq - self.dq_previous) / self.dt
         self.d2q = (self.dq - self.dq_previous) / self.dt

@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Gait:
-    def __init__(self, controller, leg, t_p, phi_switch, hconst, dt=1e-3, **kwargs):
+    def __init__(self, controller, leg, target, t_p, phi_switch, hconst, dt=1e-3, **kwargs):
 
         self.swing_steps = 0
         self.trajectory = None
@@ -19,11 +19,9 @@ class Gait:
         self.controller = controller
         self.leg = leg
         self.x_last = None
-        self.target = None
         self.hconst = hconst
-        # TODO: should come from robotrunner.py
+        self.target = target  # np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
         self.r_save = np.array([0, 0, -self.hconst])
-        self.target = np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
 
     def u(self, state, prev_state, r_in, r_d, delp, b_orient, fr_mpc, skip):
 
@@ -60,5 +58,26 @@ class Gait:
         else:
             u = None
             print("error! state not determined")
+
+        return u
+
+    def u_invkin(self, state, k_kin, k_d):
+        # time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
+        # self.target[2] = -0.5
+        if state == 'Return':
+            # set target position
+            self.target = np.array([0, 0, -0.5])
+
+        elif state == 'HeelStrike':
+            self.target[2] = -self.hconst
+
+        elif state == 'Crouch':
+            # self.target = np.array([-0.1, 0, -self.hconst])
+            self.target[2] = -self.hconst  # go to crouch
+
+        elif state == 'Leap':
+            self.target = np.array([0, 0, -0.55])
+
+        u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
 
         return u

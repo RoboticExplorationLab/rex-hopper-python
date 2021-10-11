@@ -129,8 +129,8 @@ class Runner:
         self.sh = 1  # estimated contact state
         self.dist_force = np.array([0, 0, 0])
 
-        self.gait = gait.Gait(controller=self.controller, leg=self.leg, t_p=self.t_p, phi_switch=self.phi_switch,
-                              hconst=self.hconst, dt=dt)
+        self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, t_p=self.t_p,
+                              phi_switch=self.phi_switch, hconst=self.hconst, dt=dt)
 
         # self.target = None
         self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
@@ -140,27 +140,22 @@ class Runner:
         self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
 
     def run(self):
-
+        # time.sleep(self.dt)
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
-
         t0 = t  # starting time
-
+        skip = False
         prev_state = str("init")
-
-        time.sleep(self.dt)
 
         ct = 0
         s = 0
         c_prev = 0
         con_c = 0
         c_s = 0
-
         sh_prev = 0
-        t_l = 0
-        t_f = 0
 
+        t_f = 0
         t_ft_s = 0 # stored flight time
         ft_saved = np.zeros(self.total_run)
         i_ft = 0  # flight timer counter
@@ -174,51 +169,35 @@ class Runner:
             value4 = np.zeros((total, 3))
             value5 = np.zeros((total, 3))
             value6 = np.zeros((total, 3))
-            if self.model == 'serial' or self.model == 'parallel' or self.model == 'design':
-                fig, axs = plt.subplots(2, 3, sharey=False, sharex=True)
-                axs[0, 0].set_title('q0 torque')
-                plt.xlabel("Timesteps")
-                axs[0, 0].set_ylabel("q0 torque (Nm)")
-                axs[0, 1].set_title('q1 torque')
-                axs[0, 1].set_ylabel("q1 torque (Nm)")
-                axs[0, 2].set_title('base z position')
-                axs[0, 2].set_ylabel("z position (m)")
-                axs[1, 0].set_title('Magnitude of X Reaction Force on joint1')
-                axs[1, 0].set_ylabel("Reaction Force Fx, N")
-                axs[1, 1].set_title('Magnitude of Z Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
-                axs[1, 1].set_ylabel("Reaction Force Fz, N")  # .set_ylabel("angular velocity, rpm")
-                axs[1, 2].set_title('Flight Time')
-                axs[1, 2].set_ylabel("Flight Time, s")
-            elif self.model == 'belt':
-                fig, axs = plt.subplots(1, 3, sharey=False, sharex=True)
-                axs[0].set_title('q0 torque')
-                plt.xlabel("Timesteps")
-                axs[0].set_ylabel("q0 torque (Nm)")
-                axs[1].set_title('angular velocity q0_dot')
-                axs[1].set_ylabel("angular velocity, rpm")
-                axs[2].set_title('base z position')
-                axs[2].set_ylabel("z position (m)")
+            fig, axs = plt.subplots(2, 3, sharey=False, sharex=True)
+            axs[0, 0].set_title('q0 torque')
+            plt.xlabel("Timesteps")
+            axs[0, 0].set_ylabel("q0 torque (Nm)")
+            axs[0, 1].set_title('q1 torque')
+            axs[0, 1].set_ylabel("q1 torque (Nm)")
+            axs[0, 2].set_title('base z position')
+            axs[0, 2].set_ylabel("z position (m)")
+            axs[1, 0].set_title('Magnitude of X Reaction Force on joint1')
+            axs[1, 0].set_ylabel("Reaction Force Fx, N")
+            axs[1, 1].set_title('Magnitude of Z Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
+            axs[1, 1].set_ylabel("Reaction Force Fz, N")  # .set_ylabel("angular velocity, rpm")
+            axs[1, 2].set_title('Flight Time')
+            axs[1, 2].set_ylabel("Flight Time, s")
         else:
-            value1 = None
-            value2 = None
-            value3 = None
-            value4 = None
-            value5 = None
-            value6 = None
+            value1 = value2 = value3 = value4 = value5 = value6 = None
 
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
             # t_diff = time.clock() - t_prev
             # t_prev = time.clock()
-            skip = False
-            # run simulator to get encoder and IMU feedback
-            # put an if statement here once we have hardware bridge too
+
+            # simulate torques from spring
             if self.spring:
                 tau_s = spring(self.leg.q, self.L)*self.dir_s
             else:
                 tau_s = np.zeros(2)
-
+            # run simulator to get encoder and IMU feedback
             q, b_orient, c, torque, q_dot, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
 
             # enter encoder values into leg kinematics/dynamics
@@ -241,10 +220,10 @@ class Runner:
             if sh == 1 and sh_prev == 0:
                 t_l = t  # time of landing
                 t_ft = t_l - t_f  # last flight time
-                if t_ft > 0.1:
+                if t_ft > 0.1:  # ignore flight times of less than 0.1 second (these are foot bounces)
                     print(t_ft)
                     t_ft_s = t_ft
-                    ft_saved[i_ft] = t_ft
+                    ft_saved[i_ft] = t_ft  # save flight time to vector
                     i_ft += 1
             else:
                 t_ft_s = None  # 0
@@ -284,7 +263,7 @@ class Runner:
             # x_ref = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T
 
             mpc_force = np.zeros(3)
-            mpc_force[2] = 218  # 218  # just a static number for now (removed mpc)
+            mpc_force[2] = 218  # TODO: Add MPC back
 
             delp = pdot*self.dt
             # calculate wbc control signal
@@ -293,24 +272,7 @@ class Runner:
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
 
             elif self.ctrl_type == 'simple_invkin':
-                # time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
-                # self.target[2] = -0.5
-                if state == 'Return':
-                    # set target position
-                    self.target = np.array([0, 0, -0.5])
-
-                elif state == 'HeelStrike':
-                    self.target[2] = -self.hconst
-
-                elif state == 'Crouch':
-                    # self.target = np.array([-0.1, 0, -self.hconst])
-                    self.target[2] = -self.hconst  # go to crouch
-
-                elif state == 'Leap':
-                    self.target = np.array([0, 0, -0.55])
-
-                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
-                         + self.leg.dq * self.k_d
+                self.u = self.gait.u_invkin(state=state, k_kin=self.k_kin, k_d=self.k_d)
 
             elif self.ctrl_type == 'static_invkin':
                 # time.sleep(self.dt / 2)  # closed form inv kin runs much faster than full wbc, slow it down
@@ -322,51 +284,31 @@ class Runner:
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
 
+            n_motor1 = None
             if self.plot == True and steps <= total-1:
                 if self.model == 'serial':
-                    value1[steps-1, :] = torque[0] # self.u[0]
-                    value2[steps-1, :] = torque[1] # self.u[1]
-                    value3[steps-1, :] = p_base_z
-                    value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
-                    value5[steps - 1, :] = f[1, 2]  # q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = t_ft_s
-                    if steps == total - 1:
-                        axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
-                        axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
-                        axs[0, 2].plot(range(total - 1), value3[:-1, 0], color='blue')
-                        axs[1, 0].plot(range(total - 1), value4[:-1, 0], color='blue')
-                        axs[1, 1].plot(range(total - 1), value5[:-1, 0], color='blue')
-                        axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
-                        plt.show()
-
+                    n_motor1 = 1
                 elif self.model == 'parallel' or self.model == 'design':
-                    value1[steps - 1, :] = torque[0]  # self.u[0]
-                    value2[steps - 1, :] = torque[2]  # self.u[1]
-                    value3[steps - 1, :] = p_base_z
-                    value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
-                    value5[steps - 1, :] = f[1, 2]  # q_dot[1]*60/(2*np.pi)
-                    value6[steps - 1, :] = t_ft_s
-                    if steps == total - 1:
-                        axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
-                        axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
-                        axs[0, 2].plot(range(total - 1), value3[:-1, 0], color='blue')
-                        axs[1, 0].plot(range(total - 1), value4[:-1, 0], color='blue')
-                        axs[1, 1].plot(range(total - 1), value5[:-1, 0], color='blue')
-                        axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
-                        plt.show()
-
+                    n_motor1 = 2
                 elif self.model == 'belt':
-                    value1[steps - 1, :] = torque[0]
-                    value2[steps - 1, :] = q_dot[0]*60/(2*np.pi)
-                    value3[steps - 1, :] = p_base_z
-                    if steps == total - 1:
-                        axs[0].plot(range(total - 1), value1[:-1, 0], color='blue')
-                        axs[1].plot(range(total - 1), value2[:-1, 0], color='blue')
-                        axs[2].plot(range(total - 1), value3[:-1, 0], color='blue')
-                        plt.show()
+                    n_motor1 = 0  # just repeat the first...
 
-            # print(self.leg.position())
-            # print(self.target)
+                value1[steps-1, :] = torque[0] # self.u[0]
+                value2[steps-1, :] = torque[n_motor1] # self.u[1]
+                value3[steps-1, :] = p_base_z
+                value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
+                value5[steps - 1, :] = f[1, 2]  # q_dot[1]*60/(2*np.pi)
+                value6[steps - 1, :] = t_ft_s
+                if steps == total - 1:
+                    axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
+                    axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
+                    axs[0, 2].plot(range(total - 1), value3[:-1, 0], color='blue')
+                    axs[1, 0].plot(range(total - 1), value4[:-1, 0], color='blue')
+                    axs[1, 1].plot(range(total - 1), value5[:-1, 0], color='blue')
+                    axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
+                    plt.show()
+
+            # print("pos = ", self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
             # print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
