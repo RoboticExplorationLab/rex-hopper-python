@@ -62,7 +62,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 class Runner:
 
     def __init__(self, dt=1e-3, model='design', ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, altsize=1, scale=1, direct=False, total_run=10000):
+                 record=False, altsize=1, scale=1, direct=False, total_run=100000):
 
         self.dt = dt
         self.u = np.zeros(2)

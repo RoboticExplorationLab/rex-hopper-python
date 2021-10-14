@@ -140,16 +140,16 @@ class Leg(LegBase):
                                                      [0, 0]]))
         self.JCOM0_init = sym.lambdify([q0, q1], JCOM0_init)
 
-        JCOM1 = (T_0_org.multiply(com1)).jacobian([q0, q1])
+        JCOM1 = (T_0_org*(com1)).jacobian([q0, q1])
         JCOM1.row_del(3)
         JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0],
                                                      [1, 1],
                                                      [0, 0]]))
         self.JCOM1_init = sym.lambdify([q0, q1], JCOM1_init)
 
-        # T_1_org = T_0_org.multiply(T_1_0)
-        # JEE_v = (T_1_org.multiply(xee)).jacobian([q0, q1])
-        JEE_v = (T_0_org.multiply(xee)).jacobian([q0, q1])
+        # T_1_org = T_0_org*((T_1_0)
+        # JEE_v = (T_1_org*((xee)).jacobian([q0, q1])
+        JEE_v = (T_0_org*(xee)).jacobian([q0, q1])
         JEE_v.row_del(3)
         JEE_w = sym.Matrix([[0, 0],
                             [1, 1],
@@ -164,7 +164,7 @@ class Leg(LegBase):
         R_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1)],
                             [0, 1, 0],
                             [sym.sin(q1), 0, sym.cos(q1)]])
-        R_1_org_init = R_0_org.multiply(R_1_0)
+        R_1_org_init = R_0_org*(R_1_0)
         self.R_1_org_init = sym.lambdify([q0, q1], R_1_org_init)
 
     def gen_jacCOM0(self, q=None):

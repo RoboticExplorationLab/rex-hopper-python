@@ -25,9 +25,9 @@ class Control(control.Control):
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        self.kp[0, 0] = 60 # 5000
-        self.kp[1, 1] = 60
-        self.kp[2, 2] = 60
+        self.kp[0, 0] = 500 # 5000
+        self.kp[1, 1] = 500
+        self.kp[2, 2] = 500
 
         self.kv = np.array(self.kp)*0.1
 

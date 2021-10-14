@@ -110,34 +110,88 @@ class Leg(LegBase):
         self.reset()
         self.q_calibration = np.array(init_q)
 
-        #-----------------------#
+        # --- Forward Kinematics --- #
         L0 = self.L[0]
         L1 = self.L[1]
+        L2 = self.L[2]
+        L3 = self.L[3]
+        L4 = self.L[4]
+        L5 = self.L[5]
         l0 = self.coml[0]
         l1 = self.coml[1]
-        sym.var('q0 q1')
+        l2 = self.coml[2]
+        l3 = self.coml[3]
+
+        sym.var('q0 q1 q2 q3')
+
         T_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0), L0 * sym.cos(q0)],
                               [0, 1, 0, 0],
                               [sym.sin(q0), 0, sym.cos(q0), L0 * sym.sin(q0)],
                               [0, 0, 0, 1]])
+        T_org_0_rot = T_0_org[0:3, 0:3].transpose
+        T_org_0_trn = -T_org_0_rot * (T_0_org[0:3, 3])
+        T_org_0 = sym.eye(4)
+        T_org_0[0:3, 0:3] = T_org_0_rot
+        T_org_0[0:3, 3] = T_org_0_trn
+        com0 = -sym.Matrix([[l0 * sym.cos(q0)],  # negative because inverted
+                            [0],
+                            [l0 * sym.sin(q0)],
+                            [1]])
+
         T_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1), L1 * sym.cos(q1)],
                             [0, 1, 0, 0],
                             [sym.sin(q1), 0, sym.cos(q1), L1 * sym.sin(q1)],
                             [0, 0, 0, 1]])
+        T_1_org = T_0_org*T_1_0
+        T_org_1_rot = T_1_org[0:3, 0:3].transpose
+        T_org_1_trn = -T_org_1_rot*(T_1_org[0:3, 3])
+        T_org_1 = sym.eye(4)
+        T_org_1[0:3, 0:3] = T_org_1_rot
+        T_org_1[0:3, 3] = T_org_1_trn
+        com1 = -sym.Matrix([[l1 * sym.cos(q1)],
+                            [0],
+                            [l1 * sym.sin(q1)],
+                            [1]])
 
-        com0 = sym.Matrix([[l0 * sym.cos(q0)],
+        T_2_org = sym.Matrix([[sym.cos(q2), 0, -sym.sin(q2), L2 * sym.cos(q2)],
+                              [0, 1, 0, 0],
+                              [sym.sin(q2), 0, sym.cos(q2), L2 * sym.sin(q2)],
+                              [0, 0, 0, 1]])
+        com2 = sym.Matrix([[l2 * sym.cos(q2)],
                            [0],
-                           [l0 * sym.sin(q0)],
-                           [1]])
-        com1 = sym.Matrix([[l1 * sym.cos(q1)],
-                           [0],
-                           [l1 * sym.sin(q1)],
+                           [l2 * sym.sin(q2)],
                            [1]])
 
-        xee = sym.Matrix([[L1*sym.cos(q1)],
+        LEE = np.sqrt((L3+L4)**2 + L5**2)
+        gamma = np.arctan(L5/(L3+L4))
+        alpha = q3 - gamma
+        T_3_2 = sym.Matrix([[sym.cos(alpha), 0, -sym.sin(alpha), LEE * sym.cos(alpha)],
+                            [0, 1, 0, 0],
+                            [sym.sin(alpha), 0, sym.cos(alpha), LEE * sym.sin(alpha)],
+                            [0, 0, 0, 1]])
+        T_2_1 = T_org_1 * T_2_org
+        T_3_1 = T_2_1 * T_3_2
+        com3 = sym.Matrix([[l3 * sym.cos(q3)],  # TODO: Update
+                           [0],
+                           [l3 * sym.sin(q3)],
+                           [1]])
+        xee = sym.Matrix([[0],
                           [0],
-                          [L1*sym.sin(q1)],
+                          [0],
                           [1]])
+
+        # --- Loop Closure Constraint --- #
+        T_C_2 = sym.Matrix([[L3 * sym.cos(q3)],  # transform from joint 3 (link 2) to joint constraint
+                            [0],
+                            [L3 * sym.sin(q3)],
+                            [1]])
+        T_C_0 = sym.Matrix([[L1 * sym.cos(q1)],  # transform from joint 1 (link 0) to joint constraint
+                            [0],
+                            [L1 * sym.sin(q1)],
+                            [1]])
+        Y1 = T_0_org*T_C_0
+        Y2 = T_2_org*T_C_2
+        C = Y1 - Y2
 
         JCOM0 = com0.jacobian([q0, q1])
         JCOM0.row_del(3)
@@ -147,16 +201,16 @@ class Leg(LegBase):
                                                      [0, 0]]))
         self.JCOM0_init = sym.lambdify([q0, q1], JCOM0_init)
 
-        JCOM1 = (T_0_org.multiply(com1)).jacobian([q0, q1])
+        JCOM1 = (T_0_org*com1).jacobian([q0, q1])
         JCOM1.row_del(3)
         JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0],
                                                      [1, 1],
                                                      [0, 0]]))
         self.JCOM1_init = sym.lambdify([q0, q1], JCOM1_init)
 
-        # T_1_org = T_0_org.multiply(T_1_0)
-        # JEE_v = (T_1_org.multiply(xee)).jacobian([q0, q1])
-        JEE_v = (T_0_org.multiply(xee)).jacobian([q0, q1])
+        T_1_org = T_0_org*(T_1_0)
+        # JEE_v = (T_1_org*(xee)).jacobian([q0, q1])
+        JEE_v = (T_0_org*xee).jacobian([q0, q1])
         JEE_v.row_del(3)
         JEE_w = sym.Matrix([[0, 0],
                             [1, 1],
@@ -171,7 +225,7 @@ class Leg(LegBase):
         R_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1)],
                             [0, 1, 0],
                             [sym.sin(q1), 0, sym.cos(q1)]])
-        R_1_org_init = R_0_org.multiply(R_1_0)
+        R_1_org_init = R_0_org*R_1_0
         self.R_1_org_init = sym.lambdify([q0, q1], R_1_org_init)
 
     def gen_jacCOM0(self, q=None):
