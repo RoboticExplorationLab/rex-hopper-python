@@ -142,12 +142,19 @@ class Leg(LegBase):
                             [0, 1, 0, 0],
                             [sym.sin(q1), 0, sym.cos(q1), L1 * sym.sin(q1)],
                             [0, 0, 0, 1]])
-        T_1_org = T_0_org*T_1_0
-        T_org_1_rot = T_1_org[0:3, 0:3].transpose
-        T_org_1_trn = -T_org_1_rot*(T_1_org[0:3, 3])
-        T_org_1 = sym.eye(4)
-        T_org_1[0:3, 0:3] = T_org_1_rot
-        T_org_1[0:3, 3] = T_org_1_trn
+        # T_1_org = T_0_org*T_1_0
+        # T_org_1_rot = T_1_org[0:3, 0:3].transpose
+        # T_org_1_trn = -T_org_1_rot*(T_1_org[0:3, 3])
+        # T_org_1 = sym.eye(4)
+        # T_org_1[0:3, 0:3] = T_org_1_rot
+        # T_org_1[0:3, 3] = T_org_1_trn
+
+        T_0_1_rot = T_1_0[0:3, 0:3].transpose
+        T_0_1_trn = -T_org_1_rot * (T_1_0[0:3, 3])
+        T_0_1 = sym.eye(4)
+        T_0_1[0:3, 0:3] = T_0_1_rot
+        T_0_1[0:3, 3] = T_0_1_trn
+
         com1 = -sym.Matrix([[l1 * sym.cos(q1)],
                             [0],
                             [l1 * sym.sin(q1)],
@@ -169,12 +176,15 @@ class Leg(LegBase):
                             [0, 1, 0, 0],
                             [sym.sin(alpha), 0, sym.cos(alpha), LEE * sym.sin(alpha)],
                             [0, 0, 0, 1]])
-        T_2_1 = T_org_1 * T_2_org
+
+        T_2_1 = T_0_1 * T_org_0 * T_2_org
         T_3_1 = T_2_1 * T_3_2
+
         com3 = sym.Matrix([[l3 * sym.cos(q3)],  # TODO: Update
                            [0],
                            [l3 * sym.sin(q3)],
                            [1]])
+
         xee = sym.Matrix([[0],
                           [0],
                           [0],
@@ -193,32 +203,47 @@ class Leg(LegBase):
         Y2 = T_2_org*T_C_2
         C = Y1 - Y2
 
-        JCOM0 = com0.jacobian([q0, q1])
+        # --- Jacobians --- #
+        JCOM0 = com0.jacobian([q0, q1, q2, q3])
         JCOM0.row_del(3)
 
-        JCOM0_init = JCOM0.row_insert(4, sym.Matrix([[0, 0],
-                                                     [1, 0],
-                                                     [0, 0]]))
-        self.JCOM0_init = sym.lambdify([q0, q1], JCOM0_init)
+        JCOM0_init = JCOM0.row_insert(4, sym.Matrix([[0, 0, 0, 0],
+                                                     [1, 0, 0, 0],
+                                                     [0, 0, 0, 0]]))
+        self.JCOM0_init = sym.lambdify([q0, q1, q2, q3], JCOM0_init)
 
-        JCOM1 = (T_0_org*com1).jacobian([q0, q1])
+        JCOM1 = (T_0_org*com1).jacobian([q0, q1, q2, q3])
         JCOM1.row_del(3)
-        JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0],
-                                                     [1, 1],
-                                                     [0, 0]]))
-        self.JCOM1_init = sym.lambdify([q0, q1], JCOM1_init)
+        JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0, 0, 0],
+                                                     [1, 1, 0, 0],
+                                                     [0, 0, 0, 0]]))
+        self.JCOM1_init = sym.lambdify([q0, q1, q2, q3], JCOM1_init)
 
-        T_1_org = T_0_org*(T_1_0)
+        JCOM2 = com2.jacobian([q0, q1, q2, q3])
+        JCOM2.row_del(3)
+        JCOM2_init = JCOM2.row_insert(4, sym.Matrix([[0, 0, 0, 0],
+                                                     [1, 1, 1, 0],
+                                                     [0, 0, 0, 0]]))
+        self.JCOM2_init = sym.lambdify([q0, q1, q2, q3], JCOM2_init)
+
+        JCOM3 = (T_2_org*com3).jacobian([q0, q1, q2, q3])
+        JCOM3.row_del(3)
+        JCOM3_init = JCOM3.row_insert(4, sym.Matrix([[0, 0, 0, 0],
+                                                     [1, 1, 1, 1],
+                                                     [0, 0, 0, 0]]))
+        self.JCOM3_init = sym.lambdify([q0, q1, q2, q3], JCOM3_init)
+
+        # T_3_org = T_2_org*T_3_2
         # JEE_v = (T_1_org*(xee)).jacobian([q0, q1])
-        JEE_v = (T_0_org*xee).jacobian([q0, q1])
+        JEE_v = (T_3_1*xee).jacobian([q0, q1, q2, q3])
         JEE_v.row_del(3)
-        JEE_w = sym.Matrix([[0, 0],
-                            [1, 1],
-                            [0, 0]])
-        JEE_init = JEE_v.row_insert(4, JEE_w)
-        self.JEE_init = sym.lambdify([q0, q1], JEE_init)
+        JEE_init = JEE_v.row_insert(4, sym.Matrix([[0, 0, 0, 0],
+                                                   [1, 1, 1, 1],
+                                                   [0, 0, 0, 0]]))
+        self.JEE_init = sym.lambdify([q0, q1, q2, q3], JEE_init)
 
         #----Rotation------------#
+        # TODO: Update
         R_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0)],
                               [0, 1, 0],
                               [sym.sin(q0), 0, sym.cos(q0)]])
