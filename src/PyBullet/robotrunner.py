@@ -5,7 +5,8 @@ import simulationbridge
 import leg_serial
 import leg_parallel
 import leg_belt
-import wbc
+import wbc_parallel
+import wbc_serial
 import statemachine
 import gait
 
@@ -73,6 +74,8 @@ class Runner:
         self.ctrl_type = ctrl_type
         self.plot = plot
         self.spring = spring
+        controller_class = None
+
         if model == 'design':
             L0 = .1
             L1 = .3
@@ -87,12 +90,16 @@ class Runner:
             self.t_p = 0.9  # gait period, seconds 0.5
             self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
             self.dir_s = 1  # spring "direction" (accounts for swapped leg config)
+            controller_class = wbc_parallel
+
         elif model == 'serial':
             self.leg = leg_serial.Leg(dt=dt)
             self.k_kin = 70  # np.array([70, 70])
             self.k_d = self.k_kin * 0.02
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+            controller_class = wbc_serial
+
         elif model == 'parallel':
             L0 = .15
             L1 = .3
@@ -107,14 +114,16 @@ class Runner:
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
             self.dir_s = -1  # spring "direction" (accounts for swapped leg config)
+            controller_class = wbc_parallel
+
         elif model == 'belt':
             self.leg = leg_belt.Leg(dt=dt)
             self.k_kin = 15  # 210
             self.k_d = self.k_kin * 0.02
             self.t_p = 1.4  # gait period, seconds 0.5
             self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+            controller_class = wbc_serial
 
-        controller_class = wbc
         self.controller = controller_class.Control(dt=dt)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record, altsize=altsize,
                                               scale=scale, direct=direct)

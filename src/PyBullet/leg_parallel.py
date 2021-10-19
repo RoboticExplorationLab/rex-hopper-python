@@ -190,19 +190,6 @@ class Leg(LegBase):
                           [0],
                           [1]])
 
-        # --- Loop Closure Constraint --- #
-        T_C_2 = sym.Matrix([[L3 * sym.cos(q3)],  # transform from joint 3 (link 2) to joint constraint
-                            [0],
-                            [L3 * sym.sin(q3)],
-                            [1]])
-        T_C_0 = sym.Matrix([[L1 * sym.cos(q1)],  # transform from joint 1 (link 0) to joint constraint
-                            [0],
-                            [L1 * sym.sin(q1)],
-                            [1]])
-        Y1 = T_0_org*T_C_0
-        Y2 = T_2_org*T_C_2
-        C = Y1 - Y2
-
         # --- Jacobians --- #
         JCOM0 = com0.jacobian([q0, q1, q2, q3])
         JCOM0.row_del(3)
@@ -242,7 +229,30 @@ class Leg(LegBase):
                                                    [0, 0, 0, 0]]))
         self.JEE_init = sym.lambdify([q0, q1, q2, q3], JEE_init)
 
-        #----Rotation------------#
+
+        # --- Loop Closure Constraint --- #
+        T_C_2 = sym.Matrix([[L3 * sym.cos(q3)],  # transform from joint 3 (link 2) to joint constraint
+                            [0],
+                            [L3 * sym.sin(q3)],
+                            [1]])
+        T_C_0 = sym.Matrix([[L1 * sym.cos(q1)],  # transform from joint 1 (link 0) to joint constraint
+                            [0],
+                            [L1 * sym.sin(q1)],
+                            [1]])
+        Y1 = T_0_org * T_C_0
+        Y2 = T_2_org * T_C_2
+        C = Y1 - Y2
+
+        # --- Constraint Jacobian --- #
+        D = C.jacobian([q0, q1, q2, q3])
+        D.row_del(3)
+
+        D_init = D.row_insert(4, sym.Matrix([[0, 0, 0, 0],
+                                             [1, 0, 1, 0],
+                                             [0, 0, 0, 0]]))
+        self.D_init = sym.lambdify([q0, q1, q2, q3], D_init)
+
+        # --- Rotation --- #
         # TODO: Update
         R_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0)],
                               [0, 1, 0],
@@ -251,44 +261,70 @@ class Leg(LegBase):
                             [0, 1, 0],
                             [sym.sin(q1), 0, sym.cos(q1)]])
         R_1_org_init = R_0_org*R_1_0
-        self.R_1_org_init = sym.lambdify([q0, q1], R_1_org_init)
+        self.R_1_org_init = sym.lambdify([q0, q1, q2, q3], R_1_org_init)
 
     def gen_jacCOM0(self, q=None):
-        """Generates the Jacobian from the COM of the first
-        link to the origin frame"""
         q = self.q if q is None else q
-        # JCOM0 = np.zeros((6, 4))
-        JCOM0 = self.JCOM0_init(q[0], q[1])
+        JCOM0 = self.JCOM0_init(q[0], q[1], q[2], q[3])
         JCOM0 = np.array(JCOM0).astype(np.float64)
         return JCOM0
 
     def gen_jacCOM1(self, q=None):
-        """Generates the Jacobian from the COM of the first
-        link to the origin frame"""
         q = self.q if q is None else q
-
-        JCOM1 = self.JCOM1_init(q[0], q[1])
+        JCOM1 = self.JCOM1_init(q[0], q[1], q[2], q[3])
         JCOM1 = np.array(JCOM1).astype(np.float64)
         return JCOM1
 
-    def gen_jacEE(self, q=None):
-        """Generates the Jacobian from the end effector to the origin frame"""
+    def gen_jacCOM2(self, q=None):
         q = self.q if q is None else q
+        JCOM2 = self.JCOM2_init(q[0], q[1], q[2], q[3])
+        JCOM2 = np.array(JCOM2).astype(np.float64)
+        return JCOM2
 
-        JEE = self.JEE_init(q[0], q[1])
+    def gen_jacCOM3(self, q=None):
+        q = self.q if q is None else q
+        JCOM3 = self.JCOM3_init(q[0], q[1], q[2], q[3])
+        JCOM3 = np.array(JCOM3).astype(np.float64)
+        return JCOM3
+
+    def gen_jacEE(self, q=None):
+        q = self.q if q is None else q
+        JEE = self.JEE_init(q[0], q[1], q[2], q[3])
         JEE = np.array(JEE).astype(np.float64)
         return JEE
+
+    def gen_D(self, q=None):
+        q = self.q if q is None else q
+        D = self.D_init(q[0], q[1], q[2], q[3])
+        D = np.array(D).astype(np.float64)
+        return D
+
+    def solve_joint_accel(self, J, D, a_des):
+        # x = np.array([q_dd, lam]).T
+        A = np.array([[J.T * J, D.T],
+                      [D, 0]])
+        B = np.array([J.T * a_des])
+        x = np.linalg.inv(A) @ B
+        q_dd = x[1]
+
+        return q_dd
 
     def gen_Mq(self, q=None):
         # Mass matrix
         M0 = self.MM[0]
         M1 = self.MM[1]
+        M2 = self.MM[2]
+        M3 = self.MM[3]
 
         JCOM0 = self.gen_jacCOM0(q=q)
         JCOM1 = self.gen_jacCOM1(q=q)
+        JCOM2 = self.gen_jacCOM2(q=q)
+        JCOM3 = self.gen_jacCOM3(q=q)
 
         Mq = (np.dot(JCOM0.T, np.dot(M0, JCOM0)) +
-              np.dot(JCOM1.T, np.dot(M1, JCOM1)))
+              np.dot(JCOM1.T, np.dot(M1, JCOM1)) +
+              np.dot(JCOM2.T, np.dot(M2, JCOM2)) +
+              np.dot(JCOM3.T, np.dot(M3, JCOM3)))
 
         return Mq
 
@@ -296,14 +332,16 @@ class Leg(LegBase):
         # Generate gravity term g(q)
         body_grav = np.dot(b_orient.T, self.gravity)  # adjust gravity vector based on body orientation
         body_grav = np.append(body_grav, np.array([[0, 0, 0]]).T)
-        for i in range(0, 2):
+        for i in range(0, 4):
             fgi = float(self.mass[i])*body_grav  # apply mass*gravity
             self.Fg.append(fgi)
 
         J0T = np.transpose(self.gen_jacCOM0(q=q))
         J1T = np.transpose(self.gen_jacCOM1(q=q))
+        J2T = np.transpose(self.gen_jacCOM2(q=q))
+        J3T = np.transpose(self.gen_jacCOM3(q=q))
 
-        gq = J0T.dot(self.Fg[0]) + J1T.dot(self.Fg[1])
+        gq = J0T.dot(self.Fg[0]) + J1T.dot(self.Fg[1]) + J2T.dot(self.Fg[2]) + J3T.dot(self.Fg[3])
 
         return gq.reshape(-1, )
 
@@ -380,15 +418,12 @@ class Leg(LegBase):
     def velocity(self, q=None):  # dq=None
         # Calculate operational space linear velocity vector
         q = self.q if q is None else q
-        # if dq is None:
-        #     dq = self.dq
         JEE = self.gen_jacEE(q=q)
         return np.dot(JEE, self.dq).flatten()
 
     def orientation(self, b_orient, q=None):
         # Calculate orientation of end effector in quaternions
         q = self.q if q is None else q
-
         # REE = np.zeros((3, 3))  # rotation matrix
         REE = self.R_1_org_init(q[0], q[1])
         REE = np.array(REE).astype(np.float64)

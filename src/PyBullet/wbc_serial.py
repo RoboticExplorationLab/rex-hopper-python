@@ -55,9 +55,7 @@ class Control(control.Control):
     def wb_control(self, leg, target, b_orient, force, x_dd_des=None):
         """
         Generates a control signal to apply a specified force vector.
-
         leg Leg: the leg model being controlled
-        des list: the desired system position
         """
 
         self.target = target
@@ -135,9 +133,7 @@ class Control(control.Control):
 
             # calculate the null space filter
             Jdyn_inv = np.dot(Mx, np.dot(JEE, np.linalg.inv(self.Mq)))
-
             null_filter = np.eye(len(leg.q)) - np.dot(JEE.T, Jdyn_inv)
-            # null_filter = np.eye(len(leg.L)) - np.dot(JEE.T, Jdyn_inv)
             null_signal = np.dot(null_filter, Fq_null).reshape(-1, )
 
             self.u += null_signal
