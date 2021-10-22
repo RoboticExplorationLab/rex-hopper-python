@@ -101,7 +101,7 @@ class Sim:
             p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=1000)
 
         # increase friction of toe to ideal
-        p.changeDynamics(self.bot, self.c_link, lateralFriction=2)
+        p.changeDynamics(self.bot, self.c_link, lateralFriction=1)
 
         # Record Video in real time
         if self.record_rt is True:
