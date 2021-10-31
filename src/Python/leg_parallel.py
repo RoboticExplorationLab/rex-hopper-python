@@ -1,14 +1,14 @@
 """
-Copyright (C) 2013 Travis DeWolf
-Copyright (C) 2020 Benjamin Bokser
+Copyright (C) 2020-2021 Benjamin Bokser
 """
 
 import numpy as np
-import sympy as sym
+import sympy as sp
 import csv
 import os
 
 import transforms3d
+from sympy.physics.vector import dynamicsymbols
 
 from legbase import LegBase
 
@@ -38,7 +38,6 @@ class Leg(LegBase):
             values_direct = list(zip(*(row for row in data_direct)))  # transpose rows to columns
             values_direct = np.array(values_direct)  # convert list of nested lists to array
 
-        self.coml = 0.5*self.L
         ixx = values_direct[8].astype(np.float)
         ixy = values_direct[9].astype(np.float)
         ixz = values_direct[10].astype(np.float)
@@ -48,13 +47,17 @@ class Leg(LegBase):
 
         self.mass = values_direct[7].astype(np.float)
         self.mass = np.delete(self.mass, 0)  # remove body value
+        self.coml = values_direct[1:4].astype(np.float)
+        self.coml = np.delete(self.coml, 0, axis=1)  # remove body value
 
         # mass matrices and gravity
         self.MM = []
         self.Fg = []
-        self.gravity = np.array([[0, 0, -9.807]]).T
-
-        for i in range(0, 2):
+        self.I = []
+        # self.gravity = np.array([[0, 0, -9.807]]).T
+        g = 9.807
+        num_links = 4
+        for i in range(0, num_links):
             M = np.zeros((6, 6))
             M[0:3, 0:3] = np.eye(3) * float(self.mass[i])
             M[3, 3] = ixx[i]
@@ -67,167 +70,170 @@ class Leg(LegBase):
             M[5, 4] = iyz[i]
             M[5, 5] = izz[i]
             self.MM.append(M)
+            self.I.append(iyy[i])  # all rotations are in y axis
 
         self.angles = init_q
         self.q_previous = init_q
         self.dq_previous = init_dq
         self.d2q_previous = init_dq
-        self.kv = 0.05
+        # self.kv = 0.05
         self.reset()
         self.q_calibration = np.array(init_q)
 
         # --- Forward Kinematics --- #
-        L0 = self.L[0]
-        L1 = self.L[1]
-        L2 = self.L[2]
-        L3 = self.L[3]
-        L4 = self.L[4]
-        L5 = self.L[5]
-        l0 = self.coml[0]
-        l1 = self.coml[1]
-        l2 = self.coml[2]
-        l3 = self.coml[3]
+        # we're pretending y and z are switched, just roll with it
+        l0 = self.L[0]
+        l1 = self.L[1]
+        l2 = self.L[2]
+        l3 = self.L[3]
+        l4 = self.L[4]
+        l5 = self.L[5]
+        lee = np.sqrt((l3+l4)**2 + l5**2)
+        l_c0x = self.coml[0, 0]
+        l_c0y = self.coml[2, 0]
+        l_c1 = self.coml[0, 1]
+        l_c2 = self.coml[0, 2]
+        l_ceex = self.coml[0, 3]
+        l_ceey = self.coml[2, 3]
 
-        sym.var('q0 q1 q2 q3')
+        l_c0 = np.sqrt(l_c0x**2 + l_c0y**2)
+        alpha0 = np.arctan2(l_c0y, l_c0x)
+        l_cee = np.sqrt(l_ceex**2 + l_ceey**2)
+        alpha3 = np.arctan2(l_ceey, l_ceex)
+        alphaee = np.arctan2(l5, l3 + l4)
 
-        T_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0), L0 * sym.cos(q0)],
-                              [0, 1, 0, 0],
-                              [sym.sin(q0), 0, sym.cos(q0), L0 * sym.sin(q0)],
-                              [0, 0, 0, 1]])
-        T_org_0_rot = T_0_org[0:3, 0:3].T
-        T_org_0_trn = -T_org_0_rot * (T_0_org[0:3, 3])
-        T_org_0 = sym.eye(4)
-        T_org_0[0:3, 0:3] = T_org_0_rot
-        T_org_0[0:3, 3] = T_org_0_trn
-        com0 = -sym.Matrix([[l0 * sym.cos(q0)],  # negative because inverted
-                            [0],
-                            [l0 * sym.sin(q0)],
-                            [1]])
+        m0 = self.mass[0]
+        m1 = self.mass[1]
+        m2 = self.mass[2]
+        m3 = self.mass[3]
 
-        T_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1), L1 * sym.cos(q1)],
-                            [0, 1, 0, 0],
-                            [sym.sin(q1), 0, sym.cos(q1), L1 * sym.sin(q1)],
-                            [0, 0, 0, 1]])
-        # T_1_org = T_0_org*T_1_0
-        # T_org_1_rot = T_1_org[0:3, 0:3].T
-        # T_org_1_trn = -T_org_1_rot*(T_1_org[0:3, 3])
-        # T_org_1 = sym.eye(4)
-        # T_org_1[0:3, 0:3] = T_org_1_rot
-        # T_org_1[0:3, 3] = T_org_1_trn
+        I0 = self.I[0]
+        I1 = self.I[1]
+        I2 = self.I[2]
+        I3 = self.I[3]
 
-        T_0_1_rot = T_1_0[0:3, 0:3].T
-        T_0_1_trn = -T_0_1_rot * (T_1_0[0:3, 3])
-        T_0_1 = sym.eye(4)
-        T_0_1[0:3, 0:3] = T_0_1_rot
-        T_0_1[0:3, 3] = T_0_1_trn
+        # sp.var('q0 q1 q2 q3')
+        q0 = dynamicsymbols('q0')
+        q1 = dynamicsymbols('q1')
+        q2 = dynamicsymbols('q2')
+        q3 = dynamicsymbols('q3')
+        q0d = dynamicsymbols('q0d')
+        q1d = dynamicsymbols('q1d')
+        q2d = dynamicsymbols('q2d')
+        q3d = dynamicsymbols('q3d')
+        q0dd = dynamicsymbols('q0dd')
+        q1dd = dynamicsymbols('q1dd')
+        q2dd = dynamicsymbols('q2dd')
+        q3dd = dynamicsymbols('q3dd')
 
-        com1 = -sym.Matrix([[l1 * sym.cos(q1)],
-                            [0],
-                            [l1 * sym.sin(q1)],
-                            [1]])
+        t = sp.Symbol('t')
 
-        T_2_org = sym.Matrix([[sym.cos(q2), 0, -sym.sin(q2), L2 * sym.cos(q2)],
-                              [0, 1, 0, 0],
-                              [sym.sin(q2), 0, sym.cos(q2), L2 * sym.sin(q2)],
-                              [0, 0, 0, 1]])
-        com2 = sym.Matrix([[l2 * sym.cos(q2)],
-                           [0],
-                           [l2 * sym.sin(q2)],
-                           [1]])
+        x0 = l_c0 * sp.cos(q0 + alpha0)
+        y0 = l_c0 * sp.sin(q0 + alpha0)
+        x1 = l0 * sp.cos(q0) + l_c1 * sp.cos(q0 + q1)
+        y1 = l0 * sp.sin(q0) + l_c1 * sp.sin(q0 + q1)
 
-        LEE = np.sqrt((L3+L4)**2 + L5**2)
-        gamma = np.arctan(L5/(L3+L4))
-        alpha = q3 - gamma
-        T_3_2 = sym.Matrix([[sym.cos(alpha), 0, -sym.sin(alpha), LEE * sym.cos(alpha)],
-                            [0, 1, 0, 0],
-                            [sym.sin(alpha), 0, sym.cos(alpha), LEE * sym.sin(alpha)],
-                            [0, 0, 0, 1]])
+        x2 = l_c2 * sp.cos(q2)
+        y2 = l_c2 * sp.sin(q2)
+        x3 = l2 * sp.cos(q2) + l_cee * sp.cos(q2 + q3 + alpha3)
+        y3 = l2 * sp.sin(q2) + l_cee * sp.sin(q2 + q3 + alpha3)
 
-        T_2_1 = T_0_1 * T_org_0 * T_2_org
-        T_3_1 = T_2_1 * T_3_2
+        x0d = sp.diff(x0, t)
+        y0d = sp.diff(y0, t)
+        x1d = sp.diff(x1, t)
+        y1d = sp.diff(y1, t)
+        x2d = sp.diff(x2, t)
+        y2d = sp.diff(y2, t)
+        x3d = sp.diff(x3, t)
+        y3d = sp.diff(y3, t)
 
-        com3 = sym.Matrix([[l3 * sym.cos(q3)],  # TODO: Update
-                           [0],
-                           [l3 * sym.sin(q3)],
-                           [1]])
+        U0 = m0 * g * y0
+        U1 = m1 * g * y1
+        U2 = m2 * g * y2
+        U3 = m3 * g * y3
 
-        xee = sym.Matrix([[0],
-                          [0],
-                          [0],
-                          [1]])
+        v0_squared = x0d**2 + y0d**2
+        v1_squared = x1d**2 + y1d**2
+        v2_squared = x2d**2 + y2d**2
+        v3_squared = x3d**2 + y3d**2
+        T0 = 0.5 * m0 * v0_squared + 0.5 * I0 * q0d**2
+        T1 = 0.5 * m1 * v1_squared + 0.5 * I1 * q1d**2
+        T2 = 0.5 * m2 * v2_squared + 0.5 * I2 * q2d**2
+        T3 = 0.5 * m3 * v3_squared + 0.5 * I3 * q3d**2
+
+        U = U0 + U1 + U2 + U3
+        T = T0 + T1 + T2 + T3
+
+        # Le Lagrangian
+        L = sp.trigsimp(T - U)
+        L = L.subs(sp.Derivative(q0, t), q0d)  # substitute d/dt q2 with q2d
+        L = L.subs(sp.Derivative(q1, t), q1d)  # substitute d/dt q1 with q1d
+        L = L.subs(sp.Derivative(q2, t), q2d)  # substitute d/dt q2 with q2d
+        L = L.subs(sp.Derivative(q3, t), q3d)  # substitute d/dt q2 with q2d
+
+        # Lagrange-Euler Equation
+        LE0 = sp.diff(sp.diff(L, q0d), t) - sp.diff(L, q0)
+        LE1 = sp.diff(sp.diff(L, q1d), t) - sp.diff(L, q1)
+        LE2 = sp.diff(sp.diff(L, q2d), t) - sp.diff(L, q2)
+        LE3 = sp.diff(sp.diff(L, q3d), t) - sp.diff(L, q3)
+        LE = sp.Matrix([LE0, LE1, LE2, LE3])
+
+        # subs first derivative
+        LE = LE.subs(sp.Derivative(q0, t), q0d)  # substitute d/dt q1 with q1d
+        LE = LE.subs(sp.Derivative(q1, t), q1d)  # substitute d/dt q1 with q1d
+        LE = LE.subs(sp.Derivative(q2, t), q2d)  # substitute d/dt q2 with q2d
+        LE = LE.subs(sp.Derivative(q3, t), q3d)  # substitute d/dt q1 with q1d
+        # subs second derivative
+        LE = LE.subs(sp.Derivative(q0d, t), q0dd)  # substitute d/dt q1d with q1dd
+        LE = LE.subs(sp.Derivative(q1d, t), q1dd)  # substitute d/dt q1d with q1dd
+        LE = LE.subs(sp.Derivative(q2d, t), q2dd)  # substitute d/dt q2d with q2dd
+        LE = LE.subs(sp.Derivative(q3d, t), q3dd)  # substitute d/dt q1d with q1dd
+        LE = sp.expand(sp.simplify(LE))
+
+        # Generalized mass matrix
+        M = sp.zeros(4, 4)
+        M[0, 0] = sp.collect(LE[0], q0dd).coeff(q0dd)
+        M[0, 1] = sp.collect(LE[0], q1dd).coeff(q1dd)
+        M[0, 2] = sp.collect(LE[0], q2dd).coeff(q2dd)
+        M[0, 3] = sp.collect(LE[0], q3dd).coeff(q3dd)
+        M[1, 0] = sp.collect(LE[1], q0dd).coeff(q0dd)
+        M[1, 1] = sp.collect(LE[1], q1dd).coeff(q1dd)
+        M[1, 2] = sp.collect(LE[1], q2dd).coeff(q2dd)
+        M[1, 3] = sp.collect(LE[1], q3dd).coeff(q3dd)
+        M[2, 0] = sp.collect(LE[2], q0dd).coeff(q0dd)
+        M[2, 1] = sp.collect(LE[2], q1dd).coeff(q1dd)
+        M[2, 2] = sp.collect(LE[2], q2dd).coeff(q2dd)
+        M[2, 3] = sp.collect(LE[2], q3dd).coeff(q3dd)
+        M[3, 0] = sp.collect(LE[3], q0dd).coeff(q0dd)
+        M[3, 1] = sp.collect(LE[3], q1dd).coeff(q1dd)
+        M[3, 2] = sp.collect(LE[3], q2dd).coeff(q2dd)
+        M[3, 3] = sp.collect(LE[3], q3dd).coeff(q3dd)
+        self.M_init = sp.lambdify([q0, q1, q2, q3], M)
+
+        # Gravity Matrix
+        G = LE
+        G = G.subs(q0d, 0)
+        G = G.subs(q1d, 0)  # must remove q derivative terms manually
+        G = G.subs(q2d, 0)
+        G = G.subs(q3d, 0)
+        G = G.subs(q0dd, 0)
+        G = G.subs(q1dd, 0)
+        G = G.subs(q2dd, 0)
+        G = G.subs(q3dd, 0)
+        self.G_init = sp.lambdify([q0, q1, q2, q3], G)
+
+        # Coriolis Matrix
+        # assume anything without qdd minus G is C
+        C = LE
+        C = C.subs(q0dd, 0)
+        C = C.subs(q1dd, 0)
+        C = C.subs(q2dd, 0)
+        C = C.subs(q3dd, 0)
+        C = C - G
+        self.C_init = sp.lambdify([q0, q1, q2, q3], C)
 
         # --- Jacobians --- #
-        JCOM0 = com0.jacobian([q0, q1, q2, q3])
-        JCOM0.row_del(3)
 
-        JCOM0_init = JCOM0.row_insert(4, sym.Matrix([[0, 0, 0, 0],
-                                                     [1, 0, 0, 0],
-                                                     [0, 0, 0, 0]]))
-        self.JCOM0_init = sym.lambdify([q0, q1, q2, q3], JCOM0_init)
-
-        JCOM1 = (T_0_org*com1).jacobian([q0, q1, q2, q3])
-        JCOM1.row_del(3)
-        JCOM1_init = JCOM1.row_insert(4, sym.Matrix([[0, 0, 0, 0],
-                                                     [1, 1, 0, 0],
-                                                     [0, 0, 0, 0]]))
-        self.JCOM1_init = sym.lambdify([q0, q1, q2, q3], JCOM1_init)
-
-        JCOM2 = com2.jacobian([q0, q1, q2, q3])
-        JCOM2.row_del(3)
-        JCOM2_init = JCOM2.row_insert(4, sym.Matrix([[0, 0, 0, 0],
-                                                     [1, 1, 1, 0],
-                                                     [0, 0, 0, 0]]))
-        self.JCOM2_init = sym.lambdify([q0, q1, q2, q3], JCOM2_init)
-
-        JCOM3 = (T_2_org*com3).jacobian([q0, q1, q2, q3])
-        JCOM3.row_del(3)
-        JCOM3_init = JCOM3.row_insert(4, sym.Matrix([[0, 0, 0, 0],
-                                                     [1, 1, 1, 1],
-                                                     [0, 0, 0, 0]]))
-        self.JCOM3_init = sym.lambdify([q0, q1, q2, q3], JCOM3_init)
-
-        # T_3_org = T_2_org*T_3_2
-        # JEE_v = (T_1_org*(xee)).jacobian([q0, q1])
-        JEE_v = (T_3_1*xee).jacobian([q0, q1, q2, q3])
-        JEE_v.row_del(3)
-        JEE_init = JEE_v.row_insert(4, sym.Matrix([[0, 0, 0, 0],
-                                                   [1, 1, 1, 1],
-                                                   [0, 0, 0, 0]]))
-        self.JEE_init = sym.lambdify([q0, q1, q2, q3], JEE_init)
-
-
-        # --- Loop Closure Constraint --- #
-        T_C_2 = sym.Matrix([[L3 * sym.cos(q3)],  # transform from joint 3 (link 2) to joint constraint
-                            [0],
-                            [L3 * sym.sin(q3)],
-                            [1]])
-        T_C_0 = sym.Matrix([[L1 * sym.cos(q1)],  # transform from joint 1 (link 0) to joint constraint
-                            [0],
-                            [L1 * sym.sin(q1)],
-                            [1]])
-        Y1 = T_0_org * T_C_0
-        Y2 = T_2_org * T_C_2
-        C = Y1 - Y2
-
-        # --- Constraint Jacobian --- #
-        D = C.jacobian([q0, q1, q2, q3])
-        D.row_del(3)
-
-        D_init = D.row_insert(4, sym.Matrix([[0, 0, 0, 0],
-                                             [1, 0, 1, 0],
-                                             [0, 0, 0, 0]]))
-        self.D_init = sym.lambdify([q0, q1, q2, q3], D_init)
-
-        # --- Rotation --- #
-        # TODO: Update
-        R_0_org = sym.Matrix([[sym.cos(q0), 0, -sym.sin(q0)],
-                              [0, 1, 0],
-                              [sym.sin(q0), 0, sym.cos(q0)]])
-        R_1_0 = sym.Matrix([[sym.cos(q1), 0, -sym.sin(q1)],
-                            [0, 1, 0],
-                            [sym.sin(q1), 0, sym.cos(q1)]])
-        R_1_org_init = R_0_org*R_1_0
-        self.R_1_org_init = sym.lambdify([q0, q1, q2, q3], R_1_org_init)
 
     def gen_jacCOM0(self, q=None):
         q = self.q if q is None else q
@@ -264,16 +270,6 @@ class Leg(LegBase):
         D = self.D_init(q[0], q[1], q[2], q[3])
         D = np.array(D).astype(np.float64)
         return D
-
-    def solve_joint_accel(self, J, D, a_des):
-        # x = np.array([q_dd, lam]).T
-        A = np.array([[J.T * J, D.T],
-                      [D, 0]])
-        B = np.array([J.T * a_des])
-        x = np.linalg.inv(A) @ B
-        q_dd = x[1]
-
-        return q_dd
 
     def gen_Mq(self, q=None):
         # Mass matrix
