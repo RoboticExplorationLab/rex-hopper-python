@@ -5,12 +5,10 @@ import numpy as np
 
 
 class Gait:
-    def __init__(self, controller, leg, target, t_p, phi_switch, hconst, dt=1e-3, **kwargs):
+    def __init__(self, controller, leg, target, hconst, dt=1e-3, **kwargs):
 
         self.swing_steps = 0
         self.trajectory = None
-        self.t_p = t_p
-        self.phi_switch = phi_switch
         self.dt = dt
         self.init_alpha = 0
         self.init_beta = 0

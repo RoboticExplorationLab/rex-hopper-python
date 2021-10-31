@@ -15,7 +15,7 @@ from legbase import LegBase
 
 class Leg(LegBase):
 
-    def __init__(self, init_q=None, init_dq=None, **kwargs):
+    def __init__(self, model, init_q=None, init_dq=None, **kwargs):
 
         if init_dq is None:
             init_dq = [0., 0.]
@@ -24,19 +24,15 @@ class Leg(LegBase):
             init_q = [-150 * np.pi / 180,
                       120 * np.pi / 180]
 
-        self.DOF = 4
+        self.DOF = len(init_q)
 
         LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
-        # link lengths (m) must be manually updated
-        L0 = .3
-        L1 = .3
-        self.L = np.array([L0, L1])
-
+        self.L = np.array(model["linklengths"])
+        csv_path = model["csvpath"]
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
-        model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.csv"
-        path = os.path.join(path_parent, '..', model_path)
+        path = os.path.join(path_parent, '..', csv_path)
         with open(path, 'r') as csvfile:
             data_direct = csv.reader(csvfile, delimiter=',')
             next(data_direct)  # skip headers

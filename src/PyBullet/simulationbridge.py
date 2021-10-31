@@ -25,7 +25,7 @@ def reaction_force(numjoints, bot):
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, scale=1, direct=False):
+    def __init__(self, model, dt=1e-3,  fixed=False, record=False, scale=1, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -46,19 +46,7 @@ class Sim:
 
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
-        jconn_1 = None
-        jconn_2 = None
-        if model == 'design':
-            model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
-            jconn_1 = [x*scale for x in [0.15, 0, 0]]
-            jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
-        elif model == 'serial' or model == 'belt':
-            model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf"
-        elif model == 'parallel':
-            model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf"
-        else:
-            print("error: model choice invalid")
-            model_path = None
+        model_path = model["urdfpath"]
 
         self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7*scale],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
@@ -72,17 +60,21 @@ class Sim:
         p.setRealTimeSimulation(useRealTime)
 
         self.c_link = 1
-        if model == 'design':
+
+        self.model = model["model"]
+
+        if self.model == 'design':
+            jconn_1 = [x*scale for x in [0.15, 0, 0]]
+            jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
-
-        if model == 'parallel':
+        if self.model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
             p.changeConstraint(linkjoint, maxForce=1000)
-        elif model == 'belt':
+        elif self.model == 'belt':
             # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
                                      p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
@@ -101,7 +93,6 @@ class Sim:
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
 
-        self.model = model
 
     def sim_run(self, u, tau_s):
 

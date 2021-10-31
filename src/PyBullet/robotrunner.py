@@ -62,7 +62,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 
 class Runner:
 
-    def __init__(self, dt=1e-3, model='design', ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
+    def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
                  record=False, scale=1, direct=False, total_run=100000):
 
         self.dt = dt
@@ -74,55 +74,15 @@ class Runner:
         self.ctrl_type = ctrl_type
         self.plot = plot
         self.spring = spring
-        controller_class = None
 
-        if model == 'design':
-            L0 = .1
-            L1 = .3
-            L2 = .3
-            L3 = .1
-            L4 = .2
-            L5 = 0.0205
-            self.L = np.array([L0, L1, L2, L3, L4, L5])
-            self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
-            self.k_kin = 25*1.5
-            self.k_d = self.k_kin * 0.02
-            self.t_p = 0.9  # gait period, seconds 0.5
-            self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-            self.dir_s = 1  # spring "direction" (accounts for swapped leg config)
-            controller_class = wbc_parallel
+        controller_class = model["controllerclass"]
+        leg_class = model["legclass"]
+        self.L = np.array(model["linklengths"])
+        self.leg = leg_class.Leg(dt=dt, model=model)
+        self.k_kin = model["k_kin"]
+        self.dir_s = model["springpolarity"]
 
-        elif model == 'serial':
-            self.leg = leg_serial.Leg(dt=dt)
-            self.k_kin = 70  # np.array([70, 70])
-            self.k_d = self.k_kin * 0.02
-            self.t_p = 1.4  # gait period, seconds 0.5
-            self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-            controller_class = wbc_serial
-
-        elif model == 'parallel':
-            L0 = .15
-            L1 = .3
-            L2 = .3
-            L3 = .15
-            L4 = .15
-            L5 = 0
-            self.L = np.array([L0, L1, L2, L3, L4, L5])
-            self.leg = leg_parallel.Leg(dt=dt, l=self.L, model=model)
-            self.k_kin = 70
-            self.k_d = self.k_kin * 0.02
-            self.t_p = 1.4  # gait period, seconds 0.5
-            self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-            self.dir_s = -1  # spring "direction" (accounts for swapped leg config)
-            controller_class = wbc_parallel
-
-        elif model == 'belt':
-            self.leg = leg_belt.Leg(dt=dt)
-            self.k_kin = 15  # 210
-            self.k_d = self.k_kin * 0.02
-            self.t_p = 1.4  # gait period, seconds 0.5
-            self.phi_switch = 0.15  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-            controller_class = wbc_serial
+        self.k_d = self.k_kin * 0.02
 
         self.controller = controller_class.Control(dt=dt)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record,
@@ -138,8 +98,7 @@ class Runner:
         self.sh = 1  # estimated contact state
         self.dist_force = np.array([0, 0, 0])
 
-        self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, t_p=self.t_p,
-                              phi_switch=self.phi_switch, hconst=self.hconst, dt=dt)
+        self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst, dt=dt)
 
         # self.target = None
         self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
@@ -213,9 +172,7 @@ class Runner:
             self.leg.update_state(q_in=q)
 
             s_prev = s
-            # gait scheduler
-            s = self.gait_scheduler(t, t0)
-
+            # prevents stuck in stance bug
             go, ct = self.gait_check(s, s_prev=s_prev, ct=ct, t=t)
 
             # Like using limit switches
@@ -325,24 +282,12 @@ class Runner:
 
         return ft_saved
 
-    def gait_scheduler(self, t, t0):
-        # Schedules gait, obviously
-        # TODO: Add variable period
-        phi = np.mod((t - t0) / self.t_p, 1)
-
-        if phi > self.phi_switch:
-            s = 0  # scheduled swing
-        else:
-            s = 1  # scheduled stance
-
-        return s
-
     def gait_check(self, s, s_prev, ct, t):
         # To ensure that after state has been changed, it cannot change to again immediately...
         # Generates "go" variable as True only when criteria for time passed since gait change is met
         if s_prev != s:
             ct = t  # record time of state change
-        if ct - t >= self.t_p * (1 - self.phi_switch) * 0.5:
+        if ct - t >= 0.25:
             go = True
         else:
             go = False

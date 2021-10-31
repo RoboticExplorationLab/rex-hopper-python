@@ -3,6 +3,11 @@ Copyright (C) 2020 Benjamin Bokser
 """
 import argparse
 
+import leg_serial
+import leg_parallel
+import leg_belt
+import wbc_parallel
+import wbc_serial
 from robotrunner import Runner
 
 
@@ -10,8 +15,10 @@ dt = 1e-3
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("model", help="design, serial, parallel, or belt", type=str)
-parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle", type=str)
+parser.add_argument("model", help="choose the robot model",
+                    choices=['design', 'serial', 'parallel', 'belt'], type=str)
+parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle",
+                    choices=['wbc_cycle', 'simple_invkin', 'static_invkin'], type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
@@ -45,6 +52,61 @@ print("ctrl = ", args.ctrl)
 
 print("\n")
 
-runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed,
+design = {
+    "model": "design",
+    "controllerclass": wbc_parallel,
+    "legclass": leg_parallel,
+    "csvpath": "res/flyhopper_robot/urdf/flyhopper_robot.csv",
+    "urdfpath": "res/flyhopper_robot/urdf/flyhopper_robot.urdf",
+    "linklengths": [.1, .3, .3, .1, .2, .0205],
+    "k_kin": 37.5,
+    "springpolarity": 1
+}
+
+parallel = {
+    "model": "parallel",
+    "controllerclass": wbc_parallel,
+    "legclass": leg_parallel,
+    "csvpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.csv",
+    "urdfpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf",
+    "linklengths": [.15, .3, .3, .15, .15, 0],
+    "k_kin": 70,
+    "springpolarity": -1
+}
+
+serial = {
+    "model": "serial",
+    "controllerclass": wbc_serial,
+    "legclass": leg_serial,
+    "csvpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.csv",
+    "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
+    "linklengths": [.3, .3],
+    "k_kin": 70,
+    "springpolarity": 0
+}
+
+belt = {
+    "model": "belt",
+    "controllerclass": wbc_serial,
+    "legclass": leg_belt,
+    "csvpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.csv",
+    "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
+    "linklengths": [.3, .3],
+    "k_kin": 15,
+    "springpolarity": 0
+}
+
+if args.model == "design":
+    model = design
+elif args.model == "parallel":
+    model = parallel
+elif args.model == "serial":
+    model = serial
+elif args.model == "belt":
+    model = belt
+else:
+    raise NameError('INVALID MODEL')
+
+runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed,
                 spring=spring, record=record, scale=args.scale)
 runner.run()

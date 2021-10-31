@@ -15,7 +15,7 @@ from legbase import LegBase
 
 class Leg(LegBase):
 
-    def __init__(self, l, model, init_q=None, init_dq=None, **kwargs):
+    def __init__(self, model, init_q=None, init_dq=None, **kwargs):
 
         if init_dq is None:
             init_dq = [0., 0.]
@@ -23,20 +23,15 @@ class Leg(LegBase):
         if init_q is None:
             init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
 
-        self.DOF = 4
+        self.DOF = len(init_q)
 
         LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
-        self.L = l # np.array([L0, L1, L2, L3, L4])
-        model_path = None
+        self.L = np.array(model["linklengths"])
+        csv_path = model["csvpath"]
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
-        if model == 'design':
-            model_path = "res/flyhopper_robot/urdf/flyhopper_robot.csv"
-
-        elif model == 'parallel':
-            model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.csv"
-        path = os.path.join(path_parent, os.path.pardir, model_path)
+        path = os.path.join(path_parent, os.path.pardir, csv_path)
         with open(path, 'r') as csvfile:
             data_direct = csv.reader(csvfile, delimiter=',')
             next(data_direct)  # skip headers
@@ -121,7 +116,7 @@ class Leg(LegBase):
                               [0, 1, 0, 0],
                               [sym.sin(q0), 0, sym.cos(q0), L0 * sym.sin(q0)],
                               [0, 0, 0, 1]])
-        T_org_0_rot = T_0_org[0:3, 0:3].transpose
+        T_org_0_rot = T_0_org[0:3, 0:3].T
         T_org_0_trn = -T_org_0_rot * (T_0_org[0:3, 3])
         T_org_0 = sym.eye(4)
         T_org_0[0:3, 0:3] = T_org_0_rot
@@ -136,14 +131,14 @@ class Leg(LegBase):
                             [sym.sin(q1), 0, sym.cos(q1), L1 * sym.sin(q1)],
                             [0, 0, 0, 1]])
         # T_1_org = T_0_org*T_1_0
-        # T_org_1_rot = T_1_org[0:3, 0:3].transpose
+        # T_org_1_rot = T_1_org[0:3, 0:3].T
         # T_org_1_trn = -T_org_1_rot*(T_1_org[0:3, 3])
         # T_org_1 = sym.eye(4)
         # T_org_1[0:3, 0:3] = T_org_1_rot
         # T_org_1[0:3, 3] = T_org_1_trn
 
-        T_0_1_rot = T_1_0[0:3, 0:3].transpose
-        T_0_1_trn = -T_org_1_rot * (T_1_0[0:3, 3])
+        T_0_1_rot = T_1_0[0:3, 0:3].T
+        T_0_1_trn = -T_0_1_rot * (T_1_0[0:3, 3])
         T_0_1 = sym.eye(4)
         T_0_1[0:3, 0:3] = T_0_1_rot
         T_0_1[0:3, 3] = T_0_1_trn
