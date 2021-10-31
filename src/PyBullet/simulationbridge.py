@@ -25,7 +25,7 @@ def reaction_force(numjoints, bot):
 
 class Sim:
 
-    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, altsize=1, scale=1, direct=False):
+    def __init__(self, dt=1e-3, model='serial', fixed=False, record=False, scale=1, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -49,21 +49,9 @@ class Sim:
         jconn_1 = None
         jconn_2 = None
         if model == 'design':
-            if altsize == 1:
-                model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
-                jconn_1 = [x*scale for x in [0.15, 0, 0]]
-                jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
-            elif altsize == 0.8:
-                model_path = "res/flyhopper_robot_0_8/urdf/flyhopper_robot_0_8.urdf"
-                jconn_1 = [0.12, 0, 0]
-                jconn_2 = [-0.01317691945+0.06/2, 0, 0.0153328498]
-            elif altsize == 1.2:
-                model_path = "res/flyhopper_robot_1_2/urdf/flyhopper_robot_1_2.urdf"
-                jconn_1 = [0.18, 0, 0]
-                jconn_2 = [-0.01317691945-0.06/2, 0, 0.0153328498]
-            else:
-                print("error: invalid size")
-                model_path = None
+            model_path = "res/flyhopper_robot/urdf/flyhopper_robot.urdf"
+            jconn_1 = [x*scale for x in [0.15, 0, 0]]
+            jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
         elif model == 'serial' or model == 'belt':
             model_path = "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf"
         elif model == 'parallel':

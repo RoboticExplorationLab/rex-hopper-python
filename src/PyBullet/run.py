@@ -16,7 +16,6 @@ parser.add_argument("--plot", help="whether or not you would like to plot result
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
 parser.add_argument("--record", help="record: True or False", action="store_true")
-parser.add_argument("--altsize", help="0.8 or 1.2", type=float, choices=[0.8, 1.2], default=1)
 parser.add_argument("--scale", help="change scale of robot (doesn't change mass)", type=float, default=1)
 args = parser.parse_args()
 
@@ -40,19 +39,12 @@ if args.record:
 else:
     record = False
 
-if args.model == 'parallel' or args.model == 'belt' or args.model == 'design':
-    if args.ctrl == 'wbc_cycle':
-        print("WARNING: This won't work")
-
 print("\n")
 print("model = ", args.model)
 print("ctrl = ", args.ctrl)
-if args.altsize is None:
-    print("size = x1")
-else:
-    print("size = x", args.altsize)
+
 print("\n")
 
 runner = Runner(dt=dt, plot=plot, model=args.model, ctrl_type=args.ctrl, fixed=fixed,
-                spring=spring, record=record, altsize=args.altsize, scale=args.scale)
+                spring=spring, record=record, scale=args.scale)
 runner.run()

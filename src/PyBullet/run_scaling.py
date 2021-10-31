@@ -27,7 +27,7 @@ ft_mean = np.zeros(len(range))
 for scale in range:
     print("Now running with scale of ", scale)
     runner = Runner(dt=dt, plot=False, model='design', ctrl_type='simple_invkin', fixed=False,
-                    spring=spring, record=False, altsize=1, scale=scale, direct=True, total_run=10000)
+                    spring=spring, record=False, scale=scale, direct=True, total_run=10000)
     ft = runner.run()
     flighttimes = ft[ft != 0]
     ft_mean[i] = np.mean(flighttimes)

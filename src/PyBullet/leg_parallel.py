@@ -15,7 +15,7 @@ from legbase import LegBase
 
 class Leg(LegBase):
 
-    def __init__(self, l, model, altsize=1, init_q=None, init_dq=None, **kwargs):
+    def __init__(self, l, model, init_q=None, init_dq=None, **kwargs):
 
         if init_dq is None:
             init_dq = [0., 0.]
@@ -32,15 +32,8 @@ class Leg(LegBase):
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
         if model == 'design':
-            if altsize == 1:
-                model_path = "res/flyhopper_robot/urdf/flyhopper_robot.csv"
-            elif altsize == 0.8:
-                model_path = "res/flyhopper_robot_0_8/urdf/flyhopper_robot_0_8.csv"
-            elif altsize == 1.2:
-                model_path = "res/flyhopper_robot_1_2/urdf/flyhopper_robot_1_2.csv"
-            else:
-                print("error: invalid size")
-                model_path = None
+            model_path = "res/flyhopper_robot/urdf/flyhopper_robot.csv"
+
         elif model == 'parallel':
             model_path = "res/flyhopper_parallel/urdf/flyhopper_parallel.csv"
         path = os.path.join(path_parent, os.path.pardir, model_path)
