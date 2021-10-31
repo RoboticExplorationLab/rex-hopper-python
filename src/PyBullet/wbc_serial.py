@@ -5,21 +5,11 @@ Copyright (C) 2020 Benjamin Bokser
 import numpy as np
 import transforms3d
 
-import control
 
-
-class Control(control.Control):
-    """
-    A controller that implements whole body control.
-    Controls the (x,y,z) position of the end-effector.
-    """
+class Control:
 
     def __init__(self, dt=1e-3, null_control=False, **kwargs):
-        """
-        null_control boolean: apply second controller in null space or not
-        """
 
-        super(Control, self).__init__(**kwargs)
         self.dt = dt
         self.DOF = 3  # task space dimensionality
         self.null_control = null_control
@@ -52,11 +42,7 @@ class Control(control.Control):
         self.q_e = None
         self.ctrlr_dof = np.array([True, True, True, False, False, False])
 
-    def wb_control(self, leg, target, b_orient, force, x_dd_des=None):
-        """
-        Generates a control signal to apply a specified force vector.
-        leg Leg: the leg model being controlled
-        """
+    def wb_control(self, leg, target, b_orient, force=0, x_dd_des=None):
 
         self.target = target
         self.b_orient = np.array(b_orient)
@@ -107,11 +93,8 @@ class Control(control.Control):
         Fx = np.dot(Mx, x_dd_des)
         Aq_dd = (np.dot(JEE.T, Fx).reshape(-1, ))
 
-        if force is None:
-            force_control = 0
-        else:
-            Fr = np.dot(b_orient, force)
-            force_control = (np.dot(JEE.T, Fr).reshape(-1, ))
+        Fr = np.dot(b_orient, force)
+        force_control = (np.dot(JEE.T, Fr).reshape(-1, ))
 
         self.grav = leg.gen_grav(b_orient=b_orient)
         self.u = Aq_dd - self.grav - force_control*self.kf

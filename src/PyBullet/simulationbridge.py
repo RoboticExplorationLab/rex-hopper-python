@@ -134,7 +134,6 @@ class Sim:
 
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7)
             torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
-            # q[1] *= -1  # This seems to be correct 8-25-21
 
         elif self.model == "parallel":
             command = np.zeros(4)

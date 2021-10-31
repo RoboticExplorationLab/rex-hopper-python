@@ -38,34 +38,13 @@ class Leg(LegBase):
             values_direct = list(zip(*(row for row in data_direct)))  # transpose rows to columns
             values_direct = np.array(values_direct)  # convert list of nested lists to array
 
-        # values = []
-        self.inertial_data = False
-
-        if self.inertial_data is True:
-            inertia_data = str('path/inertia_data.csv')  # TODO: Add
-
-            with open(inertia_data, 'r') as csvfile:
-                data = csv.reader(csvfile, delimiter=',')
-                next(data)  # skip headers
-                values = list(zip(*(row for row in data)))  # transpose rows to columns
-                values = np.array(values)  # convert list of nested lists to array
-
-            ixx = values[1].astype(np.float)
-            ixy = values[2].astype(np.float)
-            ixz = values[3].astype(np.float)
-            iyy = values[4].astype(np.float)
-            iyz = values[5].astype(np.float)
-            izz = values[6].astype(np.float)
-            self.coml = values[7].astype(np.float)
-
-        else:
-            self.coml = 0.5*self.L
-            ixx = values_direct[8].astype(np.float)
-            ixy = values_direct[9].astype(np.float)
-            ixz = values_direct[10].astype(np.float)
-            iyy = values_direct[11].astype(np.float)
-            iyz = values_direct[12].astype(np.float)
-            izz = values_direct[13].astype(np.float)
+        self.coml = 0.5*self.L
+        ixx = values_direct[8].astype(np.float)
+        ixy = values_direct[9].astype(np.float)
+        ixz = values_direct[10].astype(np.float)
+        iyy = values_direct[11].astype(np.float)
+        iyz = values_direct[12].astype(np.float)
+        izz = values_direct[13].astype(np.float)
 
         self.mass = values_direct[7].astype(np.float)
         self.mass = np.delete(self.mass, 0)  # remove body value
@@ -74,7 +53,6 @@ class Leg(LegBase):
         self.MM = []
         self.Fg = []
         self.gravity = np.array([[0, 0, -9.807]]).T
-        self.extra = np.array([[0, 0, 0]]).T
 
         for i in range(0, 2):
             M = np.zeros((6, 6))

@@ -27,7 +27,7 @@ class Gait:
             # set target position
             self.target = np.hstack(np.append(np.array([0, 0, -0.5]), self.init_angle))
             # calculate wbc control signal
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'HeelStrike':
             '''
@@ -39,16 +39,16 @@ class Gait:
             self.target = np.hstack(np.append(self.r_save, self.init_angle))
             '''
             self.target[2] = -self.hconst
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'Crouch':
             self.target[2] = -self.hconst  # go to crouch
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'Leap':
             # calculate wbc control signal
             if skip is True:
-                fr_mpc = None
+                fr_mpc = 0
 
             self.target = np.hstack(np.append(np.array([0, 0, -0.55]), self.init_angle))
             u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=fr_mpc)
@@ -60,7 +60,6 @@ class Gait:
         return u
 
     def u_invkin(self, state, k_kin, k_d):
-        # time.sleep(self.dt/2)  # closed form inv kin runs much faster than full wbc, slow it down
         # self.target[2] = -0.5
         if state == 'Return':
             # set target position
