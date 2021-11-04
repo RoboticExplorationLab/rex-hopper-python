@@ -71,25 +71,14 @@ class Control:
         # calculate linear acceleration term based on PD control
         x_dd_des[:3] = np.dot(self.kp, (self.target[0:3] - self.x)) + np.dot(self.kv, -self.velocity)
 
-        # Orientation-Control------------------------------------------------------------------------------#
-        # calculate end effector orientation unit quaternion
-        self.q_e = leg.orientation(b_orient=b_orient)
-
-        # calculate the target orientation unit quaternion
-        q_d = transforms3d.euler.euler2quat(self.target[3], self.target[4], self.target[5], axes='sxyz')
-        q_d = q_d / np.linalg.norm(q_d)  # convert to unit vector quaternion
-
-        # calculate the rotation between current and target orientations
-        q_r = transforms3d.quaternions.qmult(
-            q_d, transforms3d.quaternions.qconjugate(self.q_e))
-
-        # convert rotation quaternion to Euler angle forces
-        x_dd_des[3:] = np.dot(self.ko, q_r[1:] * np.sign(q_r[0]))
-        # ------------------------------------------------------------------------------------------------#
-
         x_dd_des = x_dd_des[ctrlr_dof]  # get rid of dim not being controlled
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
+        r_dd_des = np.array([x_dd_des[0], x_dd_des[2]])
+        x_in = np.array([0, 0, 0, 0, 0, 0])
+        u = qp.qpcontrol(r_dd_des, x_in)
+
+        '''
         # calculate force
         Fx = np.dot(Mx, x_dd_des)
         Aq_dd = (np.dot(JEE.T, Fx).reshape(-1, ))
@@ -121,9 +110,5 @@ class Control:
             null_signal = np.dot(null_filter, Fq_null).reshape(-1, )
 
             self.u += null_signal
-
-        # add in any additional signals
-        for addition in self.additions:
-            self.u += addition.generate(self.u, leg)
-
-        return self.u
+        '''
+        return u

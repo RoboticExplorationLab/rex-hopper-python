@@ -34,15 +34,21 @@ class Qp:
         self.L = np.array(model["linklengths"])
         self.leg = leg
 
-    def qpcontrol(self, q, dq, x_in):
+    def qpcontrol(self, r_dd_des, x_in):
+        M = self.leg.gen_M()
+        C = self.leg.gen_C()
+        G = self.leg.gen_G()
+        B = np.zeros((4, 2))  # actuator selection matrix
+        B[0, 0] = 1  # q0
+        B[1, 2] = 1  # q2
 
         r_ddx = cs.SX.sym('r_ddx')  # ee acceleration
-        r_ddy = cs.SX.sym('r_ddy')  # ee acceleration
-        q0dd = cs.SX.sym('q0dd')
-        q1dd = cs.SX.sym('q1dd')
-        q2dd = cs.SX.sym('q2dd')
-        q3dd = cs.SX.sym('q3dd')
-        states = [r_ddx, r_ddy, q0dd, q1dd, q2dd, q3dd]  # state vector x
+        r_ddz = cs.SX.sym('r_ddz')  # ee acceleration
+        q0dd = cs.SX.sym('q0_dd')
+        q1dd = cs.SX.sym('q1_dd')
+        q2dd = cs.SX.sym('q2_dd')
+        q3dd = cs.SX.sym('q3_dd')
+        states = [r_ddx, r_ddz, q0_dd, q1_dd, q2_dd, q3_dd]  # state vector x
         n_states = len(states)  # number of states
 
         u0 = cs.SX.sym('u0')  # control torque 1
@@ -50,20 +56,20 @@ class Qp:
         controls = [u0, u2]
         n_controls = len(controls)  # number of controls
 
-        constr_dyn = sympy2casadi(J, self.leg.gen_JacEE(), )
-        dt = self.dt
-        mass = self.mass
-
-        constr_dyn = M*qdd + C + G - B*u + J.T * lam
-        constr_D = D*qdd + d
-        constr_dyn_fn = cs.Function('fn', [r_ddx, r_ddy, q0dd, q1dd, q2dd, q3dd, u0, u2],
-                              constr_dyn)  # nonlinear mapping of function f(x,u)
-        constr_D_fn = cs.Function('fn', [r_ddx, r_ddy, q0dd, q1dd, q2dd, q3dd, u0, u2],
-                                    constr_D)  # nonlinear mapping of function f(x,u)
-
         u = cs.SX.sym('u', n_controls)  # decision variables, control action matrix
         x = cs.SX.sym('x', n_states)  # represents the states over the opt problem.
         x_ref = cs.SX.sym('st_ref', n_states + n_states)  # initial and reference (desired) states
+
+        q_dd = [q0_dd, q1_dd, q2_dd, q3_dd]
+
+        sp.var('q0dd, q1dd, q2dd, q3dd')
+        qdd_sp = sp.Matrix([q0dd, q1dd, q2dd, q3dd])
+        M = sympy2casadi(qdd_sp, self.leg.gen_M(), q_dd)
+        print("wut wut")
+        constr_dyn = M + C + G - B*u + J.T * lam
+        constr_D = D*qdd + d
+        constr_dyn_fn = cs.Function('fn', [r_ddx, r_ddy, q0dd, q1dd, q2dd, q3dd, u0, u2], constr_dyn)
+        constr_D_fn = cs.Function('fn', [r_ddx, r_ddy, q0dd, q1dd, q2dd, q3dd, u0, u2], constr_D)
 
         # --- calculate objective --- #
         r_dd = J + df

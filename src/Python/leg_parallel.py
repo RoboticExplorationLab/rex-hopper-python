@@ -10,10 +10,8 @@ import os
 import transforms3d
 from sympy.physics.vector import dynamicsymbols
 
-from legbase import LegBase
 
-
-class Leg(LegBase):
+class Leg:
 
     def __init__(self, model, init_q=None, init_dq=None, **kwargs):
 
@@ -24,8 +22,6 @@ class Leg(LegBase):
             init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
 
         self.DOF = len(init_q)
-
-        LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
         self.L = np.array(model["linklengths"])
         csv_path = model["csvpath"]
@@ -121,41 +117,41 @@ class Leg(LegBase):
         q1d = dynamicsymbols('q1d')
         q2d = dynamicsymbols('q2d')
         q3d = dynamicsymbols('q3d')
-        q0dd = dynamicsymbols('q0dd')
-        q1dd = dynamicsymbols('q1dd')
-        q2dd = dynamicsymbols('q2dd')
-        q3dd = dynamicsymbols('q3dd')
+        q0dd = sp.Symbol('q0dd')
+        q1dd = sp.Symbol('q1dd')
+        q2dd = sp.Symbol('q2dd')
+        q3dd = sp.Symbol('q3dd')
 
         t = sp.Symbol('t')
 
         x0 = l_c0 * sp.cos(q0 + alpha0)
-        y0 = l_c0 * sp.sin(q0 + alpha0)
+        z0 = l_c0 * sp.sin(q0 + alpha0)
         x1 = l0 * sp.cos(q0) + l_c1 * sp.cos(q0 + q1)
-        y1 = l0 * sp.sin(q0) + l_c1 * sp.sin(q0 + q1)
+        z1 = l0 * sp.sin(q0) + l_c1 * sp.sin(q0 + q1)
 
         x2 = l_c2 * sp.cos(q2)
-        y2 = l_c2 * sp.sin(q2)
+        z2 = l_c2 * sp.sin(q2)
         x3 = l2 * sp.cos(q2) + l_cee * sp.cos(q2 + q3 + alpha3)
-        y3 = l2 * sp.sin(q2) + l_cee * sp.sin(q2 + q3 + alpha3)
+        z3 = l2 * sp.sin(q2) + l_cee * sp.sin(q2 + q3 + alpha3)
 
         x0d = sp.diff(x0, t)
-        y0d = sp.diff(y0, t)
+        z0d = sp.diff(z0, t)
         x1d = sp.diff(x1, t)
-        y1d = sp.diff(y1, t)
+        z1d = sp.diff(z1, t)
         x2d = sp.diff(x2, t)
-        y2d = sp.diff(y2, t)
+        z2d = sp.diff(z2, t)
         x3d = sp.diff(x3, t)
-        y3d = sp.diff(y3, t)
+        z3d = sp.diff(z3, t)
 
-        U0 = m0 * g * y0
-        U1 = m1 * g * y1
-        U2 = m2 * g * y2
-        U3 = m3 * g * y3
+        U0 = m0 * g * z0
+        U1 = m1 * g * z1
+        U2 = m2 * g * z2
+        U3 = m3 * g * z3
 
-        v0_squared = x0d**2 + y0d**2
-        v1_squared = x1d**2 + y1d**2
-        v2_squared = x2d**2 + y2d**2
-        v3_squared = x3d**2 + y3d**2
+        v0_squared = x0d**2 + z0d**2
+        v1_squared = x1d**2 + z1d**2
+        v2_squared = x2d**2 + z2d**2
+        v3_squared = x3d**2 + z3d**2
         T0 = 0.5 * m0 * v0_squared + 0.5 * I0 * q0d**2
         T1 = 0.5 * m1 * v1_squared + 0.5 * I1 * q1d**2
         T2 = 0.5 * m2 * v2_squared + 0.5 * I2 * q2d**2
@@ -232,9 +228,56 @@ class Leg(LegBase):
         C = C - G
         self.C_init = sp.lambdify([q0, q1, q2, q3], C)
 
-        # --- Jacobians --- #
+        # --- End Effector Jacobians --- #
+        # foot forward kinematics
+        xee = l2 * sp.cos(q2) + lee * sp.cos(q2 + q3 + alpha3)
+        zee = l2 * sp.sin(q2) + lee * sp.sin(q2 + q3 + alpha3)
+        print(sp.jacobian([q0, q1, q2, q3], sp.Matrix([[2*q1**2], [2*q2**2]])))
+        # compute end effector jacobian
+        xee = sp.Matrix(xee)
+        Jeex = xee.jacobian([q0, q1, q2, q3])
+        Jeez = zee.jacobian([q0, q1, q2, q3])
+        # Jee = np.array([Jeex, np.zeros(4), Jeez])
+        Jee = np.array([Jeex, Jeez])
+        self.JEE_init = sp.lambdify([q0, q1, q2, q3], Jee)
 
+        # --- Constraint --- #
+        # constraint forward kinematics
+        x1c = l0 * sp.cos(q0) + l1 * sp.cos(q0 + q1)
+        z1c = l0 * sp.sin(q0) + l1 * sp.sin(q0 + q1)
+        x2c = l2 * sp.cos(q2) + l3 * sp.cos(q2 + q3)
+        z2c = l2 * sp.sin(q2) + l3 * sp.sin(q2 + q3)
 
+        # compute constraint
+        c = sp.zeros(2, 1)
+        c[0] = x1c - x2c
+        c[1] = z1c - z2c
+
+        # constraint jacobian
+        D = c.jacobian([q0, q1, q2, q3])
+
+        # compute del/delq(D(q)q_dot)q_dot
+        q_dot = sp.Matrix([q0d, q1d, q2d, q3d])
+        dqdot = D.multiply(q_dot)
+        d = dqdot.jacobian([q0, q1, q2, q3]) * q_dot
+
+        # compute cdot (first derivative of constraint function)
+        cdot = sp.transpose(q_dot.T * D.T)
+
+    def gen_M(self, q=None):
+        M = self.M_init(q[0], q[1], q[2], q[3])
+        M = np.array(M).astype(np.float64)
+        return M
+
+    def gen_C(self, q=None):
+        C = self.C_init(q[0], q[1], q[2], q[3])
+        C = np.array(C).astype(np.float64)
+        return C
+
+    def gen_G(self, q=None):
+        G = self.G_init(q[0], q[1], q[2], q[3])
+        G = np.array(G).astype(np.float64)
+        return G
 
     def gen_jacEE(self, q=None):
         # End Effector Jacobian

@@ -10,10 +10,8 @@ import os
 
 import transforms3d
 
-from legbase import LegBase
 
-
-class Leg(LegBase):
+class Leg:
 
     def __init__(self, model, init_q=None, init_dq=None, **kwargs):
 
@@ -24,8 +22,6 @@ class Leg(LegBase):
             init_q = [-150 * np.pi / 180]
 
         self.DOF = len(init_q)
-
-        LegBase.__init__(self, init_q=init_q, init_dq=init_dq, **kwargs)
 
         self.L = np.array(model["linklengths"])
 
