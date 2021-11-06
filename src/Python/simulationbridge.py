@@ -13,9 +13,9 @@ import actuator
 useRealTime = 0
 
 
-def reaction_force(numjoints, bot):
+def reaction_force(numJoints, bot):
     # returns joint reaction force
-    reaction = np.array([j[2] for j in p.getJointStates(bot, range(numjoints))])  # j[2]=jointReactionForces
+    reaction = np.array([j[2] for j in p.getJointStates(bot, range(numJoints))])  # j[2]=jointReactionForces
     # 4x6 array [Fx, Fy, Fz, Mx, My, Mz]
     f = reaction[:, 0:3]  # selected all joints Fz
     # 4x3 array [Fx, Fy, Fz]
@@ -53,14 +53,13 @@ class Sim:
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
         vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
-        self.jointArray = range(p.getNumJoints(self.bot))
+        self.jointArray = range(p.getnumJoints(self.bot))
         p.setGravity(0, 0, GRAVITY)
         p.setTimeStep(self.dt)
-        self.numJoints = p.getNumJoints(self.bot)
+        self.numJoints = p.getnumJoints(self.bot)
         p.setRealTimeSimulation(useRealTime)
 
         self.c_link = 1
-
         self.model = model["model"]
 
         if self.model == 'design':
@@ -106,23 +105,23 @@ class Sim:
         b_orient[3] = base_or_p[2]  # z
         b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
-        q_dot = np.zeros(2)
-        torque = np.zeros(2)
-        q = np.zeros(2)
+        q_dot = np.zeros(self.numJoints)
+        q = np.zeros(self.numJoints)
+        torque = np.zeros(self.numJoints)
+        command = np.zeros(self.numJoints)
 
         if self.model == "design":
-            command = np.zeros(4)
             command[0] = -u[0]  # readjust to match motor polarity
             command[2] = -u[1]  # readjust to match motor polarity
 
-            q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q[0] = q_all[0]
-            q[1] = q_all[2]  # This seems to be correct 9-06-21
-            q_dot = np.zeros(4)
-            q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q_dot[0] = q_dot_all[0]
-            q_dot[1] = q_dot_all[2]  # This seems to be correct 9-06-21
-            torque = np.zeros(4)
+            q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            # q[0] = q_all[0]
+            # q[1] = q_all[2]  # This seems to be correct 9-06-21
+
+            q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            # q_dot[0] = q_dot_all[0]
+            # q_dot[1] = q_dot_all[2]  # This seems to be correct 9-06-21
+
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
 
@@ -136,23 +135,19 @@ class Sim:
             torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
 
         elif self.model == "parallel":
-            command = np.zeros(4)
             command[0] = -u[1]  # readjust to match motor polarity
             command[2] = -u[0]  # readjust to match motor polarity
 
             q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q[0] = q_all[2]
-            q[1] = q_all[0]  # This seems to be correct 9-06-21
-            q_dot = np.zeros(4)
+            q[2] = q_all[0]
             q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q_dot[0] = q_dot_all[2]
-            q_dot[1] = q_dot_all[0]  # This seems to be correct 9-06-21
-            torque = np.zeros(4)
+            q_dot[2] = q_dot_all[0]  # modified from [1] to [2] 11-5-21
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
 
         elif self.model == "belt":
-            command = np.zeros(2)
             command[0] = -u[0] # only 1 DoF actuated
 
             # Pull values in from simulator, select relevant ones, reshape to 2D array

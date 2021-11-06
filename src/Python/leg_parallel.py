@@ -13,16 +13,16 @@ from sympy.physics.vector import dynamicsymbols
 
 class Leg:
 
-    def __init__(self, model, init_q=None, init_dq=None, **kwargs):
+    def __init__(self, dt, model, init_q=None, init_dq=None, **kwargs):
 
         if init_dq is None:
-            init_dq = [0., 0.]
+            init_dq = [0., 0., 0., 0.]
 
         if init_q is None:
-            init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
+            init_q = [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180]
 
         self.DOF = len(init_q)
-
+        self.dt = dt
         self.L = np.array(model["linklengths"])
         csv_path = model["csvpath"]
         curdir = os.getcwd()
@@ -232,13 +232,10 @@ class Leg:
         # foot forward kinematics
         xee = l2 * sp.cos(q2) + lee * sp.cos(q2 + q3 + alpha3)
         zee = l2 * sp.sin(q2) + lee * sp.sin(q2 + q3 + alpha3)
-        print(sp.jacobian([q0, q1, q2, q3], sp.Matrix([[2*q1**2], [2*q2**2]])))
         # compute end effector jacobian
-        xee = sp.Matrix(xee)
-        Jeex = xee.jacobian([q0, q1, q2, q3])
-        Jeez = zee.jacobian([q0, q1, q2, q3])
-        # Jee = np.array([Jeex, np.zeros(4), Jeez])
-        Jee = np.array([Jeex, Jeez])
+        ree = sp.Matrix([xee, zee])
+        Jee = ree.jacobian([q0, q1, q2, q3])
+
         self.JEE_init = sp.lambdify([q0, q1, q2, q3], Jee)
 
         # --- Constraint --- #
@@ -282,6 +279,7 @@ class Leg:
     def gen_jacEE(self, q=None):
         # End Effector Jacobian
         q = self.q if q is None else q
+        print(np.shape(q))
         JEE = self.JEE_init(q[0], q[1], q[2], q[3])
         JEE = np.array(JEE).astype(np.float64)
         return JEE
