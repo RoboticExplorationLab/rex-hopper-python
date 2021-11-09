@@ -53,10 +53,10 @@ class Sim:
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
         vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
-        self.jointArray = range(p.getnumJoints(self.bot))
+        self.jointArray = range(p.getNumJoints(self.bot))
         p.setGravity(0, 0, GRAVITY)
         p.setTimeStep(self.dt)
-        self.numJoints = p.getnumJoints(self.bot)
+        self.numJoints = p.getNumJoints(self.bot)
         p.setRealTimeSimulation(useRealTime)
 
         self.c_link = 1

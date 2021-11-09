@@ -6,12 +6,13 @@ import numpy as np
 import transforms3d
 
 #import control
-
+import qp
 
 class Control:
 
     def __init__(self, dt=1e-3, null_control=False, **kwargs):
 
+        self.qp = qp.Qp()
         self.dt = dt
         self.null_control = null_control
 
@@ -41,7 +42,6 @@ class Control:
         self.grav = None
         self.velocity = None
         self.q_e = None
-        self.ctrlr_dof = np.array([True, True, True, False, False, False])
 
     def wb_control(self, leg, target, b_orient, force=0, x_dd_des=None):
 
@@ -49,15 +49,17 @@ class Control:
         self.b_orient = np.array(b_orient)
 
         # which dim to control of [x, y, z, alpha, beta, gamma]
-        ctrlr_dof = self.ctrlr_dof
+        # ctrlr_dof = self.ctrlr_dof
 
         # calculate the Jacobian
-        JEE = leg.gen_jacEE()[ctrlr_dof]  # print(np.linalg.matrix_rank(JEE))
+        JEE = leg.gen_jacEE()  # print(np.linalg.matrix_rank(JEE))
         # rank of matrix is 3, can only control 3 DOF with one OSC
+        # adjust 2D jacobian to 3D
+        JEE = np.array([JEE[0, :], np.zeros(4), JEE[1, :]])  # TODO: Make jacobian 3D by default
 
         # generate the mass matrix in end-effector space
-        self.Mq = leg.gen_Mq()
-        Mx = leg.gen_Mx(Mq=self.Mq, JEE=JEE)
+        # self.Mq = leg.gen_Mq()
+        # Mx = leg.gen_Mx(Mq=self.Mq, JEE=JEE)
 
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
 
@@ -70,13 +72,12 @@ class Control:
 
         # calculate linear acceleration term based on PD control
         x_dd_des[:3] = np.dot(self.kp, (self.target[0:3] - self.x)) + np.dot(self.kv, -self.velocity)
-
-        x_dd_des = x_dd_des[ctrlr_dof]  # get rid of dim not being controlled
+        # x_dd_des = x_dd_des[ctrlr_dof]  # get rid of dim not being controlled
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         r_dd_des = np.array([x_dd_des[0], x_dd_des[2]])
         x_in = np.array([0, 0, 0, 0, 0, 0])
-        u = qp.qpcontrol(r_dd_des, x_in)
+        u = self.qp.qpcontrol(leg, r_dd_des, x_in)
 
         '''
         # calculate force

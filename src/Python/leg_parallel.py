@@ -226,7 +226,7 @@ class Leg:
         C = C.subs(q2dd, 0)
         C = C.subs(q3dd, 0)
         C = C - G
-        self.C_init = sp.lambdify([q0, q1, q2, q3], C)
+        self.C_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], C)
 
         # --- End Effector Jacobians --- #
         # foot forward kinematics
@@ -252,26 +252,33 @@ class Leg:
 
         # constraint jacobian
         D = c.jacobian([q0, q1, q2, q3])
+        self.D_init = sp.lambdify([q0, q1, q2, q3], D)
 
         # compute del/delq(D(q)q_dot)q_dot
         q_dot = sp.Matrix([q0d, q1d, q2d, q3d])
         dqdot = D.multiply(q_dot)
         d = dqdot.jacobian([q0, q1, q2, q3]) * q_dot
+        self.d_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], d)
 
         # compute cdot (first derivative of constraint function)
         cdot = sp.transpose(q_dot.T * D.T)
+        self.cdot_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], cdot)
 
     def gen_M(self, q=None):
+        q = self.q if q is None else q
         M = self.M_init(q[0], q[1], q[2], q[3])
         M = np.array(M).astype(np.float64)
         return M
 
-    def gen_C(self, q=None):
-        C = self.C_init(q[0], q[1], q[2], q[3])
+    def gen_C(self, q=None, dq=None):
+        q = self.q if q is None else q
+        dq = self.dq if dq is None else dq
+        C = self.C_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
         C = np.array(C).astype(np.float64)
         return C
 
     def gen_G(self, q=None):
+        q = self.q if q is None else q
         G = self.G_init(q[0], q[1], q[2], q[3])
         G = np.array(G).astype(np.float64)
         return G
@@ -279,7 +286,6 @@ class Leg:
     def gen_jacEE(self, q=None):
         # End Effector Jacobian
         q = self.q if q is None else q
-        print(np.shape(q))
         JEE = self.JEE_init(q[0], q[1], q[2], q[3])
         JEE = np.array(JEE).astype(np.float64)
         return JEE
@@ -290,6 +296,22 @@ class Leg:
         D = self.D_init(q[0], q[1], q[2], q[3])
         D = np.array(D).astype(np.float64)
         return D
+
+    def gen_d(self, q=None, dq=None):
+        # Constraint Jacobian
+        q = self.q if q is None else q
+        dq = self.dq if dq is None else dq
+        d = self.d_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
+        d = np.array(d).astype(np.float64)
+        return d
+
+    def gen_cdot(self, q=None, dq=None):
+        # Constraint Jacobian
+        q = self.q if q is None else q
+        dq = self.dq if dq is None else dq
+        cdot = self.cdot_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
+        cdot = np.array(cdot).astype(np.float64)
+        return cdot
 
     def inv_kinematics(self, xyz):
         L0 = self.L[0]
