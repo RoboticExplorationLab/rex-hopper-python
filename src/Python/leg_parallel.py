@@ -230,13 +230,19 @@ class Leg:
 
         # --- End Effector Jacobians --- #
         # foot forward kinematics
-        xee = l2 * sp.cos(q2) + lee * sp.cos(q2 + q3 + alpha3)
-        zee = l2 * sp.sin(q2) + lee * sp.sin(q2 + q3 + alpha3)
+        xee = l2 * sp.cos(q2) + lee * sp.cos(q2 + q3 + alphaee)  # TODO: Check
+        zee = l2 * sp.sin(q2) + lee * sp.sin(q2 + q3 + alphaee)
+
         # compute end effector jacobian
         ree = sp.Matrix([xee, zee])
         Jee = ree.jacobian([q0, q1, q2, q3])
-
         self.JEE_init = sp.lambdify([q0, q1, q2, q3], Jee)
+
+        # compute del/delq(D(q)q_dot)q_dot of ee jacobian
+        q_dot = sp.Matrix([q0d, q1d, q2d, q3d])
+        J_dqdot = Jee.multiply(q_dot)
+        dee = J_dqdot.jacobian([q0, q1, q2, q3]) * q_dot
+        self.dee_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], dee)
 
         # --- Constraint --- #
         # constraint forward kinematics
@@ -255,9 +261,8 @@ class Leg:
         self.D_init = sp.lambdify([q0, q1, q2, q3], D)
 
         # compute del/delq(D(q)q_dot)q_dot
-        q_dot = sp.Matrix([q0d, q1d, q2d, q3d])
-        dqdot = D.multiply(q_dot)
-        d = dqdot.jacobian([q0, q1, q2, q3]) * q_dot
+        D_dqdot = D.multiply(q_dot)
+        d = D_dqdot.jacobian([q0, q1, q2, q3]) * q_dot
         self.d_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], d)
 
         # compute cdot (first derivative of constraint function)
@@ -290,6 +295,14 @@ class Leg:
         JEE = np.array(JEE).astype(np.float64)
         return JEE
 
+    def gen_dee(self, q=None, dq=None):
+        # del/delq(J(q)q_dot)q_dot
+        q = self.q if q is None else q
+        dq = self.dq if dq is None else dq
+        dee = self.dee_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
+        dee = np.array(dee).astype(np.float64)
+        return dee
+
     def gen_D(self, q=None):
         # Constraint Jacobian
         q = self.q if q is None else q
@@ -298,7 +311,7 @@ class Leg:
         return D
 
     def gen_d(self, q=None, dq=None):
-        # Constraint Jacobian
+        # del/delq(D(q)q_dot)q_dot
         q = self.q if q is None else q
         dq = self.dq if dq is None else dq
         d = self.d_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
@@ -306,7 +319,7 @@ class Leg:
         return d
 
     def gen_cdot(self, q=None, dq=None):
-        # Constraint Jacobian
+        # Constraint Jacobian derivative
         q = self.q if q is None else q
         dq = self.dq if dq is None else dq
         cdot = self.cdot_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
@@ -388,18 +401,6 @@ class Leg:
         q = self.q if q is None else q
         JEE = self.gen_jacEE(q=q)
         return np.dot(JEE, self.dq).flatten()
-
-    def orientation(self, b_orient, q=None):
-        # Calculate orientation of end effector in quaternions
-        q = self.q if q is None else q
-        # REE = np.zeros((3, 3))  # rotation matrix
-        REE = self.R_1_org_init(q[0], q[1])
-        REE = np.array(REE).astype(np.float64)
-        REE = np.dot(b_orient, REE)
-        q_e = transforms3d.quaternions.mat2quat(REE)
-        q_e = q_e / np.linalg.norm(q_e)  # convert to unit vector quaternion
-
-        return q_e
 
     def reset(self, q=None, dq=None):
         if q is None:
