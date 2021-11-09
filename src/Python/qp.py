@@ -51,10 +51,8 @@ class Qp:
         st_ref = cs.SX.sym('st_ref', n_states + n_states)  # initial and reference (desired) states
 
         qdd = cs.vertcat(q0dd, q1dd, q2dd, q3dd)
-        Mqdd = cs.mtimes(M, qdd)
         lam = cs.vertcat(lam1, lam2)
-
-        eq1 = Mqdd + C + G - B @ u + J.T @ lam
+        eq1 = M @ qdd + C + G - B @ u - J.T @ lam
         eq2 = D @ qdd + d
         constr_dyn = [eq1[0], eq1[1], eq1[2], eq1[3]]  # conversion to dict
         constr_D = [eq2[0], eq2[1]]  # conversion to dict
@@ -77,6 +75,10 @@ class Qp:
                 'terminationTolerance': 1e-6}
         solver = cs.qpsol('S', 'qpoases', qp, opts)
 
+        # --- alt solver --- #
+        # nlp = {'x': opt_variables, 'f': obj, 'g': constr}
+        # solver = cs.nlpsol('solver', 'ipopt', nlp)
+
         # --- upper/lower bounds for constraint variables --- #
         c_length = np.shape(constr)[0]
         lbg = list(itertools.repeat(0, c_length))  # equality constraint
@@ -84,16 +86,17 @@ class Qp:
 
         # --- upper/lower bounds for optimization variables --- #
         o_length = np.shape(opt_variables)[0]
-        lbx = list(itertools.repeat(-1e10, o_length))  # input inequality constraints
-        ubx = list(itertools.repeat(1e10, o_length))  # input inequality constraints
+        lbx = list(itertools.repeat(-100, o_length))  # input inequality constraints
+        ubx = list(itertools.repeat(100, o_length))  # input inequality constraints
 
         # --- setup is finished, now solve --- #
         u0 = np.zeros(n_controls)  # control inputs
         X0 = np.array(x_in)  # initialization of the state's decision variables
         parameters = cs.vertcat(x_in, x_ref)  # set values of parameters vector
-        # init value of optimization variables`
+        # init value of optimization variables
         x0 = cs.vertcat(X0, u0)
-        sol = solver(x0=x0, lbx=lbx, ubx=ubx, lbg=lbg, ubg=ubg, p=parameters)
-        u = np.array(sol['x'][n_states:]) # get controls from the solution
+        # sol = solver(x0=x0, lbx=lbx, ubx=ubx, lbg=lbg, ubg=ubg, p=parameters)  # TODO: Is parameters needed?
+        sol = solver(lbx=lbx, ubx=ubx, lbg=lbg, ubg=ubg)
+        u = np.array(sol['x'][n_states:])  # get controls from the solution
 
         return u

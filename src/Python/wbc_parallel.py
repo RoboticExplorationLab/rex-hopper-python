@@ -6,13 +6,13 @@ import numpy as np
 import transforms3d
 
 #import control
-import qp
+import cqp
 
 class Control:
 
     def __init__(self, dt=1e-3, null_control=False, **kwargs):
-
-        self.qp = qp.Qp()
+        # self.qp = qp.Qp()
+        self.qp = cqp.Cqp()
         self.dt = dt
         self.null_control = null_control
 

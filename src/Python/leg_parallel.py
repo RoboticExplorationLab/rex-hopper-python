@@ -229,10 +229,10 @@ class Leg:
         self.C_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], C)
 
         # --- End Effector Jacobians --- #
-        # foot forward kinematics
+        # foot forward kinematics (open chain)
         xee = l2 * sp.cos(q2) + lee * sp.cos(q2 + q3 + alphaee)  # TODO: Check
         zee = l2 * sp.sin(q2) + lee * sp.sin(q2 + q3 + alphaee)
-
+        # TODO: closed chain jacobian test
         # compute end effector jacobian
         ree = sp.Matrix([xee, zee])
         Jee = ree.jacobian([q0, q1, q2, q3])
