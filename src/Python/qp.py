@@ -70,7 +70,7 @@ class Qp:
 
         # --- set up solver --- #
         opt_variables = cs.vertcat(x, u)
-        qp = {'x': opt_variables, 'f': obj, 'g': constr, 'p': st_ref}
+        qp = {'x': opt_variables, 'f': obj, 'g': constr}  #, 'p': st_ref}
         opts = {'print_time': 0, 'error_on_fail': 0, 'printLevel': "none", 'boundTolerance': 1e-6,
                 'terminationTolerance': 1e-6}
         solver = cs.qpsol('S', 'qpoases', qp, opts)

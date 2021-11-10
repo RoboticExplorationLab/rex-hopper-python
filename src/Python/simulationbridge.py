@@ -25,7 +25,7 @@ def reaction_force(numJoints, bot):
 
 class Sim:
 
-    def __init__(self, model, dt=1e-3,  fixed=False, record=False, scale=1, direct=False):
+    def __init__(self, model, dt=1e-3,  fixed=False, record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -33,7 +33,10 @@ class Sim:
         self.record_rt = record  # record video in real time
         self.base_pos = None
 
-        GRAVITY = -9.807
+        if gravoff == True:
+            GRAVITY = 0
+        else:
+            GRAVITY = -9.807
         # physicsClient = p.connect(p.GUI)
         if direct is True:
             p.connect(p.DIRECT)
@@ -91,7 +94,6 @@ class Sim:
             p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0)  # force=0.5
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
-
 
     def sim_run(self, u, tau_s):
 

@@ -54,8 +54,7 @@ class Gait:
             u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=fr_mpc)
 
         else:
-            u = None
-            print("error! state not determined")
+            raise NameError('INVALID STATE')
 
         return u
 

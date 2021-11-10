@@ -24,6 +24,7 @@ parser.add_argument("--fixed", help="fixed base: True or False", action="store_t
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
 parser.add_argument("--record", help="record: True or False", action="store_true")
 parser.add_argument("--scale", help="change scale of robot (doesn't change mass)", type=float, default=1)
+parser.add_argument("--gravoff", help="turn gravity off in sim", action="store_true")
 args = parser.parse_args()
 
 if args.plot:
@@ -45,6 +46,11 @@ if args.record:
     record = True
 else:
     record = False
+
+if args.gravoff:
+    gravoff = True
+else:
+    gravoff = False
 
 print("\n")
 print("model = ", args.model)
@@ -108,5 +114,5 @@ else:
     raise NameError('INVALID MODEL')
 
 runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed,
-                spring=spring, record=record, scale=args.scale)
+                spring=spring, record=record, scale=args.scale, gravoff=gravoff)
 runner.run()

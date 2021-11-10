@@ -40,14 +40,16 @@ class Cqp:
 
         # --- calculate objective --- #
         r_dd = J @ qdd + dee
-        obj = (r_dd - r_dd_des).T @ (r_dd - r_dd_des)
+        obj = 0.5*cp.sum_squares(r_dd - r_dd_des)
 
         # --- calculate constraints --- #
         constr = [0 == eq1]
         constr += [0 == eq2]
-        constr += [0 <= x]
+        # constr += [0 <= x]
+        # constr += [100 >= x]
         # --- set up solver --- #
         problem = cp.Problem(cp.Minimize(obj), constr)
-        u = problem.solve(solver=cp.CVXOPT)
-        print(u)
+        problem.solve(solver=cp.SCS)  # , verbose=True)
+
+        u = np.zeros(2) if u.value is None else u.value
         return u

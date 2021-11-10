@@ -269,6 +269,25 @@ class Leg:
         cdot = sp.transpose(q_dot.T * D.T)
         self.cdot_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], cdot)
 
+        # --- actuator forward kinematics --- #
+        d = 0
+        x0a = l0 * sp.cos(q0)
+        z0a = l0 * sp.sin(q0)
+        rho = sp.sqrt((x0a + d) ** 2 + z0a ** 2)
+        x1a = l2 * sp.cos(q2)
+        z1a = l2 * sp.sin(q2)
+        h = sp.sqrt((x0a - x1a)**2 + (z0a - z1a)**2)
+        mu = sp.acos((l3 ** 2 + h ** 2 - l1 ** 2) / (2 * l3 * h))
+        eta = sp.acos((h ** 2 + l2 ** 2 - rho ** 2) / (2 * h * l2))
+        alpha = sp.pi - (eta + mu) + q2
+        xa = l2 * sp.cos(q2) + (l3 + l4) * sp.cos(alpha) - d + l5 * sp.cos(alpha - sp.pi / 2)
+        ya = 0
+        za = l2 * sp.sin(q2) + (l3 + l4) * sp.sin(alpha) + l5 * sp.cos(alpha - sp.pi / 2)
+        fwd_kin = sp.Matrix([xa, ya, za])
+        self.pos_init = sp.lambdify([q0, q2], fwd_kin)
+        Ja = fwd_kin.jacobian([q0, q2])
+        self.Ja_init = sp.lambdify([q0, q2], Ja)
+
     def gen_M(self, q=None):
         q = self.q if q is None else q
         M = self.M_init(q[0], q[1], q[2], q[3])
@@ -326,6 +345,13 @@ class Leg:
         cdot = np.array(cdot).astype(np.float64)
         return cdot
 
+    def gen_jacA(self, q=None):
+        # End Effector Actuator Jacobian
+        q = self.q if q is None else q
+        JA = self.Ja_init(q[0], q[2])
+        JA = np.array(JA).astype(np.float64)
+        return JA
+
     def inv_kinematics(self, xyz):
         L0 = self.L[0]
         L1 = self.L[1]
@@ -361,13 +387,16 @@ class Leg:
 
         q np.array: a set of angles to return positions for
         """
+
+        q = self.q if q is None else q
+        '''
         if q is None:
             q0 = self.q[0]
             q2 = self.q[1]
         else:
             q0 = q[0]
             q2 = q[1]
-
+        
         L0 = self.L[0]
         L1 = self.L[1]
         L2 = self.L[2]
@@ -393,8 +422,9 @@ class Leg:
         x = L2 * np.cos(q2) + (L3 + L4) * np.cos(alpha) - d + L5 * np.cos(alpha - np.pi/2)
         y = 0
         z = L2 * np.sin(q2) + (L3 + L4) * np.sin(alpha) + L5 * np.cos(alpha - np.pi/2)
-
-        return np.array([x, y, z], dtype=float)
+        '''
+        pos = self.pos_init(q[0], q[2])
+        return pos  # np.array([x, y, z], dtype=float)
 
     def velocity(self, q=None):  # dq=None
         # Calculate operational space linear velocity vector

@@ -63,7 +63,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, direct=False, total_run=100000):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=100000):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -86,7 +86,7 @@ class Runner:
 
         self.controller = controller_class.Control(dt=dt)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record,
-                                              scale=scale, direct=direct)
+                                              scale=scale, gravoff=gravoff, direct=direct)
         self.state = statemachine.Char()
 
         # gait scheduler values
@@ -112,7 +112,7 @@ class Runner:
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
-        t0 = t  # starting time
+        t0 = 0  # starting time
         skip = False
         prev_state = str("init")
 
@@ -137,7 +137,7 @@ class Runner:
             value4 = np.zeros((total, 3))
             value5 = np.zeros((total, 3))
             value6 = np.zeros((total, 3))
-            fig, axs = plt.subplots(2, 3, sharey=False, sharex=True)
+            fig, axs = plt.subplots(2, 3, sharex='all')
             axs[0, 0].set_title('q0 torque')
             plt.xlabel("Timesteps")
             axs[0, 0].set_ylabel("q0 torque (Nm)")
@@ -274,7 +274,7 @@ class Runner:
                     axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
                     plt.show()
 
-            # print("pos = ", self.leg.position())
+            print("pos = ", self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
             # print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line
