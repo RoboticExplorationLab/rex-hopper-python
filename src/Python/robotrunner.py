@@ -274,7 +274,7 @@ class Runner:
                     axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
                     plt.show()
 
-            print("pos = ", self.leg.position())
+            # print("pos = ", self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
             # print("enc = ", self.leg.q * 180/np.pi)
             # sys.stdout.write("\033[F")  # back to previous line

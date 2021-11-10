@@ -285,8 +285,17 @@ class Leg:
         za = l2 * sp.sin(q2) + (l3 + l4) * sp.sin(alpha) + l5 * sp.cos(alpha - sp.pi / 2)
         fwd_kin = sp.Matrix([xa, ya, za])
         self.pos_init = sp.lambdify([q0, q2], fwd_kin)
+
+        # compute end effector actuator jacobian
         Ja = fwd_kin.jacobian([q0, q2])
         self.Ja_init = sp.lambdify([q0, q2], Ja)
+
+        # compute del/delq(Ja(q)q_dot)q_dot of ee actuator jacobian
+        qa_dot = sp.Matrix([q0d, q2d])
+        Ja_dqdot = Ja.multiply(qa_dot)
+        da = Ja_dqdot.jacobian([q0, q2]) * qa_dot
+        self.da_init = sp.lambdify([q0, q2, q0d, q2d], da)
+
 
     def gen_M(self, q=None):
         q = self.q if q is None else q
@@ -352,6 +361,14 @@ class Leg:
         JA = np.array(JA).astype(np.float64)
         return JA
 
+    def gen_da(self, q=None, dq=None):
+        # del/delq(Ja(q)q_dot)q_dot
+        q = self.q if q is None else q
+        dq = self.dq if dq is None else dq
+        da = self.da_init(q[0], q[2], dq[0], dq[2])
+        da = np.array(da).astype(np.float64)
+        return da
+
     def inv_kinematics(self, xyz):
         L0 = self.L[0]
         L1 = self.L[1]
@@ -381,50 +398,10 @@ class Leg:
         return np.array([q0, q2], dtype=float)
 
     def position(self, q=None):
-        """forward kinematics
-        Compute x,y,z position of end effector relative to base.
-        This outputs four sets of xyz values, one for each joint including the end effector.
-
-        q np.array: a set of angles to return positions for
-        """
-
+        # forward kinematics
         q = self.q if q is None else q
-        '''
-        if q is None:
-            q0 = self.q[0]
-            q2 = self.q[1]
-        else:
-            q0 = q[0]
-            q2 = q[1]
-        
-        L0 = self.L[0]
-        L1 = self.L[1]
-        L2 = self.L[2]
-        L3 = self.L[3]
-        L4 = self.L[4]
-        L5 = self.L[5]
-        d = 0
-
-        x0 = L0 * np.cos(q0)
-        y0 = L0 * np.sin(q0)
-        rho = np.sqrt((x0 + d) ** 2 + y0 ** 2)
-
-        # This works to calculate h as well, but might be slightly slower bc more trig
-        # x1 = L2 * np.cos(q2)
-        # y1 = L2 * np.sin(q2)
-        # h = np.sqrt((x0 - x1)**2 + (y0 - y1)**2)
-
-        gamma = abs(q2 - q0)
-        h = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-        mu = np.arccos((L3 ** 2 + h ** 2 - L1 ** 2) / (2 * L3 * h))
-        eta = np.arccos((h**2 + L2**2 - rho**2)/(2*h*L2))
-        alpha = np.pi - (eta + mu) + q2
-        x = L2 * np.cos(q2) + (L3 + L4) * np.cos(alpha) - d + L5 * np.cos(alpha - np.pi/2)
-        y = 0
-        z = L2 * np.sin(q2) + (L3 + L4) * np.sin(alpha) + L5 * np.cos(alpha - np.pi/2)
-        '''
         pos = self.pos_init(q[0], q[2])
-        return pos  # np.array([x, y, z], dtype=float)
+        return pos
 
     def velocity(self, q=None):  # dq=None
         # Calculate operational space linear velocity vector

@@ -16,12 +16,13 @@ class Cqp:
         # self.leg = leg
 
     def qpcontrol(self, leg, r_dd_des, x_in, x_ref):
-        r_dd_des = r_dd_des.flatten()
         M = leg.gen_M()
         C = leg.gen_C().flatten()
         G = leg.gen_G().flatten()
         J = leg.gen_jacEE()
         dee = leg.gen_dee().flatten()
+        # J = leg.gen_jacA()
+        # da = leg.gen_da()
         D = leg.gen_D()
         d = leg.gen_d().flatten()
         B = np.zeros((4, 2))  # actuator selection matrix
@@ -35,10 +36,12 @@ class Cqp:
 
         qdd = x[0:4]
         lam = x[4:]
-        eq1 = M @ qdd + C + G - B @ u - J.T @ lam
+        eq1 = M @ qdd + C + G - B @ u - D.T @ lam
         eq2 = D @ qdd + d
 
         # --- calculate objective --- #
+        # qdd_f = cp.vstack([x[0], x[2]])
+        # r_dd = J @ qdd_f + da
         r_dd = J @ qdd + dee
         obj = 0.5*cp.sum_squares(r_dd - r_dd_des)
 

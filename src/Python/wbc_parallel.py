@@ -33,47 +33,34 @@ class Control:
         self.grav = None
         self.velocity = None
         self.q_e = None
-        self.simple = True
+        self.simple = False
 
     def wb_control(self, leg, target, b_orient, force=0, x_dd_des=None):
         target = np.array(target).reshape(-1, 1)
         b_orient = np.array(b_orient)
-
         Ja = leg.gen_jacA()  # 3x2
-        self.x = np.dot(b_orient, leg.position())
         dqa = np.array([leg.dq[0], leg.dq[2]])
+        self.x = np.dot(b_orient, leg.position())
+
         # calculate operational space velocity vector
         self.velocity = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
+
+        # calculate linear acceleration term based on PD control
+        x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
+        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - self.x)) + np.dot(self.kv, -self.velocity)).flatten()
+        x_dd_des = np.reshape(x_dd_des, (-1, 1))
+
         if self.simple == True:
-            # calculate linear acceleration term based on PD control
-            x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
-            x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - self.x)) + np.dot(self.kv, -self.velocity)).flatten()
-            x_dd_des = np.reshape(x_dd_des, (-1, 1))
             tau = Ja.T @ x_dd_des[0:3]
             u = tau
-            print(x_dd_des)
 
         else:
-            # calculate the Jacobian
-            JEE = leg.gen_jacEE()
-            # print(np.linalg.matrix_rank(JEE))
-            # adjust 2D jacobian to 3D
-            JEE = np.array([JEE[0, :], np.zeros(4), JEE[1, :]])  # TODO: Make jacobian 3D by default
-
-            # multiply with rotation matrix for base to world
-            self.x = np.dot(b_orient, leg.position())
-            # calculate operational space velocity vector
-            self.velocity = np.dot(b_orient, (np.transpose(np.dot(JEE, leg.dq)).flatten())[0:3])
-
-            # calculate linear acceleration term based on PD control
-            x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
-            x_dd_des[:3] = np.dot(self.kp, (target[0:3] - self.x)) + np.dot(self.kv, -self.velocity)
-            x_dd_des = np.reshape(x_dd_des, (-1, 1))
-            print(x_dd_des)
-            r_dd_des = np.array([x_dd_des[0], x_dd_des[2]])
+            # r_dd_des = np.array(x_dd_des[0:3])
+            r_dd_des = np.array([x_dd_des[0], x_dd_des[2]]).flatten()
             x_ref = np.array([0, 0, 0, 0, 0, 0])
             x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
             u = self.qp.qpcontrol(leg, r_dd_des, x_in, x_ref)
+            u = np.array([u[1], u[0]])
 
 
         '''
