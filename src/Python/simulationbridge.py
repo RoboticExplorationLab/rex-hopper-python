@@ -150,7 +150,7 @@ class Sim:
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
 
         elif self.model == "belt":
-            command[0] = -u[0] # only 1 DoF actuated
+            command[0] = -u[0]  # only 1 DoF actuated
 
             # Pull values in from simulator, select relevant ones, reshape to 2D array
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))

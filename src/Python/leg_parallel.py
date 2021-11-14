@@ -296,7 +296,6 @@ class Leg:
         da = Ja_dqdot.jacobian([q0, q2]) * qa_dot
         self.da_init = sp.lambdify([q0, q2, q0d, q2d], da)
 
-
     def gen_M(self, q=None):
         q = self.q if q is None else q
         M = self.M_init(q[0], q[1], q[2], q[3])
@@ -317,7 +316,7 @@ class Leg:
         return G
 
     def gen_jacEE(self, q=None):
-        # End Effector Jacobian
+        # End Effector Jacobian (open chain)
         q = self.q if q is None else q
         JEE = self.JEE_init(q[0], q[1], q[2], q[3])
         JEE = np.array(JEE).astype(np.float64)
@@ -355,7 +354,7 @@ class Leg:
         return cdot
 
     def gen_jacA(self, q=None):
-        # End Effector Actuator Jacobian
+        # End Effector Jacobian (closed chain, actuators only)
         q = self.q if q is None else q
         JA = self.Ja_init(q[0], q[2])
         JA = np.array(JA).astype(np.float64)

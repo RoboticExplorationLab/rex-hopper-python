@@ -43,16 +43,18 @@ class Cqp:
         # qdd_f = cp.vstack([x[0], x[2]])
         # r_dd = J @ qdd_f + da
         r_dd = J @ qdd + dee
-        obj = 0.5*cp.sum_squares(r_dd - r_dd_des)
+        P = np.eye(2)
+        # obj = 0.5*cp.sum_squares(r_dd - r_dd_des)
+        obj = 0.5 * cp.quad_form(r_dd - r_dd_des, P)
 
         # --- calculate constraints --- #
         constr = [0 == eq1]
         constr += [0 == eq2]
-        # constr += [0 <= x]
-        # constr += [100 >= x]
+        # constr += [-1000 <= x]
+        # constr += [1000 >= x]
         # --- set up solver --- #
         problem = cp.Problem(cp.Minimize(obj), constr)
-        problem.solve(solver=cp.SCS)  # , verbose=True)
+        problem.solve(solver=cp.ECOS)  # , verbose=True)
 
         u = np.zeros(2) if u.value is None else u.value
         return u
