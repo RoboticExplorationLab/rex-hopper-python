@@ -73,7 +73,9 @@ class Gait:
 
         elif state == 'Leap':
             self.target = np.array([0, 0, -0.55])
-
-        u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
+        dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
+        qa = np.array([self.leg.q[0], self.leg.q[2]])
+        # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
+        u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + dqa * k_d
 
         return u

@@ -23,7 +23,7 @@ class Leg:
                       120 * np.pi / 180]
 
         self.DOF = len(init_q)
-
+        self.singularity_thresh = 0.00025
         self.L = np.array(model["linklengths"])
         csv_path = model["csvpath"]
         curdir = os.getcwd()
@@ -74,7 +74,7 @@ class Leg:
         self.reset()
         self.q_calibration = np.array(init_q)
 
-        #-----------------------#
+        # ----------------------- #
         L0 = self.L[0]
         L1 = self.L[1]
         l0 = self.coml[0]
@@ -176,6 +176,26 @@ class Leg:
               np.dot(JCOM1.T, np.dot(M1, JCOM1)))
 
         return Mq
+
+    def gen_Mx(self, JEE=None, q=None, Mq=None, **kwargs):
+        # Generate the mass matrix in operational space
+        if q is None:
+            q = self.q
+        if Mq is None:
+            Mq = self.gen_Mq(q=q, **kwargs)
+
+        if JEE is None:
+            JEE = self.gen_jacEE(q=q)
+
+        Mx_inv = np.dot(JEE, np.dot(np.linalg.inv(Mq), JEE.T))
+        u, s, v = np.linalg.svd(Mx_inv)
+        # cut off any singular values that could cause control problems
+        for i in range(len(s)):
+            s[i] = 0 if s[i] < self.singularity_thresh else 1. / float(s[i])
+        # numpy returns U,S,V.T, so have to transpose both here
+        Mx = np.dot(v.T, np.dot(np.diag(s), u.T))
+
+        return Mx
 
     def gen_grav(self, b_orient, q=None):
         # Generate gravity term g(q)

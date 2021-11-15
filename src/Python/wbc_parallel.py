@@ -17,9 +17,9 @@ class Control:
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        np.fill_diagonal(self.kp, 50)
+        np.fill_diagonal(self.kp, 4000)
 
-        self.kv = np.array(self.kp)*0.1
+        self.kv = np.array(self.kp)*0.02
 
         self.kn = np.zeros((2, 2))
         np.fill_diagonal(self.kn, 100)
@@ -38,19 +38,21 @@ class Control:
         x = np.dot(b_orient, leg.position())
 
         # calculate operational space velocity vector
-        velocity = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
+        vel = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
 
         # calculate linear acceleration term based on PD control
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
-        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kv, -velocity)).flatten()
+        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kv, -vel)).flatten()
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
-        tau = Ja.T @ x_dd_des[0:3]
-
         # M = leg.gen_M()
+        Mx = leg.gen_Mx()
+        fx = Mx @ x_dd_des[0:3]
+        tau = Ja.T @ fx
+
         C = leg.gen_C().flatten()
         G = leg.gen_G().flatten()
         B = self.B
-        # u = tau + ((- M @ leg.d2q - G - C).reshape(-1, 1).T @ B).T
+
         u = tau + ((- G - C).reshape(-1, 1).T @ B).T
 
         return u
@@ -63,11 +65,11 @@ class Control:
         x = np.dot(b_orient, leg.position())
 
         # calculate operational space velocity vector
-        velocity = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
+        vel = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
 
         # calculate linear acceleration term based on PD control
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
-        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kv, -velocity)).flatten()
+        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kv, -vel)).flatten()
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # r_dd_des = np.array(x_dd_des[0:3])
@@ -80,11 +82,6 @@ class Control:
 
 '''
     def null_signal(self):
-        # if null_control is selected, add a control signal in the
-        # null space to try to move the leg to selected position
-
-        # calculate our secondary control signal
-        # calculated desired joint angle acceleration
         leg_des_angle = np.array([-30, -150])
         prop_val = ((leg_des_angle - leg.q) + np.pi) % (np.pi * 2) - np.pi
         q_des = (np.dot(self.kn, prop_val))

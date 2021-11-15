@@ -22,6 +22,7 @@ class Leg:
             init_q = [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180]
 
         self.DOF = len(init_q)
+        self.singularity_thresh = 0.00025
         self.dt = dt
         self.L = np.array(model["linklengths"])
         csv_path = model["csvpath"]
@@ -47,7 +48,7 @@ class Leg:
         self.coml = np.delete(self.coml, 0, axis=1)  # remove body value
 
         # mass matrices and gravity
-        self.MM = []
+        self.II = []
         self.Fg = []
         self.I = []
         # self.gravity = np.array([[0, 0, -9.807]]).T
@@ -65,7 +66,7 @@ class Leg:
             M[5, 3] = ixz[i]
             M[5, 4] = iyz[i]
             M[5, 5] = izz[i]
-            self.MM.append(M)
+            self.II.append(M)
             self.I.append(iyy[i])  # all rotations are in y axis
 
         self.angles = init_q
@@ -367,6 +368,29 @@ class Leg:
         da = self.da_init(q[0], q[2], dq[0], dq[2])
         da = np.array(da).astype(np.float64)
         return da
+
+    def gen_Mx(self, J=None, q=None, M = None, **kwargs):
+        # Generate the mass matrix in operational space
+        if q is None:
+            q = self.q
+        if M is None:
+            M = self.gen_M(q=q)
+
+        if J is None:
+            Ja = self.gen_jacA(q=q)
+            J = np.zeros((3, 4))
+            J[:, 0] = Ja[:, 0]
+            J[:, 2] = Ja[:, 1]
+
+        Mx_inv = np.dot(J, np.dot(np.linalg.inv(M), J.T))
+        u, s, v = np.linalg.svd(Mx_inv)
+        # cut off any singular values that could cause control problems
+        for i in range(len(s)):
+            s[i] = 0 if s[i] < self.singularity_thresh else 1. / float(s[i])
+        # numpy returns U,S,V.T, so have to transpose both here
+        Mx = np.dot(v.T, np.dot(np.diag(s), u.T))
+
+        return Mx
 
     def inv_kinematics(self, xyz):
         L0 = self.L[0]

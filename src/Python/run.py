@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020 Benjamin Bokser
+Copyright (C) 2021 Benjamin Bokser
 """
 import argparse
 

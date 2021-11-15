@@ -37,11 +37,12 @@ class Sim:
             GRAVITY = 0
         else:
             GRAVITY = -9.807
-        # physicsClient = p.connect(p.GUI)
+
         if direct is True:
             p.connect(p.DIRECT)
         else:
             p.connect(p.GUI)
+
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.resetSimulation()
         self.plane = p.loadURDF("plane.urdf")
@@ -83,7 +84,8 @@ class Sim:
             p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=1000)
 
         # increase friction of toe to ideal
-        p.changeDynamics(self.bot, self.c_link, lateralFriction=1)
+        # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
+        p.changeDynamics(self.bot, self.c_link, lateralFriction=2)  # , restitution=0.01)
 
         # Record Video in real time
         if self.record_rt is True:
@@ -101,7 +103,7 @@ class Sim:
         # pybullet gives quaternions in xyzw format
         # transforms3d takes quaternions in wxyz format, so you need to shift values
         b_orient = np.zeros(4)
-        b_orient[0] = base_or_p[3]  # w
+        b_orient[0] = base_or_p[3]  # w  # TODO: pretty sure there's a one-line way to do this
         b_orient[1] = base_or_p[0]  # x
         b_orient[2] = base_or_p[1]  # y
         b_orient[3] = base_or_p[2]  # z
@@ -117,13 +119,7 @@ class Sim:
             command[2] = -u[1]  # readjust to match motor polarity
 
             q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            # q[0] = q_all[0]
-            # q[1] = q_all[2]  # This seems to be correct 9-06-21
-
             q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            # q_dot[0] = q_dot_all[0]
-            # q_dot[1] = q_dot_all[2]  # This seems to be correct 9-06-21
-
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
 
