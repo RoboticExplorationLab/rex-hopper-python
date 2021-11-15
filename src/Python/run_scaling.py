@@ -38,25 +38,36 @@ design = {
 }
 
 i = 0
-range = np.arange(0.3, 1.5, 0.1).reshape(-1, 1)
-ft_mean = np.zeros(len(range))
-for scale in range:
+range1 = np.arange(0.5, 1.5, 0.1).reshape(-1, 1)
+range2 = np.arange(4, 7, 0.5).reshape(-1, 1)
+ft_mean = np.zeros(len(range1))
+best_gain = np.zeros(len(range1))
+for scale in range1:
     print("Now running with scale of ", scale)
-    runner = Runner(dt=dt, plot=False, model=design, ctrl_type='wbc_cycle', fixed=False,
-                    spring=spring, record=False, scale=scale, direct=True, gravoff=False, total_run=10000)
-    ft = runner.run()
-    flighttimes = ft[ft != 0]
-    ft_mean[i] = np.mean(flighttimes)
+    j = 0
+    ftg_mean = np.zeros(len(range2)+1)
+    for gain in range2:
+        print("...using gain of ", gain)
+        runner = Runner(dt=dt, plot=False, model=design, ctrl_type='wbc_cycle', fixed=False,
+                        spring=spring, record=False, scale=scale, direct=True, gravoff=False, total_run=4000, gain=gain)
+        ft = runner.run()
+        flighttimes = ft[ft != 0]
+        ftg_mean[j] = np.mean(flighttimes)
+        j += 1
+    ft_mean[i] = np.amax(ftg_mean)
+    best_gain[i] = np.argmax(ftg_mean) + 1
+    print("Best gain for scale of ", scale, " is ", best_gain[i])
     i += 1
 
-plt.scatter(range, ft_mean, label="Data")
+plt.scatter(range1, ft_mean, label="Data")
 
 poly = PolynomialFeatures(degree=3)
-x = poly.fit_transform(range)
+x = poly.fit_transform(range1)
 y = ft_mean.reshape(-1, 1)
 clf = linear_model.LinearRegression().fit(x, y)
 print("Best scale value = ", x[np.argmax(clf.predict(x))][1])
-plt.plot(range, clf.predict(x), label="3rd Order Poly Fit", color='r')
+print("Best gain values = ", best_gain)
+plt.plot(range1, clf.predict(x), label="3rd Order Poly Fit", color='r')
 plt.title('Flight Time vs Scale')
 plt.xlabel("Scale")
 plt.ylabel("Mean Flight Time, seconds")

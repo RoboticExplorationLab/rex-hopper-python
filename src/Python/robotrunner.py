@@ -63,7 +63,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=100000):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=100000, gain=4):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -84,7 +84,7 @@ class Runner:
 
         self.k_d = self.k_kin * 0.02
 
-        self.controller = controller_class.Control(dt=dt)
+        self.controller = controller_class.Control(dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.state = statemachine.Char()

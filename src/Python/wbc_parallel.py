@@ -10,14 +10,14 @@ import cqp
 
 class Control:
 
-    def __init__(self, dt=1e-3, null_control=False, **kwargs):
+    def __init__(self, dt=1e-3, gain=4, null_control=False, **kwargs):
         # self.qp = qp.Qp()
         self.cqp = cqp.Cqp()
         self.dt = dt
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        np.fill_diagonal(self.kp, 4000)
+        np.fill_diagonal(self.kp, gain*1000)
 
         self.kv = np.array(self.kp)*0.02
 
