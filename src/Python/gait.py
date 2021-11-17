@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Gait:
-    def __init__(self, controller, leg, target, hconst, dt=1e-3, **kwargs):
+    def __init__(self, controller, leg, target, hconst, use_qp=True, dt=1e-3, **kwargs):
 
         self.swing_steps = 0
         self.trajectory = None
@@ -20,6 +20,10 @@ class Gait:
         self.hconst = hconst
         self.target = target  # np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
         self.r_save = np.array([0, 0, -self.hconst])
+        if use_qp is True:
+            self.controlf = self.controller.wb_qp_control
+        else:
+            self.controlf = self.controller.wb_control
 
     def u(self, state, prev_state, r_in, r_d, delp, b_orient, fr_mpc, skip):
 
@@ -27,7 +31,7 @@ class Gait:
             # set target position
             self.target = np.hstack(np.append(np.array([0, 0, -0.5]), self.init_angle))
             # calculate wbc control signal
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
+            u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'HeelStrike':
             '''
@@ -39,11 +43,11 @@ class Gait:
             self.target = np.hstack(np.append(self.r_save, self.init_angle))
             '''
             self.target[2] = -self.hconst
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
+            u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'Crouch':
             self.target[2] = -self.hconst  # go to crouch
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
+            u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'Leap':
             # calculate wbc control signal
@@ -51,7 +55,7 @@ class Gait:
                 fr_mpc = 0
 
             self.target = np.hstack(np.append(np.array([0, 0, -0.55]), self.init_angle))
-            u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=fr_mpc)
+            u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=fr_mpc)
 
         else:
             raise NameError('INVALID STATE')

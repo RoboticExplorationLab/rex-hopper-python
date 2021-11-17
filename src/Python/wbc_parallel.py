@@ -73,10 +73,13 @@ class Control:
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # r_dd_des = np.array(x_dd_des[0:3])
-        r_dd_des = np.array([x_dd_des[0], x_dd_des[2]]).flatten()
+        # r_dd_des = np.array([x_dd_des[0], x_dd_des[2]]).flatten()
+        r_dd_des = np.array([1, 0])
+        print("r_dd_des = ", r_dd_des)
         x_ref = np.array([0, 0, 0, 0, 0, 0])
         x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
         u = -self.cqp.qpcontrol(leg, r_dd_des, x_in, x_ref)
+        print("u in task space = ", Ja @ u)
         return u
 
 

@@ -57,4 +57,5 @@ class Cqp:
         problem.solve(solver=cp.ECOS)  # , verbose=True)
 
         u = np.zeros(2) if u.value is None else u.value
+
         return u
