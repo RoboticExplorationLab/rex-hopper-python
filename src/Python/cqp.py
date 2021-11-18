@@ -57,5 +57,10 @@ class Cqp:
         problem.solve(solver=cp.ECOS)  # , verbose=True)
 
         u = np.zeros(2) if u.value is None else u.value
+        qdd_new = np.linalg.solve(M, (B @ u - C - G))
+        qdd_n = np.array([qdd_new[0], qdd_new[2]])
+        Ja = leg.gen_jacA()
+        da = leg.gen_da()
 
+        print("qdd_new in task space = ", Ja @ qdd_n + da)
         return u

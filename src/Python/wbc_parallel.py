@@ -79,7 +79,7 @@ class Control:
         x_ref = np.array([0, 0, 0, 0, 0, 0])
         x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
         u = -self.cqp.qpcontrol(leg, r_dd_des, x_in, x_ref)
-        print("u in task space = ", Ja @ u)
+
         return u
 
 
