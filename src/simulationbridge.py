@@ -10,7 +10,7 @@ import os
 
 import actuator
 
-useRealTime = 0
+useRealTime = 1
 
 
 def reaction_force(numJoints, bot):
@@ -51,12 +51,11 @@ class Sim:
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
         model_path = model["urdfpath"]
-
-        self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7*scale],  # 0.31
+        # self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7 * scale],
+        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7*scale],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
-        vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
         self.jointArray = range(p.getNumJoints(self.bot))
         p.setGravity(0, 0, GRAVITY)
         p.setTimeStep(self.dt)
@@ -66,17 +65,22 @@ class Sim:
         self.c_link = 1
         self.model = model["model"]
 
-        if self.model == 'design':
+        if self.model != 'design_rw':
+            vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+
+        if self.model == 'design' or self.model == 'design_rw':
             jconn_1 = [x*scale for x in [0.15, 0, 0]]
             jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
-        if self.model == 'parallel':
+
+        elif self.model == 'parallel':
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                      p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
             p.changeConstraint(linkjoint, maxForce=1000)
+
         elif self.model == 'belt':
             # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
             belt = p.createConstraint(self.bot, 0, self.bot, 1,
@@ -109,10 +113,27 @@ class Sim:
         b_orient[3] = base_or_p[2]  # z
         b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
-        q_dot = np.zeros(self.numJoints)
         q = np.zeros(self.numJoints)
+        q_dot = np.zeros(self.numJoints)
+        qrw = np.zeros(2)
+        qrw_dot = np.zeros(2)
         torque = np.zeros(self.numJoints)
         command = np.zeros(self.numJoints)
+
+        if self.model == "design_rw":
+            command[0] = -u[0]  # readjust to match motor polarity
+            command[2] = -u[1]  # readjust to match motor polarity
+
+            q_total = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q_dot_total = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q = q_total[0:4]
+            q_dot = q_dot_total[0:4]
+            qrw = q_total[4:]
+            qrw_dot = q_dot_total[4:]
+            torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
+            torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
+            torque[4] = actuator.actuate(i=u[2], q_dot=qrw_dot[1], gr_out=1) + tau_s[1]
+            torque[5] = actuator.actuate(i=u[3], q_dot=qrw_dot[2], gr_out=1) + tau_s[1]
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity
@@ -140,6 +161,7 @@ class Sim:
             q[0] = q_all[2]
             q[2] = q_all[0]
             q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+
             q_dot[0] = q_dot_all[2]
             q_dot[2] = q_dot_all[0]  # modified from [1] to [2] 11-5-21
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
@@ -175,4 +197,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, b_orient, c, torque, q_dot, f
+        return q, q_dot, qrw, qrw_dot, b_orient, c, torque,  f

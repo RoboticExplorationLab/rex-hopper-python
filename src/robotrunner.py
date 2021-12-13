@@ -162,7 +162,7 @@ class Runner:
             else:
                 tau_s = np.zeros(2)
             # run simulator to get encoder and IMU feedback
-            q, b_orient, c, torque, q_dot, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
+            q, q_dot, qrw, qrw_dot, b_orient, c, torque, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -238,9 +238,24 @@ class Runner:
 
             elif self.ctrl_type == 'static_invkin':
                 # time.sleep(self.dt / 2)  # closed form inv kin runs much faster than full wbc, slow it down
-                self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
-                         + self.leg.dq * self.k_d
+                if self.model["model"] == 'design' or self.model["model"] == 'design_rw':
+                    q02 = np.zeros(2)
+                    q02[0] = self.leg.q[0]
+                    q02[1] = self.leg.q[2]
+                    dq02 = np.zeros(2)
+                    dq02[0] = self.leg.dq[0]
+                    dq02[1] = self.leg.dq[2]
+                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
+                             + dq02 * self.k_d
+                else:
+                    self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
+                             + self.leg.dq * self.k_d
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
+
+            if self.model["model"] == 'design_rw':
+                u_full = zeros((4, 1))
+                u_full[0:2] = self.u
+                u_full[2:] = rw.rw_control(b_orient)
 
             prev_state = state
 
@@ -250,7 +265,7 @@ class Runner:
             if self.plot == True and steps <= total-1:
                 if self.model == 'serial':
                     n_motor1 = 1
-                elif self.model == 'parallel' or self.model == 'design':
+                elif self.model == 'parallel' or self.model == 'design' or self.model == 'design_rw':
                     n_motor1 = 2
                 elif self.model == 'belt':
                     n_motor1 = 0  # just repeat the first...

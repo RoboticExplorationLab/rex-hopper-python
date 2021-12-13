@@ -16,7 +16,7 @@ dt = 1e-3
 parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
-                    choices=['design', 'serial', 'parallel', 'belt'], type=str)
+                    choices=['design_rw', 'design', 'serial', 'parallel', 'belt'], type=str)
 parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle",
                     choices=['wbc_cycle', 'simple_invkin', 'static_invkin'], type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
@@ -57,6 +57,17 @@ print("model = ", args.model)
 print("ctrl = ", args.ctrl)
 
 print("\n")
+
+design_rw = {
+    "model": "design_rw",
+    "controllerclass": wbc_parallel,
+    "legclass": leg_parallel,
+    "csvpath": "res/flyhopper_rw/urdf/flyhopper_rw.csv",
+    "urdfpath": "res/flyhopper_rw/urdf/flyhopper_rw.urdf",
+    "linklengths": [.1, .3, .3, .1, .2, .0205],
+    "k_kin": 37.5,
+    "springpolarity": 1
+}
 
 design = {
     "model": "design",
@@ -102,7 +113,11 @@ belt = {
     "springpolarity": 0
 }
 
-if args.model == "design":
+if args.model == "design_rw":
+    model = design_rw
+    import leg_parallel
+    import wbc_parallel
+elif args.model == "design":
     model = design
     import leg_parallel
     import wbc_parallel

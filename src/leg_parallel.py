@@ -28,7 +28,8 @@ class Leg:
         csv_path = model["csvpath"]
         curdir = os.getcwd()
         path_parent = os.path.dirname(curdir)
-        path = os.path.join(path_parent, os.path.pardir, csv_path)
+        # path = os.path.join(path_parent, os.path.pardir, csv_path)
+        path = os.path.join(path_parent, csv_path)
         with open(path, 'r') as csvfile:
             data_direct = csv.reader(csvfile, delimiter=',')
             next(data_direct)  # skip headers
