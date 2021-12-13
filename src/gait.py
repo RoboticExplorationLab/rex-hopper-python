@@ -29,7 +29,7 @@ class Gait:
 
         if state == 'Return':
             # set target position
-            self.target = np.hstack(np.append(np.array([0, 0, -0.5]), self.init_angle))
+            self.target = np.hstack(np.append(np.array([0, 0, -self.hconst*5/3]), self.init_angle))
             # calculate wbc control signal
             u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
@@ -66,7 +66,7 @@ class Gait:
         # self.target[2] = -0.5
         if state == 'Return':
             # set target position
-            self.target = np.array([0, 0, -0.5])
+            self.target = np.array([0, 0, -self.hconst*5/3])
 
         elif state == 'HeelStrike':
             self.target[2] = -self.hconst
@@ -76,7 +76,7 @@ class Gait:
             self.target[2] = -self.hconst  # go to crouch
 
         elif state == 'Leap':
-            self.target = np.array([0, 0, -0.55])
+            self.target = np.array([0, 0, -self.hconst*5.5/3])
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d

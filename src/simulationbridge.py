@@ -10,7 +10,7 @@ import os
 
 import actuator
 
-useRealTime = 1
+useRealTime = 0  # Only tuned for non real time
 
 
 def reaction_force(numJoints, bot):
@@ -69,9 +69,9 @@ class Sim:
             vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
         if self.model == 'design_rw':
-            vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+            vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [0, 0, 0.5*scale])
             jconn_1 = [x * scale for x in [0.135, 0, 0]]
-            jconn_2 = [x * scale for x in [-0.01317691945, 0, 0.0153328498]]
+            jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
                                            p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)

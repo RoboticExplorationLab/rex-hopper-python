@@ -66,7 +66,7 @@ class Runner:
         self.u_rw = np.zeros(2)
         self.total_run = total_run
         # height constant
-        self.hconst = 0.3
+
         self.model = model
         self.ctrl_type = ctrl_type
         self.plot = plot
@@ -78,6 +78,7 @@ class Runner:
         self.leg = leg_class.Leg(dt=dt, model=model)
         self.k_kin = model["k_kin"]
         self.dir_s = model["springpolarity"]
+        self.hconst = model["hconst"]  # 0.3
 
         self.k_d = self.k_kin * 0.02
 

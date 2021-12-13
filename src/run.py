@@ -65,8 +65,9 @@ design_rw = {
     "csvpath": "res/flyhopper_rw/urdf/flyhopper_rw.csv",
     "urdfpath": "res/flyhopper_rw/urdf/flyhopper_rw.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
-    "k_kin": 70,
-    "springpolarity": 1
+    "k_kin": 35,
+    "springpolarity": 1,
+    "hconst": 0.27
 }
 
 design = {
@@ -77,7 +78,8 @@ design = {
     "urdfpath": "res/flyhopper_robot/urdf/flyhopper_robot.urdf",
     "linklengths": [.1, .3, .3, .1, .2, .0205],
     "k_kin": 37.5,
-    "springpolarity": 1
+    "springpolarity": 1,
+    "hconst": 0.3
 }
 
 parallel = {
@@ -88,7 +90,8 @@ parallel = {
     "urdfpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf",
     "linklengths": [.15, .3, .3, .15, .15, 0],
     "k_kin": 70,
-    "springpolarity": -1
+    "springpolarity": -1,
+    "hconst": 0.3
 }
 
 serial = {
@@ -99,7 +102,8 @@ serial = {
     "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
     "linklengths": [.3, .3],
     "k_kin": 70,
-    "springpolarity": 0
+    "springpolarity": 0,
+    "hconst": 0.3
 }
 
 belt = {
@@ -110,7 +114,8 @@ belt = {
     "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
     "linklengths": [.3, .3],
     "k_kin": 15,
-    "springpolarity": 0
+    "springpolarity": 0,
+    "hconst": 0.3
 }
 
 if args.model == "design_rw":
