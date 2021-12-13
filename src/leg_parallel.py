@@ -21,6 +21,8 @@ class Leg:
         if init_q is None:
             init_q = [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180]
 
+        self.q = init_q
+        self.dq = init_dq
         self.DOF = len(init_q)
         self.singularity_thresh = 0.00025
         self.dt = dt

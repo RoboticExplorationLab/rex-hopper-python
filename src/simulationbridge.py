@@ -52,7 +52,7 @@ class Sim:
         path_parent = os.path.dirname(curdir)
         model_path = model["urdfpath"]
         # self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7 * scale],
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7*scale],  # 0.31
+        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.5*scale],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
@@ -68,7 +68,16 @@ class Sim:
         if self.model != 'design_rw':
             vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
-        if self.model == 'design' or self.model == 'design_rw':
+        if self.model == 'design_rw':
+            vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+            jconn_1 = [x * scale for x in [0.135, 0, 0]]
+            jconn_2 = [x * scale for x in [-0.01317691945, 0, 0.0153328498]]
+            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
+                                           p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
+            p.changeConstraint(linkjoint, maxForce=1000)
+            self.c_link = 3
+
+        elif self.model == 'design':
             jconn_1 = [x*scale for x in [0.15, 0, 0]]
             jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
@@ -101,18 +110,19 @@ class Sim:
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
 
-    def sim_run(self, u, tau_s):
+    def sim_run(self, u, u_rw, tau_s):
 
         base_or_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format
         # transforms3d takes quaternions in wxyz format, so you need to shift values
-        b_orient = np.zeros(4)
-        b_orient[0] = base_or_p[3]  # w  # TODO: pretty sure there's a one-line way to do this
-        b_orient[1] = base_or_p[0]  # x
-        b_orient[2] = base_or_p[1]  # y
-        b_orient[3] = base_or_p[2]  # z
-        b_orient = transforms3d.quaternions.quat2mat(b_orient)
 
+        # b_orient = np.zeros(4)
+        # b_orient[1] = base_or_p[3]  # w
+        # b_orient[1] = base_or_p[0]  # x
+        # b_orient[2] = base_or_p[1]  # y
+        # b_orient[3] = base_or_p[2]  # z
+        # b_orient = transforms3d.quaternions.quat2mat(b_orient)
+        b_quat = np.roll(base_or_p, 1)  # move last element to first place
         q = np.zeros(self.numJoints)
         q_dot = np.zeros(self.numJoints)
         qrw = np.zeros(2)
@@ -132,8 +142,8 @@ class Sim:
             qrw_dot = q_dot_total[4:]
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
-            torque[4] = actuator.actuate(i=u[2], q_dot=qrw_dot[1], gr_out=1) + tau_s[1]
-            torque[5] = actuator.actuate(i=u[3], q_dot=qrw_dot[2], gr_out=1) + tau_s[1]
+            torque[4] = actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=1)
+            torque[5] = actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity
@@ -183,7 +193,7 @@ class Sim:
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
-        self.omega_xyz = velocities[1]  # base angular velocity in Euler XYZ
+        self.omega_xyz = velocities[1]  # base angular velocity in XYZ
         self.base_pos = p.getBasePositionAndOrientation(self.bot)
         # base angular velocity in quaternions
         # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
@@ -197,4 +207,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, q_dot, qrw, qrw_dot, b_orient, c, torque,  f
+        return q, q_dot, qrw, qrw_dot, b_quat, c, torque, f

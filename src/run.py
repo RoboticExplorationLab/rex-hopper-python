@@ -64,8 +64,8 @@ design_rw = {
     "legclass": leg_parallel,
     "csvpath": "res/flyhopper_rw/urdf/flyhopper_rw.csv",
     "urdfpath": "res/flyhopper_rw/urdf/flyhopper_rw.urdf",
-    "linklengths": [.1, .3, .3, .1, .2, .0205],
-    "k_kin": 37.5,
+    "linklengths": [.1, .27, .27, .1, .17, .0205],
+    "k_kin": 70,
     "springpolarity": 1
 }
 

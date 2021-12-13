@@ -4,6 +4,7 @@ Copyright (C) 2020 Benjamin Bokser
 import simulationbridge
 import statemachine
 import gait
+import rw
 
 import time
 # import sys
@@ -31,10 +32,10 @@ def spring(q, l):
     L0 = l[0]  # .15
     L2 = l[2]  # .3
     gamma = abs(q1 - q0)
-    rmin = 0.204
+    rmin = 0.204*0.8
     r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
     if r < rmin:
-        print("error: incorrect spring params")
+        print("error: incorrect spring params, r = ", r, " and rmin = ", rmin)
     T = k * (r - rmin)  # spring tension force
     alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
     beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
@@ -62,6 +63,7 @@ class Runner:
 
         self.dt = dt
         self.u = np.zeros(2)
+        self.u_rw = np.zeros(2)
         self.total_run = total_run
         # height constant
         self.hconst = 0.3
@@ -162,8 +164,8 @@ class Runner:
             else:
                 tau_s = np.zeros(2)
             # run simulator to get encoder and IMU feedback
-            q, q_dot, qrw, qrw_dot, b_orient, c, torque, f = self.simulator.sim_run(u=self.u, tau_s=tau_s)
-
+            q, q_dot, qrw, qrw_dot, b_quat, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw, tau_s=tau_s)
+            b_orient = transforms3d.quaternions.quat2mat(b_quat)
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
 
@@ -195,11 +197,11 @@ class Runner:
 
             # forward kinematics
             pos = np.dot(b_orient, self.leg.position())  # [:, -1])  TODO: Check
-
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
             p = p + pdot * self.dt  # body position in world coordinates
 
             theta = np.array(transforms3d.euler.mat2euler(b_orient, axes='sxyz'))
+            # theta = transforms3d.quaternions.quat2axangle(b_quat)  # ax-angle representation
 
             phi = np.array(transforms3d.euler.mat2euler(b_orient, axes='szyx'))[0]
             c_phi = np.cos(phi)
@@ -253,9 +255,7 @@ class Runner:
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':
-                u_full = zeros((4, 1))
-                u_full[0:2] = self.u
-                u_full[2:] = rw.rw_control(b_orient)
+                self.u_rw = rw.rw_control(x_ref, theta, omega)
 
             prev_state = state
 
