@@ -69,11 +69,10 @@ class Sim:
             vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
         if self.model == 'design_rw':
-            vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [0, 0, 0.5*scale])
+            # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
             jconn_1 = [x * scale for x in [0.135, 0, 0]]
             jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
-            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
-                                           p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
+            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3, p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
 
@@ -142,8 +141,8 @@ class Sim:
             qrw_dot = q_dot_total[4:]
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
-            torque[4] = actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=1)
-            torque[5] = actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
+            torque[4] = u_rw[0]  # actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=1)
+            torque[5] = u_rw[1]  #actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity

@@ -76,11 +76,12 @@ class Runner:
         leg_class = model["legclass"]
         self.L = np.array(model["linklengths"])
         self.leg = leg_class.Leg(dt=dt, model=model)
-        self.k_kin = model["k_kin"]
+        self.k_g = model["k_g"]
+        self.k_gd = model["k_gd"]
+        self.k_a = model["k_a"]
+        self.k_ad = model["k_ad"]
         self.dir_s = model["springpolarity"]
         self.hconst = model["hconst"]  # 0.3
-
-        self.k_d = self.k_kin * 0.02
 
         self.controller = controller_class.Control(dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record,
@@ -97,7 +98,7 @@ class Runner:
         self.dist_force = np.array([0, 0, 0])
 
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
-                              use_qp=True, dt=dt)
+                              use_qp=False, dt=dt)
 
         # self.target = None
         self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
@@ -202,6 +203,7 @@ class Runner:
             p = p + pdot * self.dt  # body position in world coordinates
 
             theta = np.array(transforms3d.euler.mat2euler(b_orient, axes='sxyz'))
+            # theta[0] -= np.pi
             # theta = transforms3d.quaternions.quat2axangle(b_quat)  # ax-angle representation
 
             phi = np.array(transforms3d.euler.mat2euler(b_orient, axes='szyx'))[0]
@@ -237,10 +239,18 @@ class Runner:
                                             b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
 
             elif self.ctrl_type == 'simple_invkin':
-                self.u = self.gait.u_invkin(state=state, k_kin=self.k_kin, k_d=self.k_d)
+                self.u = self.gait.u_invkin(state=state, k_g=self.k_g, k_gd=self.k_gd, k_a = self.k_a, k_ad=self.k_ad)
 
             elif self.ctrl_type == 'static_invkin':
-                # time.sleep(self.dt / 2)  # closed form inv kin runs much faster than full wbc, slow it down
+                time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
+                if state == 'Return':
+                    k = self.k_a
+                    kd = self.k_ad
+                else:
+                    k = self.k_g
+                    kd = self.k_gd
+
+
                 if self.model["model"] == 'design' or self.model["model"] == 'design_rw':
                     q02 = np.zeros(2)
                     q02[0] = self.leg.q[0]
@@ -248,11 +258,9 @@ class Runner:
                     dq02 = np.zeros(2)
                     dq02[0] = self.leg.dq[0]
                     dq02[1] = self.leg.dq[2]
-                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
-                             + dq02 * self.k_d
+                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + dq02 * kd
                 else:
-                    self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * self.k_kin \
-                             + self.leg.dq * self.k_d
+                    self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + self.leg.dq * kd
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':

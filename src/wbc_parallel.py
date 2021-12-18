@@ -18,7 +18,6 @@ class Control:
 
         self.kp = np.zeros((3, 3))
         np.fill_diagonal(self.kp, gain*1000)
-
         self.kv = np.array(self.kp)*0.02
 
         self.kn = np.zeros((2, 2))
@@ -75,7 +74,7 @@ class Control:
         # r_dd_des = np.array(x_dd_des[0:3])
         # r_dd_des = np.array([x_dd_des[0], x_dd_des[2]]).flatten()
         r_dd_des = np.array([1, 0])
-        print("r_dd_des = ", r_dd_des)
+        # print("r_dd_des = ", r_dd_des)
         x_ref = np.array([0, 0, 0, 0, 0, 0])
         x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
         u = -self.cqp.qpcontrol(leg, r_dd_des, x_in, x_ref)

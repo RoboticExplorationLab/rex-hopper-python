@@ -62,5 +62,5 @@ class Cqp:
         Ja = leg.gen_jacA()
         da = leg.gen_da()
 
-        print("qdd_new in task space = ", Ja @ qdd_n + da)
+        # print("qdd_new in task space = ", Ja @ qdd_n + da)
         return u

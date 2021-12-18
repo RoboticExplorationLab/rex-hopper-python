@@ -65,7 +65,10 @@ design_rw = {
     "csvpath": "res/flyhopper_rw/urdf/flyhopper_rw.csv",
     "urdfpath": "res/flyhopper_rw/urdf/flyhopper_rw.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
-    "k_kin": 35,
+    "k_g": 35,
+    "k_gd": 35*0.02,
+    "k_a": 1,
+    "k_ad": 1*0.08,
     "springpolarity": 1,
     "hconst": 0.27
 }

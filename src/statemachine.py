@@ -45,22 +45,10 @@ class HeelStrike(State):
         super().__init__(fsm)
 
     def execute(self):
-
-        if self.FSM.sh == 1 and self.FSM.leg_pos[2] >= -0.5:
-            self.FSM.to_transition("toCrouch")
-
-        return str("HeelStrike")
-
-
-class Crouch(State):
-    def __init__(self, fsm):
-        super().__init__(fsm)
-
-    def execute(self):
         if self.FSM.leg_pos[2] >= -0.4:
         # if self.FSM.s == 0: # wait to jump until scheduled to
             self.FSM.to_transition("toLeap")
-        return str("Crouch")
+        return str("HeelStrike")
 
 
 class Transition:
@@ -128,12 +116,10 @@ class Char:
         self.FSM.add_state("Leap", Leap(self.FSM))
         self.FSM.add_state("Return", Return(self.FSM))
         self.FSM.add_state("HeelStrike", HeelStrike(self.FSM))
-        self.FSM.add_state("Crouch", Crouch(self.FSM))
 
         self.FSM.add_transition("toLeap", Transition("Leap"))
         self.FSM.add_transition("toReturn", Transition("Return"))
         self.FSM.add_transition("toHeelStrike", Transition("HeelStrike"))
-        self.FSM.add_transition("toCrouch", Transition("Crouch"))
 
         self.FSM.setstate("Return")
 

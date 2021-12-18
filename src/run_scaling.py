@@ -34,12 +34,13 @@ design = {
     "urdfpath": "res/flyhopper_robot/urdf/flyhopper_robot.urdf",
     "linklengths": [.1, .3, .3, .1, .2, .0205],
     "k_kin": 37.5,
-    "springpolarity": 1
+    "springpolarity": 1,
+    "hconst": 0.3
 }
 
 i = 0
 range1 = np.arange(0.5, 1.5, 0.1).reshape(-1, 1)
-range2 = np.arange(4, 7, 0.5).reshape(-1, 1)
+range2 = np.arange(4.5, 7, 0.5).reshape(-1, 1)
 ft_mean = np.zeros(len(range1))
 best_gain = np.zeros(len(range1))
 for scale in range1:
@@ -59,6 +60,8 @@ for scale in range1:
     print("Best gain for scale of ", scale, " is ", best_gain[i])
     i += 1
 
+matplotlib.rc('font', family='Times New Roman')
+#font = {'fontname':'Times New Roman'}
 plt.scatter(range1, ft_mean, label="Data")
 
 poly = PolynomialFeatures(degree=3)
@@ -68,7 +71,7 @@ clf = linear_model.LinearRegression().fit(x, y)
 print("Best scale value = ", x[np.argmax(clf.predict(x))][1])
 print("Best gain values = ", best_gain)
 plt.plot(range1, clf.predict(x), label="3rd Order Poly Fit", color='r')
-plt.title('Flight Time vs Scale')
+# plt.title('Flight Time vs Scale')
 plt.xlabel("Scale")
 plt.ylabel("Mean Flight Time, seconds")
 plt.legend()

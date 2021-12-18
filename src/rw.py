@@ -5,7 +5,8 @@ def rw_control(x_ref, theta, omega):
     simple reaction wheel control
     """
     # TODO: Add speed control inner PID loop
-    kp = 0.1
+    print(x_ref[0:2], theta[0:2])
+    kp = 60
     kd = np.copy(kp)*0.05
     tau_xdes = kp*(theta[0] - x_ref[0]) + kd*(omega[0] - x_ref[6])
     tau_ydes = kp*(theta[1] - x_ref[1]) + kd*(omega[1] - x_ref[7])

@@ -26,27 +26,15 @@ class Gait:
             self.controlf = self.controller.wb_control
 
     def u(self, state, prev_state, r_in, r_d, delp, b_orient, fr_mpc, skip):
-
+        hconst = self.hconst
         if state == 'Return':
             # set target position
-            self.target = np.hstack(np.append(np.array([0, 0, -self.hconst*5/3]), self.init_angle))
+            self.target = np.hstack(np.append(np.array([0, 0, -hconst*5/3]), self.init_angle))
             # calculate wbc control signal
             u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'HeelStrike':
-            '''
-            if prev_state != state:
-                # if contact has just been made, save that contact point as the new target to stay at
-                # (stop following through with trajectory)
-                self.r_save = r_in
-            self.r_save = self.r_save - delp
-            self.target = np.hstack(np.append(self.r_save, self.init_angle))
-            '''
             self.target[2] = -self.hconst
-            u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
-
-        elif state == 'Crouch':
-            self.target[2] = -self.hconst  # go to crouch
             u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=0)
 
         elif state == 'Leap':
@@ -54,7 +42,7 @@ class Gait:
             if skip is True:
                 fr_mpc = 0
 
-            self.target = np.hstack(np.append(np.array([0, 0, -0.55]), self.init_angle))
+            self.target = np.hstack(np.append(np.array([0, 0, -hconst*5.5/3]), self.init_angle))
             u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=fr_mpc)
 
         else:
@@ -62,24 +50,27 @@ class Gait:
 
         return u
 
-    def u_invkin(self, state, k_kin, k_d):
+    def u_invkin(self, state, k_g, k_gd, k_a, k_ad):
         # self.target[2] = -0.5
+        hconst = self.hconst
+        k = k_g
+        kd = k_gd
         if state == 'Return':
             # set target position
-            self.target = np.array([0, 0, -self.hconst*5/3])
-
+            self.target = np.array([0, 0, -hconst*5/3])
+            k = k_a
+            kd = k_ad
         elif state == 'HeelStrike':
-            self.target[2] = -self.hconst
-
-        elif state == 'Crouch':
-            # self.target = np.array([-0.1, 0, -self.hconst])
-            self.target[2] = -self.hconst  # go to crouch
-
+            self.target[2] = -hconst
+            k = k_g
+            kd = k_gd
         elif state == 'Leap':
-            self.target = np.array([0, 0, -self.hconst*5.5/3])
+            self.target = np.array([0, 0, -hconst*5.5/3])
+            k = k_g
+            kd = k_gd
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
-        u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + dqa * k_d
+        u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
 
         return u
