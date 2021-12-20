@@ -46,7 +46,7 @@ class Runner:
         self.dt = dt
         self.u = np.zeros(2)
         self.u_rw = np.zeros(3)
-        self.total_run = 1000 # total_run
+        self.total_run = 500 # total_run
         # height constant
 
         self.model = model
@@ -116,7 +116,8 @@ class Runner:
         rw1hist = np.zeros(total)
         rw2hist = np.zeros(total)
         rwzhist = np.zeros(total)
-
+        err_sum = np.zeros(3)
+        err_prev = np.zeros(3)
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
@@ -205,13 +206,13 @@ class Runner:
                     dq02 = np.zeros(2)
                     dq02[0] = self.leg.dq[0]
                     dq02[1] = self.leg.dq[2]
-                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3]*3/3)) * k + dq02 * kd
+                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + dq02 * kd
                 else:
                     self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + self.leg.dq * kd
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':
-                self.u_rw = rw.rw_control(x_ref, theta, omega)
+                self.u_rw, err_sum, err_prev = rw.rw_control(self.dt, x_ref, theta, omega, err_sum, err_prev)
 
             prev_state = state
 
