@@ -10,7 +10,36 @@ import os
 
 import actuator
 
-useRealTime = 0  # Only tuned for non real time
+useRealTime = 0  # Do NOT change to real time
+
+def spring(q, l):
+    """
+    adds linear extension spring b/t joints 1 and 3 of parallel mechanism
+    approximated by applying torques to joints 0 and 2
+    """
+    init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
+    if q is None:
+        q0 = init_q[0]
+        q1 = init_q[1]
+    else:
+        q0 = q[0]
+        q1 = q[1]
+    k = 1500  # spring constant, N/m
+    L0 = l[0]  # .15
+    L2 = l[2]  # .3
+    gamma = abs(q1 - q0)
+    rmin = 0.204*0.8
+    r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
+    if r < rmin:
+        print("error: incorrect spring params, r = ", r, " and rmin = ", rmin)
+    T = k * (r - rmin)  # spring tension force
+    alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
+    beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
+    tau_s0 = -T * np.sin(beta) * L0
+    tau_s1 = T * np.sin(alpha) * L2
+    tau_s = np.array([tau_s0, tau_s1])
+
+    return tau_s
 
 
 def reaction_force(numJoints, bot):
@@ -25,13 +54,14 @@ def reaction_force(numJoints, bot):
 
 class Sim:
 
-    def __init__(self, model, dt=1e-3,  fixed=False, record=False, scale=1, gravoff=False, direct=False):
+    def __init__(self, model, dt=1e-3, fixed=False, spring=False, record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
         self.v = None
         self.record_rt = record  # record video in real time
         self.base_pos = None
+        self.spring = spring
 
         if gravoff == True:
             GRAVITY = 0
@@ -109,18 +139,15 @@ class Sim:
             # force=1 allows us to easily mimic joint friction rather than disabling
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
 
-    def sim_run(self, u, u_rw, tau_s):
+    def sim_run(self, u, u_rw):
+
+        if self.spring:
+            tau_s = spring(self.leg.q, self.L) * self.dir_s
+        else:
+            tau_s = np.zeros(2)
 
         base_or_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
-        # pybullet gives quaternions in xyzw format
-        # transforms3d takes quaternions in wxyz format, so you need to shift values
-
-        # b_orient = np.zeros(4)
-        # b_orient[1] = base_or_p[3]  # w
-        # b_orient[1] = base_or_p[0]  # x
-        # b_orient[2] = base_or_p[1]  # y
-        # b_orient[3] = base_or_p[2]  # z
-        # b_orient = transforms3d.quaternions.quat2mat(b_orient)
+        # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
         b_quat = np.roll(base_or_p, 1)  # move last element to first place
         q = np.zeros(self.numJoints)
         q_dot = np.zeros(self.numJoints)
@@ -143,6 +170,7 @@ class Sim:
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
             torque[4] = u_rw[0]  # actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=1)
             torque[5] = u_rw[1]  #actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
+            torque[6] = u_rw[2]  # actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity
@@ -188,20 +216,14 @@ class Sim:
 
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=21)
 
-        # print(self.reaction_torques()[0:4])
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
         self.omega_xyz = velocities[1]  # base angular velocity in XYZ
         self.base_pos = p.getBasePositionAndOrientation(self.bot)
-        # base angular velocity in quaternions
-        # self.omega = transforms3d.euler.euler2quat(omega_xyz[0], omega_xyz[1], omega_xyz[2], axes='rxyz')
-        # found to be intrinsic Euler angles (r)
         f = reaction_force(self.numJoints, self.bot)
         # Detect contact with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]))
-
-        # dq = [j[1] for j in p.getJointStates(self.bot, range(8))]
 
         if useRealTime == 0:
             p.stepSimulation()

@@ -5,45 +5,15 @@ import simulationbridge
 import statemachine
 import gait
 import rw
+import plots
 
 import time
 # import sys
 
 import transforms3d
 import numpy as np
-import matplotlib.pyplot as plt
 
 np.set_printoptions(suppress=True, linewidth=np.nan)
-
-
-def spring(q, l):
-    """
-    adds linear extension spring b/t joints 1 and 3 of parallel mechanism
-    approximated by applying torques to joints 0 and 2
-    """
-    init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
-    if q is None:
-        q0 = init_q[0]
-        q1 = init_q[1]
-    else:
-        q0 = q[0]
-        q1 = q[1]
-    k = 1500  # spring constant, N/m
-    L0 = l[0]  # .15
-    L2 = l[2]  # .3
-    gamma = abs(q1 - q0)
-    rmin = 0.204*0.8
-    r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-    if r < rmin:
-        print("error: incorrect spring params, r = ", r, " and rmin = ", rmin)
-    T = k * (r - rmin)  # spring tension force
-    alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
-    beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
-    tau_s0 = -T * np.sin(beta) * L0
-    tau_s1 = T * np.sin(alpha) * L2
-    tau_s = np.array([tau_s0, tau_s1])
-
-    return tau_s
 
 
 def contact_check(c, c_s, c_prev, steps, con_c):
@@ -52,19 +22,31 @@ def contact_check(c, c_s, c_prev, steps, con_c):
         c_s = c  # saved contact value
     if c_prev != c and con_c - steps <= 10:  # TODO: reset con_c
         c = c_s
-    # print(c)
     return c, c_s, con_c
+
+
+def gait_check(s, s_prev, ct, t):
+    # To ensure that after state has been changed, it cannot change to again immediately...
+    # Generates "go" variable as True only when criteria for time passed since gait change is met
+    if s_prev != s:
+        ct = t  # record time of state change
+    if ct - t >= 0.25:
+        go = True
+    else:
+        go = False
+
+    return go, ct
 
 
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=100000, gain=4):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=4):
 
         self.dt = dt
         self.u = np.zeros(2)
-        self.u_rw = np.zeros(2)
-        self.total_run = total_run
+        self.u_rw = np.zeros(3)
+        self.total_run = 1000 # total_run
         # height constant
 
         self.model = model
@@ -82,9 +64,9 @@ class Runner:
         self.k_ad = model["k_ad"]
         self.dir_s = model["springpolarity"]
         self.hconst = model["hconst"]  # 0.3
-
+        self.fixed = fixed
         self.controller = controller_class.Control(dt=dt, gain=gain)
-        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, record=record,
+        self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.state = statemachine.Char()
 
@@ -108,11 +90,9 @@ class Runner:
         self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
 
     def run(self):
-        # time.sleep(self.dt)
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
-        t0 = 0  # starting time
         skip = False
         prev_state = str("init")
 
@@ -124,56 +104,32 @@ class Runner:
         sh_prev = 0
 
         t_f = 0
-        t_ft_s = 0 # stored flight time
         ft_saved = np.zeros(self.total_run)
         i_ft = 0  # flight timer counter
 
-        total = 6000  # number of timesteps to plot
+        total = self.total_run  # number of timesteps to plot
 
-        if self.plot:
-            value1 = np.zeros((total, 3))
-            value2 = np.zeros((total, 3))
-            value3 = np.zeros((total, 3))
-            value4 = np.zeros((total, 3))
-            value5 = np.zeros((total, 3))
-            value6 = np.zeros((total, 3))
-            fig, axs = plt.subplots(2, 3, sharex='all')
-            axs[0, 0].set_title('q0 torque')
-            plt.xlabel("Timesteps")
-            axs[0, 0].set_ylabel("q0 torque (Nm)")
-            axs[0, 1].set_title('q1 torque')
-            axs[0, 1].set_ylabel("q1 torque (Nm)")
-            axs[0, 2].set_title('base z position')
-            axs[0, 2].set_ylabel("z position (m)")
-            axs[1, 0].set_title('Magnitude of X Reaction Force on joint1')
-            axs[1, 0].set_ylabel("Reaction Force Fx, N")
-            axs[1, 1].set_title('Magnitude of Z Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
-            axs[1, 1].set_ylabel("Reaction Force Fz, N")  # .set_ylabel("angular velocity, rpm")
-            axs[1, 2].set_title('Flight Time')
-            axs[1, 2].set_ylabel("Flight Time, s")
-        else:
-            value1 = value2 = value3 = value4 = value5 = value6 = None
+        tau0hist = np.zeros((total, 1))
+        tau2hist = np.zeros(total)
+        phist = np.zeros(total)
+        thetahist = np.zeros((total, 3))
+        rw1hist = np.zeros(total)
+        rw2hist = np.zeros(total)
+        rwzhist = np.zeros(total)
 
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
-            # t_diff = time.clock() - t_prev
-            # t_prev = time.clock()
 
-            # simulate torques from spring
-            if self.spring:
-                tau_s = spring(self.leg.q, self.L)*self.dir_s
-            else:
-                tau_s = np.zeros(2)
             # run simulator to get encoder and IMU feedback
-            q, q_dot, qrw, qrw_dot, b_quat, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw, tau_s=tau_s)
+            q, q_dot, qrw, qrw_dot, b_quat, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
             b_orient = transforms3d.quaternions.quat2mat(b_quat)
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
 
             s_prev = s
             # prevents stuck in stance bug
-            go, ct = self.gait_check(s, s_prev=s_prev, ct=ct, t=t)
+            go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)
 
             # Like using limit switches
             # if contact has just been made, freeze contact detection to True for 300 timesteps
@@ -188,11 +144,8 @@ class Runner:
                 t_ft = t_l - t_f  # last flight time
                 if t_ft > 0.1:  # ignore flight times of less than 0.1 second (these are foot bounces)
                     print(t_ft)
-                    t_ft_s = t_ft
                     ft_saved[i_ft] = t_ft  # save flight time to vector
                     i_ft += 1
-            else:
-                t_ft_s = None  # 0
 
             sh_prev = sh
             c_prev = c
@@ -219,15 +172,10 @@ class Runner:
 
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
 
-            # TODO: Bring back footstep planner method to use this
-            # if state is not 'stance' and prev_state is 'stance':
-            #     self.r = self.footstep(rz_phi=rz_phi, pdot=pdot, pdot_des=self.pdot_des)
-
             omega = np.array(self.simulator.omega_xyz)
 
-            x_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
+            # x_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
             x_ref = np.hstack([np.zeros(3), np.zeros(3), self.omega_d, self.pdot_des]).T  # reference pose (desired)
-            # x_ref = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T
 
             mpc_force = np.zeros(3)
             mpc_force[2] = 218  # TODO: Add MPC back
@@ -242,14 +190,13 @@ class Runner:
                 self.u = self.gait.u_invkin(state=state, k_g=self.k_g, k_gd=self.k_gd, k_a = self.k_a, k_ad=self.k_ad)
 
             elif self.ctrl_type == 'static_invkin':
-                time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
-                if state == 'Return':
+                time.sleep(self.dt*10)  # closed form inv kin runs much faster than full wbc, slow it down
+                if self.fixed == True:
                     k = self.k_a
                     kd = self.k_ad
                 else:
                     k = self.k_g
                     kd = self.k_gd
-
 
                 if self.model["model"] == 'design' or self.model["model"] == 'design_rw':
                     q02 = np.zeros(2)
@@ -258,7 +205,7 @@ class Runner:
                     dq02 = np.zeros(2)
                     dq02[0] = self.leg.dq[0]
                     dq02[1] = self.leg.dq[2]
-                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + dq02 * kd
+                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3]*3/3)) * k + dq02 * kd
                 else:
                     self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + self.leg.dq * kd
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
@@ -270,29 +217,13 @@ class Runner:
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
 
-            n_motor1 = None
-            if self.plot == True and steps <= total-1:
-                if self.model == 'serial':
-                    n_motor1 = 1
-                elif self.model == 'parallel' or self.model == 'design' or self.model == 'design_rw':
-                    n_motor1 = 2
-                elif self.model == 'belt':
-                    n_motor1 = 0  # just repeat the first...
-
-                value1[steps-1, :] = torque[0] # self.u[0]
-                value2[steps-1, :] = torque[n_motor1] # self.u[1]
-                value3[steps-1, :] = p_base_z
-                value4[steps - 1, :] = f[1, 0]  # q_dot[0]*60/(2*np.pi)
-                value5[steps - 1, :] = f[1, 2]  # q_dot[1]*60/(2*np.pi)
-                value6[steps - 1, :] = t_ft_s
-                if steps == total - 1:
-                    axs[0, 0].plot(range(total - 1), value1[:-1, 0], color='blue')
-                    axs[0, 1].plot(range(total - 1), value2[:-1, 0], color='blue')
-                    axs[0, 2].plot(range(total - 1), value3[:-1, 0], color='blue')
-                    axs[1, 0].plot(range(total - 1), value4[:-1, 0], color='blue')
-                    axs[1, 1].plot(range(total - 1), value5[:-1, 0], color='blue')
-                    axs[1, 2].plot(range(total - 1), value6[:-1, 0], color='blue')
-                    plt.show()
+            tau0hist[steps - 1] = torque[0]  # self.u[0]
+            tau2hist[steps - 1] = torque[2]  # self.u[1]
+            phist[steps - 1] = p_base_z
+            thetahist[steps - 1, :] = theta
+            rw1hist[steps - 1] = torque[4]
+            rw2hist[steps - 1] = torque[5]
+            rwzhist[steps - 1] = torque[6]
 
             # print("pos = ", self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
@@ -300,16 +231,6 @@ class Runner:
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 
+        plots.thetaplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2], rw1hist, rw2hist, rwzhist)
+
         return ft_saved
-
-    def gait_check(self, s, s_prev, ct, t):
-        # To ensure that after state has been changed, it cannot change to again immediately...
-        # Generates "go" variable as True only when criteria for time passed since gait change is met
-        if s_prev != s:
-            ct = t  # record time of state change
-        if ct - t >= 0.25:
-            go = True
-        else:
-            go = False
-
-        return go, ct
