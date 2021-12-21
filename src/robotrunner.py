@@ -46,7 +46,7 @@ class Runner:
         self.dt = dt
         self.u = np.zeros(2)
         self.u_rw = np.zeros(3)
-        self.total_run = 500 # total_run
+        self.total_run = 1000 # total_run
         # height constant
 
         self.model = model
@@ -118,13 +118,14 @@ class Runner:
         rwzhist = np.zeros(total)
         err_sum = np.zeros(3)
         err_prev = np.zeros(3)
+        thetar = np.zeros(3)
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
 
             # run simulator to get encoder and IMU feedback
-            q, q_dot, qrw, qrw_dot, b_quat, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
-            b_orient = transforms3d.quaternions.quat2mat(b_quat)
+            q, q_dot, qrw, qrw_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
+            b_orient = transforms3d.quaternions.quat2mat(Q_base)
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
 
@@ -158,7 +159,7 @@ class Runner:
 
             theta = np.array(transforms3d.euler.mat2euler(b_orient, axes='sxyz'))
             # theta[0] -= np.pi
-            # theta = transforms3d.quaternions.quat2axangle(b_quat)  # ax-angle representation
+            # theta = transforms3d.quaternions.quat2axangle(Q_base)  # ax-angle representation
 
             phi = np.array(transforms3d.euler.mat2euler(b_orient, axes='szyx'))[0]
             c_phi = np.cos(phi)
@@ -212,7 +213,7 @@ class Runner:
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':
-                self.u_rw, err_sum, err_prev = rw.rw_control(self.dt, x_ref, theta, omega, err_sum, err_prev)
+                self.u_rw, err_sum, err_prev, thetar = rw.rw_control(self.dt, Q_base, err_sum, err_prev)
 
             prev_state = state
 
@@ -221,7 +222,7 @@ class Runner:
             tau0hist[steps - 1] = torque[0]  # self.u[0]
             tau2hist[steps - 1] = torque[2]  # self.u[1]
             phist[steps - 1] = p_base_z
-            thetahist[steps - 1, :] = theta
+            thetahist[steps - 1, :] = thetar
             rw1hist[steps - 1] = torque[4]
             rw2hist[steps - 1] = torque[5]
             rwzhist[steps - 1] = torque[6]

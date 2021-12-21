@@ -148,7 +148,7 @@ class Sim:
 
         base_or_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
-        b_quat = np.roll(base_or_p, 1)  # move last element to first place
+        Q_base = np.roll(base_or_p, 1)  # move last element to first place
         q = np.zeros(self.numJoints)
         q_dot = np.zeros(self.numJoints)
         qrw = np.zeros(2)
@@ -228,4 +228,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, q_dot, qrw, qrw_dot, b_quat, c, torque, f
+        return q, q_dot, qrw, qrw_dot, Q_base, c, torque, f
