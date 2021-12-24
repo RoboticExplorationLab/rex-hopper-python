@@ -113,12 +113,17 @@ class Runner:
         tau2hist = np.zeros(total)
         phist = np.zeros(total)
         thetahist = np.zeros((total, 3))
+        setphist = np.zeros((total, 3))
         rw1hist = np.zeros(total)
         rw2hist = np.zeros(total)
         rwzhist = np.zeros(total)
+        w1hist = np.zeros(total)
+        w2hist = np.zeros(total)
+        w3hist = np.zeros(total)
         err_sum = np.zeros(3)
         err_prev = np.zeros(3)
         thetar = np.zeros(3)
+
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
@@ -213,19 +218,23 @@ class Runner:
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':
-                self.u_rw, err_sum, err_prev, thetar = rw.rw_control(self.dt, Q_base, err_sum, err_prev)
+                self.u_rw, err_sum, err_prev, thetar, setp = rw.rw_control(self.dt, Q_base, err_sum, err_prev)
+                rw1hist[steps - 1] = torque[4]
+                rw2hist[steps - 1] = torque[5]
+                rwzhist[steps - 1] = torque[6]
+                w1hist[steps - 1] = qrw_dot[0]
+                w2hist[steps - 1] = qrw_dot[1]
+                w3hist[steps - 1] = qrw_dot[2]
+                setphist[steps - 1, :] = setp
+                thetahist[steps - 1, :] = thetar
+                tau0hist[steps - 1] = torque[0]  # self.u[0]
+                tau2hist[steps - 1] = torque[2]  # self.u[1]
 
             prev_state = state
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
 
-            tau0hist[steps - 1] = torque[0]  # self.u[0]
-            tau2hist[steps - 1] = torque[2]  # self.u[1]
             phist[steps - 1] = p_base_z
-            thetahist[steps - 1, :] = thetar
-            rw1hist[steps - 1] = torque[4]
-            rw2hist[steps - 1] = torque[5]
-            rwzhist[steps - 1] = torque[6]
 
             # print("pos = ", self.leg.position())
             # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
@@ -233,6 +242,9 @@ class Runner:
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 
-        plots.thetaplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2], rw1hist, rw2hist, rwzhist)
+        plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
+                     rw1hist, rw2hist, rwzhist,
+                     w1hist, w2hist, w3hist,
+                     setphist[:, 0], setphist[:, 1], setphist[:, 2])
 
         return ft_saved

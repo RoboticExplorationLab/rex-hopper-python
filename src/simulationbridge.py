@@ -151,8 +151,8 @@ class Sim:
         Q_base = np.roll(base_or_p, 1)  # move last element to first place
         q = np.zeros(self.numJoints)
         q_dot = np.zeros(self.numJoints)
-        qrw = np.zeros(2)
-        qrw_dot = np.zeros(2)
+        qrw = np.zeros(3)
+        qrw_dot = np.zeros(3)
         torque = np.zeros(self.numJoints)
         command = np.zeros(self.numJoints)
 

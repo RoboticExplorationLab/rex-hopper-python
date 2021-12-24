@@ -11,7 +11,7 @@ def rw_control(dt, Q_base, err_sum, err_prev):
     simple reaction wheel control
     TODO: Add speed control inner PID loop
     """
-    x_ref = np.array([-3.35*np.pi/180, 3.35*np.pi/180, 0])
+    setp = np.array([-3.35*np.pi/180, 3.35*np.pi/180, 0])
 
     a = -45 * np.pi / 180
     Q_a = np.array([np.cos(a / 2), 0, 0, np.sin(a / 2)]).T
@@ -37,13 +37,13 @@ def rw_control(dt, Q_base, err_sum, err_prev):
     ki = np.zeros((3, 3))
     np.fill_diagonal(kp, [ku, -ku, 8])  # ku*0.6
     np.fill_diagonal(ki, [ku * 0, -ku * 0, 0])  # ku*3*tu/40
-    np.fill_diagonal(kd, [ku * 0, -ku * 0, 8 * 0.002])  # ku*1.2/tu
+    np.fill_diagonal(kd, [ku * 0.0001, -ku * 0.0001, 8 * 0.002])  # ku*1.2/tu
 
-    err = theta[0:3] - x_ref[0:3]
+    err = theta[0:3] - setp[0:3]
 
     err_diff = (err-err_prev)/dt
     u_rw = kp @ err + ki @ err_sum * dt + kd @ err_diff / dt
 
     err_sum += err
     err_prev = err
-    return u_rw, err_sum, err_prev, theta
+    return u_rw, err_sum, err_prev, theta, setp
