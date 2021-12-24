@@ -46,7 +46,7 @@ class Runner:
         self.dt = dt
         self.u = np.zeros(2)
         self.u_rw = np.zeros(3)
-        self.total_run = 1000 # total_run
+        self.total_run = total_run
         # height constant
 
         self.model = model
@@ -192,7 +192,7 @@ class Runner:
                 self.u = self.gait.u_invkin(state=state, k_g=self.k_g, k_gd=self.k_gd, k_a = self.k_a, k_ad=self.k_ad)
 
             elif self.ctrl_type == 'static_invkin':
-                time.sleep(self.dt*10)  # closed form inv kin runs much faster than full wbc, slow it down
+                time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
                 if self.fixed == True:
                     k = self.k_a
                     kd = self.k_ad

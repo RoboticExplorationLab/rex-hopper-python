@@ -33,19 +33,25 @@ def Expq(phi):
     Q = np.zeros(4)
     theta = np.linalg.norm(phi)
     Q[0] = np.cos(theta / 2)
-    Q[1:4] = 0.5 * phi * np.sinc(theta / (2 * np.pi))
+    Q[1:4] = 0.5 * phi @ np.sinc(theta / (2 * np.pi))
     return Q
 
 def Z(Q, p):
     # Rotate a position vector p by a quaternion Q
-    return H.T * R(Q).T * L(Q) * H * p
+    return H.T @ R(Q).T @ L(Q) @ H @ p
 
 def anglesolve(Q):
     # convert arbitrary quaternion to unsigned angle
-    return 2 * np.atan2(np.linalg.norm(Q[1:4]), Q[0])
+    return 2 * np.arctan2(np.linalg.norm(Q[1:4]), Q[0])
 
 def angle_y(Q1, Q2):
     # signed angle about y axis of y-axis-constrained quaternions
-    Q12 = L(Q1).T * Q2
+    Q12 = L(Q1).T @ Q2
     Q12 = Q12 / (np.linalg.norm(Q12))
     return 2 * np.arcsin(Q12[2])
+
+def angle_z(Q1, Q2):
+    # signed angle about z axis of z-axis-constrained quaternions
+    Q12 = L(Q1).T @ Q2
+    Q12 = Q12 / (np.linalg.norm(Q12))
+    return 2 * np.arcsin(Q12[3])
