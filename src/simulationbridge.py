@@ -146,9 +146,10 @@ class Sim:
         else:
             tau_s = np.zeros(2)
 
-        base_or_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
+        self.p = np.array(p.getBasePositionAndOrientation(self.bot)[0])
+        Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
-        Q_base = np.roll(base_or_p, 1)  # move last element to first place
+        Q_base = np.roll(Q_base_p, 1)  # move last element to first place
         q = np.zeros(self.numJoints)
         q_dot = np.zeros(self.numJoints)
         qrw = np.zeros(3)

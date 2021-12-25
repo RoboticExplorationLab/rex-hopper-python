@@ -19,6 +19,7 @@ class State:
 
 
 class Leap(State):
+    # Thrust up until unloading
     def __init__(self, fsm):
         super().__init__(fsm)
 
@@ -30,6 +31,7 @@ class Leap(State):
 
 
 class Return(State):
+    # Aerial Phase
     def __init__(self, fsm):
         super().__init__(fsm)
 
@@ -41,6 +43,7 @@ class Return(State):
 
 
 class HeelStrike(State):
+    # Landing compression phase
     def __init__(self, fsm):
         super().__init__(fsm)
 

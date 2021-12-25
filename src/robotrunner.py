@@ -4,7 +4,6 @@ Copyright (C) 2020 Benjamin Bokser
 import simulationbridge
 import statemachine
 import gait
-import rw
 import plots
 
 import time
@@ -17,6 +16,8 @@ np.set_printoptions(suppress=True, linewidth=np.nan)
 
 
 def contact_check(c, c_s, c_prev, steps, con_c):
+    # if contact has just been made, freeze contact detection to True for 300 timesteps
+    # protects against vibration/bouncing-related bugs
     if c_prev != c:
         con_c = steps  # timestep at contact change
         c_s = c  # saved contact value
@@ -41,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=4):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=35):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -77,7 +78,6 @@ class Runner:
         self.target_init = np.array([0, 0, -self.hconst, self.init_alpha, self.init_beta, self.init_gamma])
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
-        self.dist_force = np.array([0, 0, 0])
 
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
                               use_qp=False, dt=dt)
@@ -109,6 +109,8 @@ class Runner:
 
         total = self.total_run  # number of timesteps to plot
 
+        foot_force = np.zeros((3, 1))
+        
         tau0hist = np.zeros((total, 1))
         tau2hist = np.zeros(total)
         phist = np.zeros(total)
@@ -120,8 +122,6 @@ class Runner:
         w1hist = np.zeros(total)
         w2hist = np.zeros(total)
         w3hist = np.zeros(total)
-        err_sum = np.zeros(3)
-        err_prev = np.zeros(3)
         thetar = np.zeros(3)
 
         while steps < self.total_run:
@@ -129,8 +129,9 @@ class Runner:
             t = t + self.dt
 
             # run simulator to get encoder and IMU feedback
+            # TODO: More realistic contact detection
             q, q_dot, qrw, qrw_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
-            b_orient = transforms3d.quaternions.quat2mat(Q_base)
+
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
 
@@ -139,11 +140,10 @@ class Runner:
             go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)
 
             # Like using limit switches
-            # if contact has just been made, freeze contact detection to True for 300 timesteps
-            # protects against vibration/bouncing-related bugs
             c, c_s, con_c = contact_check(c, c_s, c_prev, steps, con_c)
             sh = int(c)
 
+            # flight time checker
             if sh == 0 and sh_prev == 1:
                 t_f = t  # time of flight
             if sh == 1 and sh_prev == 0:
@@ -157,46 +157,31 @@ class Runner:
             sh_prev = sh
             c_prev = c
 
-            # forward kinematics
-            pos = np.dot(b_orient, self.leg.position())  # [:, -1])  TODO: Check
+            # b_orient = transforms3d.quaternions.quat2mat(Q_base)
+            # pos = np.dot(b_orient, self.leg.position())  # [:, -1])  TODO: Check
+            # omega = np.array(self.simulator.omega_xyz)
+
+            # TODO: Actual state estimator... getting it from sim is cheating
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
-            p = p + pdot * self.dt  # body position in world coordinates
-
-            theta = np.array(transforms3d.euler.mat2euler(b_orient, axes='sxyz'))
-            # theta[0] -= np.pi
-            # theta = transforms3d.quaternions.quat2axangle(Q_base)  # ax-angle representation
-
-            phi = np.array(transforms3d.euler.mat2euler(b_orient, axes='szyx'))[0]
-            c_phi = np.cos(phi)
-            s_phi = np.sin(phi)
-            # rotation matrix Rz(phi)
-            rz_phi = np.zeros((3, 3))
-            rz_phi[0, 0] = c_phi
-            rz_phi[0, 1] = s_phi
-            rz_phi[1, 0] = -s_phi
-            rz_phi[1, 1] = c_phi
-            rz_phi[2, 2] = 1
+            # p = p + pdot * self.dt  # body position in world coordinates
+            p = np.array(self.simulator.p)
+            delp = pdot * self.dt
 
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
 
-            omega = np.array(self.simulator.omega_xyz)
-
-            # x_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
-            x_ref = np.hstack([np.zeros(3), np.zeros(3), self.omega_d, self.pdot_des]).T  # reference pose (desired)
-
-            mpc_force = np.zeros(3)
-            mpc_force[2] = 218  # TODO: Add MPC back
-
-            delp = pdot*self.dt
+            foot_force[2] = -120
             # calculate wbc control signal
-            if self.ctrl_type == 'wbc_cycle':
-                self.u = self.gait.u(state=state, prev_state=prev_state, r_in=pos, r_d=self.r, delp=delp,
-                                            b_orient=b_orient, fr_mpc=mpc_force, skip=skip)
+            if self.ctrl_type == 'wbc_raibert':
+                self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, p=p, pdot=pdot,
+                                                                      Q_base=Q_base, fr=foot_force, skip=skip)
 
-            elif self.ctrl_type == 'simple_invkin':
-                self.u = self.gait.u_invkin(state=state, k_g=self.k_g, k_gd=self.k_gd, k_a = self.k_a, k_ad=self.k_ad)
+            if self.ctrl_type == 'wbc_vert':
+                self.u = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr_mpc=foot_force, skip=skip)
 
-            elif self.ctrl_type == 'static_invkin':
+            elif self.ctrl_type == 'invkin_simple':
+                self.u = self.gait.u_invkin(state=state, k_g=self.k_g, k_gd=self.k_gd, k_a=self.k_a, k_ad=self.k_ad)
+
+            elif self.ctrl_type == 'invkin_static':
                 time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
                 if self.fixed == True:
                     k = self.k_a
@@ -218,7 +203,6 @@ class Runner:
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':
-                self.u_rw, err_sum, err_prev, thetar, setp = rw.rw_control(self.dt, Q_base, err_sum, err_prev)
                 rw1hist[steps - 1] = torque[4]
                 rw2hist[steps - 1] = torque[5]
                 rwzhist[steps - 1] = torque[6]
@@ -242,9 +226,10 @@ class Runner:
             # sys.stdout.write("\033[F")  # back to previous line
             # sys.stdout.write("\033[K")  # clear line
 
-        plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
-                     rw1hist, rw2hist, rwzhist,
-                     w1hist, w2hist, w3hist,
-                     setphist[:, 0], setphist[:, 1], setphist[:, 2])
+        if self.plot == True:
+            plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
+                         rw1hist, rw2hist, rwzhist,
+                         w1hist, w2hist, w3hist,
+                         setphist[:, 0], setphist[:, 1], setphist[:, 2])
 
         return ft_saved

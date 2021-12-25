@@ -34,6 +34,7 @@ def Expq(phi):
     theta = np.linalg.norm(phi)
     Q[0] = np.cos(theta / 2)
     Q[1:4] = 0.5 * phi @ np.sinc(theta / (2 * np.pi))
+    Q = Q / (np.linalg.norm(Q))  # re-normalize
     return Q
 
 def Z(Q, p):

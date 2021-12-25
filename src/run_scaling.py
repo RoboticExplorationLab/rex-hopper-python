@@ -40,7 +40,7 @@ design = {
 
 i = 0
 range1 = np.arange(0.5, 1.5, 0.1).reshape(-1, 1)
-range2 = np.arange(4.5, 7, 0.5).reshape(-1, 1)
+range2 = np.arange(35, 55, 4).reshape(-1, 1)
 ft_mean = np.zeros(len(range1))
 best_gain = np.zeros(len(range1))
 for scale in range1:

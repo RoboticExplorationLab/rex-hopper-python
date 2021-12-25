@@ -17,8 +17,8 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
                     choices=['design_rw', 'design', 'serial', 'parallel', 'belt'], type=str)
-parser.add_argument("ctrl", help="simple_invkin, static_invkin or wbc_cycle",
-                    choices=['wbc_cycle', 'simple_invkin', 'static_invkin'], type=str)
+parser.add_argument("ctrl", help="wbc_raibert, wbc_vert, invkin_vert, or invkin_static",
+                    choices=['wbc_raibert', 'wbc_vert', 'invkin_vert', 'invkin_static'], type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
@@ -65,8 +65,8 @@ design_rw = {
     "csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
     "urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
-    "k_g": 35,
-    "k_gd": 35*0.02,
+    "k_g": 45,
+    "k_gd": 45*0.02,
     "k_a": 1,
     "k_ad": 1*0.08,
     "springpolarity": 1,
@@ -156,5 +156,5 @@ else:
     raise NameError('INVALID MODEL')
 
 runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed,
-                spring=spring, record=record, scale=args.scale, gravoff=gravoff)
+                spring=spring, record=record, scale=args.scale, gravoff=gravoff, gain=model["k_g"])
 runner.run()

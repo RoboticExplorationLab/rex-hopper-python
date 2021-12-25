@@ -10,42 +10,37 @@ import cqp
 
 class Control:
 
-    def __init__(self, dt=1e-3, gain=4, null_control=False, **kwargs):
+    def __init__(self, dt=1e-3, gain=35, null_control=False, **kwargs):
         # self.qp = qp.Qp()
         self.cqp = cqp.Cqp()
         self.dt = dt
         self.null_control = null_control
 
         self.kp = np.zeros((3, 3))
-        np.fill_diagonal(self.kp, gain*1000)
-        self.kv = np.array(self.kp)*0.02
-
-        self.kn = np.zeros((2, 2))
-        np.fill_diagonal(self.kn, 100)
-
-        self.kf = 1
+        np.fill_diagonal(self.kp, gain*100)
+        self.kd = np.array(self.kp)*0.02
 
         self.B = np.zeros((4, 2))  # actuator selection matrix
         self.B[0, 0] = 1  # q0
         self.B[2, 1] = 1  # q2
 
-    def wb_control(self, leg, target, b_orient, force=0, x_dd_des=None):
+    def wb_control(self, leg, target, b_orient, force=np.zeros((3, 1))):
         target = np.array(target).reshape(-1, 1)
         b_orient = np.array(b_orient)
         Ja = leg.gen_jacA()  # 3x2
         dqa = np.array([leg.dq[0], leg.dq[2]])
-        x = np.dot(b_orient, leg.position())
+        x = np.dot(b_orient, leg.position())  # rotate leg position from body frame to world frame
 
         # calculate operational space velocity vector
         vel = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
 
         # calculate linear acceleration term based on PD control
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
-        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kv, -vel)).flatten()
+        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kd, -vel)).flatten()
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
-        # M = leg.gen_M()
+
         Mx = leg.gen_Mx()
-        fx = Mx @ x_dd_des[0:3]
+        fx = Mx @ x_dd_des[0:3] + force  # why is there not a rotation back into body frame?
         tau = Ja.T @ fx
 
         C = leg.gen_C().flatten()
@@ -56,7 +51,7 @@ class Control:
 
         return u
 
-    def wb_qp_control(self, leg, target, b_orient, force=0, x_dd_des=None):
+    def wb_qp_control(self, leg, target, b_orient, force=0):
         target = np.array(target).reshape(-1, 1)
         b_orient = np.array(b_orient)
         Ja = leg.gen_jacA()  # 3x2
@@ -68,7 +63,7 @@ class Control:
 
         # calculate linear acceleration term based on PD control
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
-        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kv, -vel)).flatten()
+        x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kd, -vel)).flatten()
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # r_dd_des = np.array(x_dd_des[0:3])
@@ -81,20 +76,9 @@ class Control:
 
         return u
 
-
-'''
-    def null_signal(self):
-        leg_des_angle = np.array([-30, -150])
-        prop_val = ((leg_des_angle - leg.q) + np.pi) % (np.pi * 2) - np.pi
-        q_des = (np.dot(self.kn, prop_val))
-        #        + np.dot(self.knd, -leg.dq.reshape(-1, )))
-
-        Fq_null = np.dot(self.Mq, q_des)
-
-        # calculate the null space filter
-        Jdyn_inv = np.dot(Mx, np.dot(JEE, np.linalg.inv(self.Mq)))
-        null_filter = np.eye(len(leg.q)) - np.dot(JEE.T, Jdyn_inv)
-        null_signal = np.dot(null_filter, Fq_null).reshape(-1, )
-
-        return null_signal
-    '''
+    def update_gains(self, kp, kd):
+        # Use this to update wbc PID gains in real time
+        self.kp = np.zeros((3, 3))
+        np.fill_diagonal(self.kp, kp * 120)
+        self.kd = np.zeros((3, 3))
+        np.fill_diagonal(self.kd, kd * 120)

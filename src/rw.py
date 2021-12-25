@@ -6,24 +6,31 @@ import numpy as np
 
 import utils
 
-def rw_control(dt, Q_base, err_sum, err_prev):
+def z_rotate(Q_in, z):
+    # rotate quaternion about its z-axis by specified angle "z"
+    # and get rotation about x-axis of that (confusing, I know)
+    Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
+    Q_res = utils.L(Q_z).T @ Q_in
+    Q_res = Q_res / (np.linalg.norm(Q_res))
+    theta_res = 2 * np.arcsin(Q_res[1])  # x-axis of rotated body quaternion
+    return theta_res
+
+def rw_control(dt, Q_ref, Q_base, err_sum, err_prev):
     """
     simple reaction wheel control
+    TODO: Add actuator model
     TODO: Add speed control inner PID loop
     """
-    setp = np.array([-3.35*np.pi/180, 3.35*np.pi/180, 0])
-
     a = -45 * np.pi / 180
-    Q_a = np.array([np.cos(a / 2), 0, 0, np.sin(a / 2)]).T
-    Q_1 = utils.L(Q_a).T @ Q_base
-    Q_1 = Q_1 / (np.linalg.norm(Q_1))
-    theta_1 = 2 * np.arcsin(Q_1[1]) # x-axis of rotated body quaternion
-
     b = 45 * np.pi / 180
-    Q_b = np.array([np.cos(b / 2), 0, 0, np.sin(b / 2)]).T
-    Q_2 = utils.L(Q_b).T @ Q_base
-    Q_2 = Q_2 / (np.linalg.norm(Q_2))
-    theta_2 = 2 * np.arcsin(Q_2[1])  # x-axis of rotated body quaternion
+
+    ref_1 = z_rotate(Q_ref, a)
+    ref_2 = z_rotate(Q_ref, b)
+    # setp = np.array([-3.35*np.pi/180, 3.35*np.pi/180, 0])
+    setp = np.array([ref_1 - 3.35 * np.pi / 180, ref_2 + 3.35 * np.pi / 180, 0])
+
+    theta_1 = z_rotate(Q_base, a)
+    theta_2 = z_rotate(Q_base, b)
 
     theta_3 = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
 
