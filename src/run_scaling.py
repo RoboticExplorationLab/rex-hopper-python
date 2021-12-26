@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 
+import param
 import leg_parallel
 import wbc_parallel
 from robotrunner import Runner
@@ -26,21 +27,9 @@ if args.spring:
 else:
     spring = False
 
-design = {
-    "model": "design",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_robot/urdf/flyhopper_robot.csv",
-    "urdfpath": "res/flyhopper_robot/urdf/flyhopper_robot.urdf",
-    "linklengths": [.1, .3, .3, .1, .2, .0205],
-    "k_kin": 37.5,
-    "springpolarity": 1,
-    "hconst": 0.3
-}
-
 i = 0
 range1 = np.arange(0.5, 1.5, 0.1).reshape(-1, 1)
-range2 = np.arange(35, 55, 4).reshape(-1, 1)
+range2 = np.arange(3500, 5500, 400).reshape(-1, 1)
 ft_mean = np.zeros(len(range1))
 best_gain = np.zeros(len(range1))
 for scale in range1:
@@ -49,7 +38,7 @@ for scale in range1:
     ftg_mean = np.zeros(len(range2)+1)
     for gain in range2:
         print("...using gain of ", gain)
-        runner = Runner(dt=dt, plot=False, model=design, ctrl_type='wbc_cycle', fixed=False,
+        runner = Runner(dt=dt, plot=False, model=param.design, ctrl_type='wbc_cycle', fixed=False,
                         spring=spring, record=False, scale=scale, direct=True, gravoff=False, total_run=4000, gain=gain)
         ft = runner.run()
         flighttimes = ft[ft != 0]

@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020 Benjamin Bokser
+Copyright (C) 2020-2021 Benjamin Bokser
 """
 import numpy as np
 import rw
@@ -34,7 +34,7 @@ class Gait:
         b_orient = transforms3d.quaternions.quat2mat(Q_base)
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
-        # print(p)
+
         self.target[0] = -0.05
         if state == 'Return':
             #self.controller.update_gains(1, 1 * 0.08)
@@ -55,31 +55,46 @@ class Gait:
         u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=fr)
         u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
                                                                         self.err_sum, self.err_prev)
-
         return u, u_rw, thetar, setp
 
     def u_wbc_vert(self, state, Q_base, fr, skip):
-        b_orient = transforms3d.quaternions.quat2mat(Q_base)
+        Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
+
+        self.target[0] = -0.05
         if state == 'Return':
+            self.controller.update_gains(1000, 1000 * 0.08)
             self.target[2] = -hconst*5/3
-            fr = 0
+            fr = np.zeros((3, 1))
         elif state == 'HeelStrike':
-            self.target[2] = -self.hconst
-            fr = 0
+            self.controller.update_gains(5000, 5000 * 0.02)
+            self.target[2] = -hconst
+            fr = np.zeros((3, 1))
         elif state == 'Leap':
+            self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst*5.5/3
             if skip is True:
-                fr = 0
+                fr = np.zeros((3, 1))
         else:
             raise NameError('INVALID STATE')
 
-        u = -self.controlf(leg=self.leg, target=self.target, b_orient=b_orient, force=fr)
+        u = -self.controlf(leg=self.leg, target=self.target, Q_base=Q_base, force=fr)
+        u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
+                                                                        self.err_sum, self.err_prev)
+        return u, u_rw, thetar, setp
 
-        return u
+    def u_wbc_static(self, Q_base, fr, skip):
+        Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
+        self.target[0] = -0.05
+        if skip is True:
+            fr = np.zeros((3, 1))
+        u = -self.controlf(leg=self.leg, target=self.target, Q_base=Q_base, force=fr)
+        u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
+                                                                        self.err_sum, self.err_prev)
+        return u, u_rw, thetar, setp
 
-    def u_invkin(self, state, k_g, k_gd, k_a, k_ad):
-        # self.target[2] = -0.5
+    def u_invkin_vert(self, state, Q_base, k_g, k_gd, k_a, k_ad):
+        Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
         k = k_g
         kd = k_gd
@@ -100,5 +115,18 @@ class Gait:
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
         u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
+        u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
+                                                                        self.err_sum, self.err_prev)
+        return u, u_rw, thetar, setp
 
-        return u
+    def u_invkin_static(self, Q_base, k, kd):
+        target = self.target
+        target[2] = -self.hconst*5/3
+        Q_ref = transforms3d.euler.euler2quat(0, 0, 0)
+        dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
+        qa = np.array([self.leg.q[0], self.leg.q[2]])
+        # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
+        u = (qa - self.leg.inv_kinematics(xyz=target[0:3])) * k + dqa * kd
+        u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
+                                                                        self.err_sum, self.err_prev)
+        return u, u_rw, thetar, setp

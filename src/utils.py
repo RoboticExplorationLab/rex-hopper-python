@@ -22,11 +22,16 @@ def R(Q):
     RQ[1:4, 1:4] = Q[0]*np.eye(3) - hat(Q[1:4])
     return RQ
 
-H = np.zeros((4, 4))
-H[1:4, 1:4] = np.eye(3)
+H = np.zeros((4, 3))
+H[1:4, 0:4] = np.eye(3)
 
-T = np.zeros((4, 1))
-T = np.fill_diagonal(T, [1.0, -1.0, -1.0, -1.0])
+T = np.zeros((4, 4))
+np.fill_diagonal(T, [1.0, -1.0, -1.0, -1.0])
+
+def Q_inv(Q):
+    # Quaternion inverse
+    Qinv = T @ Q
+    return Qinv
 
 def Expq(phi):
     # The quaternion exponential map ϕ → q

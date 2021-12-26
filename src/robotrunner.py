@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020 Benjamin Bokser
+Copyright (C) 2020-2021 Benjamin Bokser
 """
 import simulationbridge
 import statemachine
@@ -42,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=35):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=4000):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -93,7 +93,7 @@ class Runner:
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
-        skip = False
+        skip = True
         prev_state = str("init")
 
         ct = 0
@@ -175,11 +175,18 @@ class Runner:
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, p=p, pdot=pdot,
                                                                       Q_base=Q_base, fr=foot_force, skip=skip)
 
-            if self.ctrl_type == 'wbc_vert':
-                self.u = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr_mpc=foot_force, skip=skip)
+            elif self.ctrl_type == 'wbc_vert':
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base,
+                                                                       fr=foot_force, skip=skip)
 
-            elif self.ctrl_type == 'invkin_simple':
-                self.u = self.gait.u_invkin(state=state, k_g=self.k_g, k_gd=self.k_gd, k_a=self.k_a, k_ad=self.k_ad)
+            elif self.ctrl_type == 'wbc_static':
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=foot_force, skip=skip)
+
+            elif self.ctrl_type == 'invkin_vert':
+                time.sleep(self.dt)
+                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
+                                                                          k_g=self.k_g, k_gd=self.k_gd,
+                                                                          k_a=self.k_a, k_ad=self.k_ad)
 
             elif self.ctrl_type == 'invkin_static':
                 time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
@@ -191,13 +198,7 @@ class Runner:
                     kd = self.k_gd
 
                 if self.model["model"] == 'design' or self.model["model"] == 'design_rw':
-                    q02 = np.zeros(2)
-                    q02[0] = self.leg.q[0]
-                    q02[1] = self.leg.q[2]
-                    dq02 = np.zeros(2)
-                    dq02[0] = self.leg.dq[0]
-                    dq02[1] = self.leg.dq[2]
-                    self.u = (q02 - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + dq02 * kd
+                    self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 else:
                     self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + self.leg.dq * kd
                 # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)

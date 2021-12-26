@@ -3,11 +3,7 @@ Copyright (C) 2021 Benjamin Bokser
 """
 import argparse
 
-import leg_serial
-import leg_parallel
-import leg_belt
-import wbc_parallel
-import wbc_serial
+import param
 from robotrunner import Runner
 
 
@@ -17,8 +13,8 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
                     choices=['design_rw', 'design', 'serial', 'parallel', 'belt'], type=str)
-parser.add_argument("ctrl", help="wbc_raibert, wbc_vert, invkin_vert, or invkin_static",
-                    choices=['wbc_raibert', 'wbc_vert', 'invkin_vert', 'invkin_static'], type=str)
+parser.add_argument("ctrl", help="wbc_raibert, wbc_vert, wbc_static, invkin_vert, or invkin_static",
+                    choices=['wbc_raibert', 'wbc_vert', 'wbc_static', 'invkin_vert', 'invkin_static'], type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
@@ -58,103 +54,28 @@ print("ctrl = ", args.ctrl)
 
 print("\n")
 
-design_rw = {
-    "model": "design_rw",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
-    "urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
-    "linklengths": [.1, .27, .27, .1, .17, .0205],
-    "k_g": 45,
-    "k_gd": 45*0.02,
-    "k_a": 1,
-    "k_ad": 1*0.08,
-    "springpolarity": 1,
-    "hconst": 0.27
-}
-
-design = {
-    "model": "design",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_robot/urdf/flyhopper_robot.csv",
-    "urdfpath": "res/flyhopper_robot/urdf/flyhopper_robot.urdf",
-    "linklengths": [.1, .3, .3, .1, .2, .0205],
-    "k_g": 37.5,
-    "k_gd": 37.5*0.02,
-    "k_a": 1,
-    "k_ad": 1*0.08,
-    "springpolarity": 1,
-    "hconst": 0.3
-}
-
-parallel = {
-    "model": "parallel",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.csv",
-    "urdfpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf",
-    "linklengths": [.15, .3, .3, .15, .15, 0],
-    "k_g": 70,
-    "k_gd": 70*0.02,
-    "k_a": 2,
-    "k_ad": 2*0.08,
-    "springpolarity": -1,
-    "hconst": 0.3
-}
-
-serial = {
-    "model": "serial",
-    "controllerclass": wbc_serial,
-    "legclass": leg_serial,
-    "csvpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.csv",
-    "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
-    "linklengths": [.3, .3],
-    "k_g": 70,
-    "k_gd": 70*0.02,
-    "k_a": 2,
-    "k_ad": 2*0.08,
-    "springpolarity": 0,
-    "hconst": 0.3
-}
-
-belt = {
-    "model": "belt",
-    "controllerclass": wbc_serial,
-    "legclass": leg_belt,
-    "csvpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.csv",
-    "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
-    "linklengths": [.3, .3],
-    "k_g": 15,
-    "k_gd": 15*0.02,
-    "k_a": 0.5,
-    "k_ad": 0.5*0.08,
-    "springpolarity": 0,
-    "hconst": 0.3
-}
-
 if args.model == "design_rw":
-    model = design_rw
+    model = param.design_rw
     import leg_parallel
     import wbc_parallel
 elif args.model == "design":
-    model = design
+    model = param.design
     import leg_parallel
     import wbc_parallel
 elif args.model == "parallel":
-    model = parallel
+    model = param.parallel
     import leg_parallel
     import wbc_parallel
 elif args.model == "serial":
-    model = serial
+    model = param.serial
     import leg_serial
     import wbc_serial
 elif args.model == "belt":
-    model = belt
+    model = param.belt
     import leg_belt
 else:
     raise NameError('INVALID MODEL')
 
 runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed,
-                spring=spring, record=record, scale=args.scale, gravoff=gravoff, gain=model["k_g"])
+                spring=spring, record=record, scale=args.scale, gravoff=gravoff, gain=model["k"])
 runner.run()
