@@ -54,8 +54,7 @@ class Leg:
         self.II = []
         self.Fg = []
         self.I = []
-        # self.gravity = np.array([[0, 0, -9.807]]).T
-        g = 9.807
+
         num_links = 4
         for i in range(0, num_links):
             M = np.zeros((6, 6))
@@ -76,43 +75,43 @@ class Leg:
         self.q_previous = init_q
         self.dq_previous = init_dq
         self.d2q_previous = init_dq
-        # self.kv = 0.05
+
         self.reset()
         self.q_calibration = np.array(init_q)
 
         # --- Forward Kinematics --- #
-        # we're pretending y and z are switched, just roll with it
         l0 = self.L[0]
         l1 = self.L[1]
         l2 = self.L[2]
         l3 = self.L[3]
         l4 = self.L[4]
         l5 = self.L[5]
-        lee = np.sqrt((l3+l4)**2 + l5**2)
-        l_c0x = self.coml[0, 0]
-        l_c0y = self.coml[2, 0]
-        l_c1 = self.coml[0, 1]
-        l_c2 = self.coml[0, 2]
-        l_ceex = self.coml[0, 3]
-        l_ceey = self.coml[2, 3]
-
-        l_c0 = np.sqrt(l_c0x**2 + l_c0y**2)
-        alpha0 = np.arctan2(l_c0y, l_c0x)
-        l_cee = np.sqrt(l_ceex**2 + l_ceey**2)
-        alpha3 = np.arctan2(l_ceey, l_ceex)
-        alphaee = np.arctan2(l5, l3 + l4)
 
         m0 = self.mass[0]
         m1 = self.mass[1]
         m2 = self.mass[2]
         m3 = self.mass[3]
+        m = np.zeros(4)
+        np.fill_diagonal(m, [m0, m1, m2, m3])
 
         I0 = self.I[0]
         I1 = self.I[1]
         I2 = self.I[2]
         I3 = self.I[3]
 
-        # sp.var('q0 q1 q2 q3')
+        lee = [l3 + l4, l5, 0]
+
+        # CoM locations
+        # l_cb = [0, 0.004, 0]
+        # l_c0 = [0.0125108364230515, 0.00117191218927888, 0]
+        # l_c1 = [0.149359714867044, 0, 0]
+        # l_c2 = [0.0469412900551914, 0, 0]
+        # l_c3 = [0.113177000131857, -0.015332867880069, 0]
+        l_c0 = self.coml[0:3, 0]
+        l_c1 = self.coml[0:3, 1]
+        l_c2 = self.coml[0:3, 2]
+        l_c3 = self.coml[0:3, 3]
+        print("l_c3 = ", l_c3)
         q0 = dynamicsymbols('q0')
         q1 = dynamicsymbols('q1')
         q2 = dynamicsymbols('q2')
@@ -125,18 +124,39 @@ class Leg:
         q1dd = sp.Symbol('q1dd')
         q2dd = sp.Symbol('q2dd')
         q3dd = sp.Symbol('q3dd')
-
         t = sp.Symbol('t')
 
-        x0 = l_c0 * sp.cos(q0 + alpha0)
-        z0 = l_c0 * sp.sin(q0 + alpha0)
-        x1 = l0 * sp.cos(q0) + l_c1 * sp.cos(q0 + q1)
-        z1 = l0 * sp.sin(q0) + l_c1 * sp.sin(q0 + q1)
+        x0 = l_c0[0] * sp.cos(q0)
+        y0 = l_c0[1]
+        z0 = l_c0[2] * sp.sin(q0)
 
-        x2 = l_c2 * sp.cos(q2)
-        z2 = l_c2 * sp.sin(q2)
-        x3 = l2 * sp.cos(q2) + l_cee * sp.cos(q2 + q3 + alpha3)
-        z3 = l2 * sp.sin(q2) + l_cee * sp.sin(q2 + q3 + alpha3)
+        x1 = l0 * sp.cos(q0) + l_c1[0] * sp.cos(q0 + q1)
+        y1 = l_c1[1]
+        z1 = l0 * sp.sin(q0) + l_c1[2] * sp.sin(q0 + q1)
+
+        x2 = l_c2[0] * sp.cos(q2)
+        y2 = l_c2[1]
+        z2 = l_c2[2] * sp.sin(q2)
+
+        x3 = l2 * sp.cos(q2) + l_c3[0] * sp.cos(q2 + q3)
+        y3 = l_c3[1]
+        z3 = l2 * sp.sin(q2) + l_c3[2] * sp.sin(q2 + q3)
+
+        # potential energy
+        r0 = sp.Matrix([x0, y0, z0])
+        r1 = sp.Matrix([x1, y1, z1])
+        r2 = sp.Matrix([x2, y2, z2])
+        r3 = sp.Matrix([x3, y3, z3])
+        # self.gravity = np.array([[0, 0, -9.807]]).T
+        # g = 9.807
+        self.g = sp.Matrix([[0, 0, 9.807]]).T  # negative or positive?
+
+        # TODO: Make g updateable based on gravity vector self.g_update()
+        U0 = m0 * sp.dot(g, r0)
+        U1 = m1 * sp.dot(g, r1)
+        U2 = m2 * sp.dot(g, r2)
+        U3 = m3 * sp.dot(g, r3)
+        U = U0 + U1 + U2 + U3
 
         x0d = sp.diff(x0, t)
         z0d = sp.diff(z0, t)
@@ -147,21 +167,14 @@ class Leg:
         x3d = sp.diff(x3, t)
         z3d = sp.diff(z3, t)
 
-        U0 = m0 * g * z0
-        U1 = m1 * g * z1
-        U2 = m2 * g * z2
-        U3 = m3 * g * z3
-
-        v0_squared = x0d**2 + z0d**2
-        v1_squared = x1d**2 + z1d**2
-        v2_squared = x2d**2 + z2d**2
-        v3_squared = x3d**2 + z3d**2
-        T0 = 0.5 * m0 * v0_squared + 0.5 * I0 * q0d**2
-        T1 = 0.5 * m1 * v1_squared + 0.5 * I1 * q1d**2
-        T2 = 0.5 * m2 * v2_squared + 0.5 * I2 * q2d**2
-        T3 = 0.5 * m3 * v3_squared + 0.5 * I3 * q3d**2
-
-        U = U0 + U1 + U2 + U3
+        v0_sq = x0d**2 + z0d**2
+        v1_sq = x1d**2 + z1d**2
+        v2_sq = x2d**2 + z2d**2
+        v3_sq = x3d**2 + z3d**2
+        T0 = 0.5 * m0 * v0_sq + 0.5 * I0 * q0d**2
+        T1 = 0.5 * m1 * v1_sq + 0.5 * I1 * q1d**2
+        T2 = 0.5 * m2 * v2_sq + 0.5 * I2 * q2d**2
+        T3 = 0.5 * m3 * v3_sq + 0.5 * I3 * q3d**2
         T = T0 + T1 + T2 + T3
 
         # Le Lagrangian
@@ -170,6 +183,8 @@ class Leg:
         L = L.subs(sp.Derivative(q1, t), q1d)  # substitute d/dt q1 with q1d
         L = L.subs(sp.Derivative(q2, t), q2d)  # substitute d/dt q2 with q2d
         L = L.subs(sp.Derivative(q3, t), q3d)  # substitute d/dt q2 with q2d
+
+        M = sp.zeros(4, 4)
 
         # Lagrange-Euler Equation
         LE0 = sp.diff(sp.diff(L, q0d), t) - sp.diff(L, q0)
