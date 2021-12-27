@@ -314,6 +314,7 @@ class Leg:
         return C
 
     def gen_G(self, q=None):
+        # TODO: Rotate force vector to body frame somehow
         q = self.q if q is None else q
         G = self.G_init(q[0], q[1], q[2], q[3])
         G = np.array(G).astype(np.float64)

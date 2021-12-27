@@ -99,7 +99,6 @@ class Gait:
         k = k_g
         kd = k_gd
         if state == 'Return':
-            # set target position
             self.target = np.array([0, 0, -hconst*5/3])
             k = k_a
             kd = k_ad
@@ -113,7 +112,6 @@ class Gait:
             kd = k_gd
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
-        # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
         u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
         u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
                                                                         self.err_sum, self.err_prev)

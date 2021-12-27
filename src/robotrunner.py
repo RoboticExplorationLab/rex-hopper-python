@@ -80,7 +80,7 @@ class Runner:
         self.sh = 1  # estimated contact state
 
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
-                              use_qp=False, dt=dt)
+                              use_qp=True, dt=dt)
 
         # self.target = None
         self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position

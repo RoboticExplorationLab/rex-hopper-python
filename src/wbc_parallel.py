@@ -63,22 +63,24 @@ class Control:
 
         return u
 
-    def wb_qp_control(self, leg, target, b_orient, force=0):
+    def wb_qp_control(self, leg, target, Q_base, force=np.zeros((3, 1))):
         target = np.array(target).reshape(-1, 1)
-        b_orient = np.array(b_orient)
         Ja = leg.gen_jacA()  # 3x2
         dqa = np.array([leg.dq[0], leg.dq[2]])
-        x = np.dot(b_orient, leg.position())
+        x = utils.Z(Q_base, leg.position())
 
         # calculate operational space velocity vector
-        vel = np.dot(b_orient, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
+        vel = utils.Z(Q_base, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
 
         # calculate linear acceleration term based on PD control
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
         x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kd, -vel)).flatten()
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
+        # 3D version
         # r_dd_des = np.array(x_dd_des[0:3])
+
+        # 2D version to start out with
         # r_dd_des = np.array([x_dd_des[0], x_dd_des[2]]).flatten()
         r_dd_des = np.array([1, 0])
         # print("r_dd_des = ", r_dd_des)
