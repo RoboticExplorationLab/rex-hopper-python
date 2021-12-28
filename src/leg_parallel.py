@@ -86,12 +86,13 @@ class Leg:
         l3 = self.L[3]
         l4 = self.L[4]
         l5 = self.L[5]
+        lee = [l3 + l4, l5, 0]
 
         m0 = self.mass[0]
         m1 = self.mass[1]
         m2 = self.mass[2]
         m3 = self.mass[3]
-        m = np.zeros(4)
+        m = np.zeros((4, 4))
         np.fill_diagonal(m, [m0, m1, m2, m3])
 
         I0 = self.I[0]
@@ -99,19 +100,12 @@ class Leg:
         I2 = self.I[2]
         I3 = self.I[3]
 
-        lee = [l3 + l4, l5, 0]
-
         # CoM locations
-        # l_cb = [0, 0.004, 0]
-        # l_c0 = [0.0125108364230515, 0.00117191218927888, 0]
-        # l_c1 = [0.149359714867044, 0, 0]
-        # l_c2 = [0.0469412900551914, 0, 0]
-        # l_c3 = [0.113177000131857, -0.015332867880069, 0]
         l_c0 = self.coml[0:3, 0]
         l_c1 = self.coml[0:3, 1]
         l_c2 = self.coml[0:3, 2]
         l_c3 = self.coml[0:3, 3]
-        print("l_c3 = ", l_c3)
+
         q0 = dynamicsymbols('q0')
         q1 = dynamicsymbols('q1')
         q2 = dynamicsymbols('q2')
@@ -142,22 +136,24 @@ class Leg:
         y3 = l_c3[1]
         z3 = l2 * sp.sin(q2) + l_c3[2] * sp.sin(q2 + q3)
 
-        # potential energy
+        # Potential energy
         r0 = sp.Matrix([x0, y0, z0])
         r1 = sp.Matrix([x1, y1, z1])
         r2 = sp.Matrix([x2, y2, z2])
         r3 = sp.Matrix([x3, y3, z3])
-        # self.gravity = np.array([[0, 0, -9.807]]).T
-        # g = 9.807
-        self.g = sp.Matrix([[0, 0, 9.807]]).T  # negative or positive?
 
-        # TODO: Make g updateable based on gravity vector self.g_update()
-        U0 = m0 * sp.dot(g, r0)
-        U1 = m1 * sp.dot(g, r1)
-        U2 = m2 * sp.dot(g, r2)
-        U3 = m3 * sp.dot(g, r3)
+        self.g = np.array([[0, 0, -9.807]]).T
+        # self.g = sp.Matrix([[0, 0, 9.807]]).T  # negative or positive?
+        sp.var('gx gy gz')  # gravity vector
+        # gx, gy, gz = sp.symbols('gx gy gz')
+        g = sp.Matrix([gx, gy, gz])  # allows gravity vector to be updated
+        U0 = m0 * g.dot(r0)
+        U1 = m1 * g.dot(r1)
+        U2 = m2 * g.dot(r2)
+        U3 = m3 * g.dot(r3)
         U = U0 + U1 + U2 + U3
 
+        # Kinetic energy
         x0d = sp.diff(x0, t)
         z0d = sp.diff(z0, t)
         x1d = sp.diff(x1, t)
@@ -184,9 +180,7 @@ class Leg:
         L = L.subs(sp.Derivative(q2, t), q2d)  # substitute d/dt q2 with q2d
         L = L.subs(sp.Derivative(q3, t), q3d)  # substitute d/dt q2 with q2d
 
-        M = sp.zeros(4, 4)
-
-        # Lagrange-Euler Equation
+        # Euler-Lagrange Equation
         LE0 = sp.diff(sp.diff(L, q0d), t) - sp.diff(L, q0)
         LE1 = sp.diff(sp.diff(L, q1d), t) - sp.diff(L, q1)
         LE2 = sp.diff(sp.diff(L, q2d), t) - sp.diff(L, q2)
@@ -235,7 +229,7 @@ class Leg:
         G = G.subs(q1dd, 0)
         G = G.subs(q2dd, 0)
         G = G.subs(q3dd, 0)
-        self.G_init = sp.lambdify([q0, q1, q2, q3], G)
+        self.G_init = sp.lambdify([q0, q1, q2, q3, gx, gy, gz], G)
 
         # Coriolis Matrix
         # assume anything without qdd minus G is C
@@ -247,21 +241,16 @@ class Leg:
         C = C - G
         self.C_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], C)
 
-        # --- End Effector Jacobians --- #
-        # foot forward kinematics (open chain)
-        xee = l2 * sp.cos(q2) + lee * sp.cos(q2 + q3 + alphaee)  # TODO: Check
-        zee = l2 * sp.sin(q2) + lee * sp.sin(q2 + q3 + alphaee)
-        # TODO: closed chain jacobian test
-        # compute end effector jacobian
-        ree = sp.Matrix([xee, zee])
-        Jee = ree.jacobian([q0, q1, q2, q3])
-        self.JEE_init = sp.lambdify([q0, q1, q2, q3], Jee)
+        # --- Full Jacobian --- #
+        rf = sp.Matrix([r0, r1, r2, r3])  # full kinematics, should be 12x1
+        Jf = rf.jacobian([q0, q1, q2, q3])
+        self.Jf_init = sp.lambdify([q0, q1, q2, q3], Jf)  # should be 12x4
 
-        # compute del/delq(D(q)q_dot)q_dot of ee jacobian
+        # compute del/delq(D(q)q_dot)q_dot of full jacobian
         q_dot = sp.Matrix([q0d, q1d, q2d, q3d])
-        J_dqdot = Jee.multiply(q_dot)
-        dee = J_dqdot.jacobian([q0, q1, q2, q3]) * q_dot
-        self.dee_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], dee)
+        Jf_dqdot = Jf.multiply(q_dot)
+        df = Jf_dqdot.jacobian([q0, q1, q2, q3]) * q_dot
+        self.df_init = sp.lambdify([q0, q1, q2, q3, q0d, q1d, q2d, q3d], df)
 
         # --- Constraint --- #
         # constraint forward kinematics
@@ -328,25 +317,28 @@ class Leg:
         C = np.array(C).astype(np.float64)
         return C
 
-    def gen_G(self, q=None):
-        # TODO: Rotate force vector to body frame somehow
+    def gen_G(self, q=None, g=None):
         q = self.q if q is None else q
-        G = self.G_init(q[0], q[1], q[2], q[3])
+        g = self.g if g is None else g
+        gx = g[0]
+        gy = g[1]
+        gz = g[2]
+        G = self.G_init(q[0], q[1], q[2], q[3], gx, gy, gz)
         G = np.array(G).astype(np.float64)
         return G
 
-    def gen_jacEE(self, q=None):
-        # End Effector Jacobian (open chain)
+    def gen_jacF(self, q=None):
+        # Full Jacobian
         q = self.q if q is None else q
-        JEE = self.JEE_init(q[0], q[1], q[2], q[3])
-        JEE = np.array(JEE).astype(np.float64)
-        return JEE
+        Jf = self.Jf_init(q[0], q[1], q[2], q[3])
+        Jf = np.array(Jf).astype(np.float64)
+        return Jf
 
-    def gen_dee(self, q=None, dq=None):
-        # del/delq(J(q)q_dot)q_dot
+    def gen_df(self, q=None, dq=None):
+        # del/delq(Jf(q)q_dot)q_dot
         q = self.q if q is None else q
         dq = self.dq if dq is None else dq
-        dee = self.dee_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
+        dee = self.df_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
         dee = np.array(dee).astype(np.float64)
         return dee
 
@@ -396,10 +388,7 @@ class Leg:
             M = self.gen_M(q=q)
 
         if J is None:
-            Ja = self.gen_jacA(q=q)
-            J = np.zeros((3, 4))
-            J[:, 0] = Ja[:, 0]
-            J[:, 2] = Ja[:, 1]
+            J = self.gen_jacF(q=q)
 
         Mx_inv = np.dot(J, np.dot(np.linalg.inv(M), J.T))
         u, s, v = np.linalg.svd(Mx_inv)

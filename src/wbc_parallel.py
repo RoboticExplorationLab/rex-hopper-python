@@ -78,11 +78,8 @@ class Control:
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # 3D version
-        # r_dd_des = np.array(x_dd_des[0:3])
-
-        # 2D version to start out with
-        # r_dd_des = np.array([x_dd_des[0], x_dd_des[2]]).flatten()
-        r_dd_des = np.array([1, 0])
+        r_dd_des = np.array(x_dd_des[0:3])
+        # r_dd_des = np.array([[0, 0, -1]]).T
         # print("r_dd_des = ", r_dd_des)
         x_ref = np.array([0, 0, 0, 0, 0, 0])
         x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
