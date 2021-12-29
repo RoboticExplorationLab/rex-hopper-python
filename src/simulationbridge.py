@@ -12,6 +12,7 @@ import actuator
 
 useRealTime = 0  # Do NOT change to real time
 
+
 def spring(q, l):
     """
     adds linear extension spring b/t joints 1 and 3 of parallel mechanism
@@ -62,6 +63,8 @@ class Sim:
         self.record_rt = record  # record video in real time
         self.base_pos = None
         self.spring = spring
+        self.L = model["linklengths"]
+        self.dir_s = model["springpolarity"]
 
         if gravoff == True:
             GRAVITY = 0
@@ -140,9 +143,11 @@ class Sim:
             p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
 
     def sim_run(self, u, u_rw):
+        q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+        q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
         if self.spring:
-            tau_s = spring(self.leg.q, self.L) * self.dir_s
+            tau_s = spring(q_all, self.L) * self.dir_s
         else:
             tau_s = np.zeros(2)
 
@@ -160,46 +165,36 @@ class Sim:
         if self.model == "design_rw":
             command[0] = -u[0]  # readjust to match motor polarity
             command[2] = -u[1]  # readjust to match motor polarity
-
-            q_total = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q_dot_total = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q = q_total[0:4]
-            q_dot = q_dot_total[0:4]
-            qrw = q_total[4:]
-            qrw_dot = q_dot_total[4:]
+            q = q_all[0:4]
+            q_dot = q_dot_all[0:4]
+            qrw = q_all[4:]
+            qrw_dot = q_dot_all[4:]
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
             torque[4] = u_rw[0]  # actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=1)
-            torque[5] = u_rw[1]  #actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
+            torque[5] = u_rw[1]  # actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
             torque[6] = u_rw[2]  # actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity
             command[2] = -u[1]  # readjust to match motor polarity
-
-            q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q = q_all
+            q_dot = q_dot_all
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
 
         elif self.model == "serial":
             command = -u
-            # Pull values in from simulator, select relevant ones, reshape to 2D array
-            q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-
+            q = q_all
+            q_dot = q_dot_all
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7)
             torque[1] = actuator.actuate(i=command[1], q_dot=q_dot[1], gr_out=7)
 
         elif self.model == "parallel":
             command[0] = -u[1]  # readjust to match motor polarity
             command[2] = -u[0]  # readjust to match motor polarity
-
-            q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
             q[0] = q_all[2]
             q[2] = q_all[0]
-            q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-
             q_dot[0] = q_dot_all[2]
             q_dot[2] = q_dot_all[0]  # modified from [1] to [2] 11-5-21
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
@@ -207,12 +202,7 @@ class Sim:
 
         elif self.model == "belt":
             command[0] = -u[0]  # only 1 DoF actuated
-
-            # Pull values in from simulator, select relevant ones, reshape to 2D array
-            q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-            q = q[0] # only 1 DoF actuated, remove extra.
-
-            q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+            q = q_all[0]  # only 1 DoF actuated, remove extra.
             q_dot[0] = q_dot_all[0]
 
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=21)

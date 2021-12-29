@@ -142,7 +142,7 @@ class Leg:
         r2 = sp.Matrix([x2, y2, z2])
         r3 = sp.Matrix([x3, y3, z3])
 
-        self.g = np.array([[0, 0, -9.807]]).T
+        self.g = np.array([[0, 0, 9.807]]).T
         # self.g = sp.Matrix([[0, 0, 9.807]]).T  # negative or positive?
         sp.var('gx gy gz')  # gravity vector
         # gx, gy, gz = sp.symbols('gx gy gz')
@@ -324,7 +324,7 @@ class Leg:
         gy = g[1]
         gz = g[2]
         G = self.G_init(q[0], q[1], q[2], q[3], gx, gy, gz)
-        G = np.array(G).astype(np.float64)
+        G = np.array(G).astype(np.float64).reshape(-1, 1)
         return G
 
     def gen_jacF(self, q=None):
@@ -388,7 +388,10 @@ class Leg:
             M = self.gen_M(q=q)
 
         if J is None:
-            J = self.gen_jacF(q=q)
+            J = np.zeros((3, 4))
+            Ja = self.gen_jacA(q=q)
+            J[:, 0] = Ja[:, 0]
+            J[:, 2] = Ja[:, 1]
 
         Mx_inv = np.dot(J, np.dot(np.linalg.inv(M), J.T))
         u, s, v = np.linalg.svd(Mx_inv)
@@ -437,8 +440,8 @@ class Leg:
     def velocity(self, q=None):  # dq=None
         # Calculate operational space linear velocity vector
         q = self.q if q is None else q
-        JEE = self.gen_jacEE(q=q)
-        return np.dot(JEE, self.dq).flatten()
+        Ja = self.gen_jacA(q=q)
+        return np.dot(Ja, self.dq).flatten()
 
     def reset(self, q=None, dq=None):
         if q is None:

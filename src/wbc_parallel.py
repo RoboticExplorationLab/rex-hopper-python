@@ -55,12 +55,11 @@ class Control:
         # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
 
-        C = leg.gen_C().flatten()
-        G = leg.gen_G().flatten()
+        C = leg.gen_C()# .reshape(-1, 1)
+        G = leg.gen_G()#.flatten()
         B = self.B
-
-        u = tau + ((- G - C).reshape(-1, 1).T @ B).T
-
+        # u = tau + # ((- G - C).T @ B).T
+        u = ((- G - C).T @ B).T
         return u
 
     def wb_qp_control(self, leg, target, Q_base, force=np.zeros((3, 1))):

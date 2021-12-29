@@ -63,4 +63,4 @@ class Cqp:
         da = leg.gen_da().flatten()
         print("rdd_new in task space = ", Ja @ qdd_n + da)
 
-        return u
+        return -u

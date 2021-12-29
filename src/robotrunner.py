@@ -63,7 +63,6 @@ class Runner:
         self.k_gd = model["k_gd"]
         self.k_a = model["k_a"]
         self.k_ad = model["k_ad"]
-        self.dir_s = model["springpolarity"]
         self.hconst = model["hconst"]  # 0.3
         self.fixed = fixed
         self.controller = controller_class.Control(dt=dt, gain=gain)

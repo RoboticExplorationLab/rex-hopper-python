@@ -21,6 +21,7 @@ class Gait:
         self.hconst = hconst
         self.target = target  # np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
         # self.r_save = np.array([0, 0, -self.hconst])
+        use_qp = False
         if use_qp is True:
             self.controlf = self.controller.wb_qp_control
         else:
