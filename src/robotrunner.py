@@ -65,7 +65,7 @@ class Runner:
         self.k_ad = model["k_ad"]
         self.hconst = model["hconst"]  # 0.3
         self.fixed = fixed
-        self.controller = controller_class.Control(dt=dt, gain=gain)
+        self.controller = controller_class.Control(leg=self.leg, dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.state = statemachine.Char()
@@ -86,14 +86,16 @@ class Runner:
 
         # footstep planner values
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
-        self.pdot_des = np.array([0, 0, 0])  # desired body velocity in world coords
+        self.pdot_ref = np.array([0, -2, 0])  # desired body velocity in world coords
 
     def run(self):
+        pdot_ref = self.pdot_ref
+        Ts = 0.5
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
         skip = True
-        prev_state = str("init")
+        state_prev = str("init")
 
         ct = 0
         s = 0
@@ -122,11 +124,13 @@ class Runner:
         w2hist = np.zeros(total)
         w3hist = np.zeros(total)
         thetar = np.zeros(3)
+        setp = np.zeros(3)
 
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
 
+            pdot_ref = self.pdot_ref
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
             q, q_dot, qrw, qrw_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
@@ -164,15 +168,17 @@ class Runner:
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
             # p = p + pdot * self.dt  # body position in world coordinates
             p = np.array(self.simulator.p)
-            delp = pdot * self.dt
+            # delp = pdot * self.dt
 
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
 
             foot_force[2] = -120
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
-                self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, p=p, pdot=pdot,
-                                                                      Q_base=Q_base, fr=foot_force, skip=skip)
+                self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
+                                                                      p=p, pdot=pdot, pdot_ref=pdot_ref,
+                                                                      theta_prev=thetahist[steps - 2, :],
+                                                                      fr=foot_force, skip=skip)
 
             elif self.ctrl_type == 'wbc_vert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base,
@@ -214,7 +220,7 @@ class Runner:
                 tau0hist[steps - 1] = torque[0]  # self.u[0]
                 tau2hist[steps - 1] = torque[2]  # self.u[1]
 
-            prev_state = state
+            state_prev = state
 
             p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
 

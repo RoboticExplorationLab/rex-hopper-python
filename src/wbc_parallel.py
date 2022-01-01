@@ -12,15 +12,15 @@ import cqp
 
 class Control:
 
-    def __init__(self, dt=1e-3, gain=4000, null_control=False, **kwargs):
+    def __init__(self, leg, dt=1e-3, gain=4000, null_control=False, **kwargs):
         # self.qp = qp.Qp()
         self.cqp = cqp.Cqp()
         self.dt = dt
         self.null_control = null_control
-
+        self.leg = leg
         self.kp = np.zeros((3, 3))
         # np.fill_diagonal(self.kp, gain*120)
-        self.kd = np.zeros((3, 3)) # np.array(self.kp)*0.02
+        self.kd = np.zeros((3, 3))  # np.array(self.kp)*0.02
 
         self.update_gains(gain, gain*0.02)
 
@@ -36,7 +36,8 @@ class Control:
         self.kd = np.zeros((3, 3))
         np.fill_diagonal(self.kd, [kd*m, kd*m, kd])
 
-    def wb_control(self, leg, target, Q_base, force=np.zeros((3, 1))):
+    def wb_control(self, target, Q_base, force=np.zeros((3, 1))):
+        leg = self.leg
         target = np.array(target).reshape(-1, 1)
         Ja = leg.gen_jacA()  # 3x2
         dqa = np.array([leg.dq[0], leg.dq[2]])
@@ -55,14 +56,15 @@ class Control:
         # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
 
-        C = leg.gen_C()# .reshape(-1, 1)
-        G = leg.gen_G()#.flatten()
+        C = leg.gen_C()
+        G = leg.gen_G()
         B = self.B
-        # u = tau + # ((- G - C).T @ B).T
-        u = ((- G - C).T @ B).T
+        u = tau  # + ((- G - C).T @ B).T
+        # u = ((- G - C).T @ B).T
         return u
 
-    def wb_qp_control(self, leg, target, Q_base, force=np.zeros((3, 1))):
+    def wb_qp_control(self, target, Q_base, force=np.zeros((3, 1))):
+        leg = self.leg
         target = np.array(target).reshape(-1, 1)
         Ja = leg.gen_jacA()  # 3x2
         dqa = np.array([leg.dq[0], leg.dq[2]])
