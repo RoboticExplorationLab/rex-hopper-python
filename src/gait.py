@@ -9,8 +9,7 @@ import utils
 
 def raibert_x(k, Ts, pdot, pdot_ref):
     x_f0 = pdot[0:2]*Ts/2  # forward placement of foot wrt base CoM in world frame for neutral motion
-    x_f = x_f0 + k*(pdot[0:2] - pdot_ref[0:2])  # forward placement in world frame with desired acceleration
-    # just x and y
+    x_f = x_f0 - k*(pdot[0:2] - pdot_ref[0:2])  # forward placement in world frame with desired acceleration
     return x_f
 
 
@@ -40,17 +39,21 @@ class Gait:
         self.err_prev = np.zeros(3)
         self.x_des = np.array([0, 0, 0])
 
-    def u_raibert(self, state, state_prev, p, pdot, pdot_ref, Q_base, theta_prev, fr, skip):
+    def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, theta_prev, fr, skip):
         # raibert hopping
         # Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
+        kp = 0.2
+        pdot_ref = kp*(p - p_ref)/2
+        # pdot_ref = np.array([0, 0.2, 0])
         Q_ref = utils.vec_to_quat2(self.x_des - p)
+        Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
         hconst = self.hconst
         self.target[0] = -0.05  # adjustment for balance due to bad mockup design
         if state == 'Return':
             if state_prev != state:
                 # find new footstep position based on desired speed and current speed
-                kr = 0.05
-                Ts = 0.2
+                kr = 0.01
+                Ts = 0.4
                 x_fb = np.zeros(3)
                 x_fb[0:2] = raibert_x(kr, Ts, pdot, pdot_ref)  # desired footstep relative to current body CoM
                 self.x_des = x_fb + p  # world frame desired footstep position
@@ -70,7 +73,7 @@ class Gait:
         else:
             raise NameError('INVALID STATE')
 
-        u = -self.controlf(target=self.target, Q_base=transforms3d.euler.euler2quat(0, 0, 0), force=fr)
+        u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=fr)
         u_rw, self.err_sum, thetar, setp = rw.rw_control_m(self.dt, Q_ref, Q_base, self.err_sum, theta_prev)
         return u, u_rw, thetar, setp
 

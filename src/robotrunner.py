@@ -86,11 +86,10 @@ class Runner:
 
         # footstep planner values
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
-        self.pdot_ref = np.array([0, -2, 0])  # desired body velocity in world coords
+        self.p_ref = np.array([0.5, 0.5, 0])  # desired body pos in world coords
 
     def run(self):
-        pdot_ref = self.pdot_ref
-        Ts = 0.5
+        p_ref = self.p_ref
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
@@ -114,7 +113,7 @@ class Runner:
         
         tau0hist = np.zeros((total, 1))
         tau2hist = np.zeros(total)
-        phist = np.zeros(total)
+        phist = np.zeros((total, 3))
         thetahist = np.zeros((total, 3))
         setphist = np.zeros((total, 3))
         rw1hist = np.zeros(total)
@@ -125,12 +124,12 @@ class Runner:
         w3hist = np.zeros(total)
         thetar = np.zeros(3)
         setp = np.zeros(3)
+        x_des_hist = np.zeros((total, 3))
 
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
 
-            pdot_ref = self.pdot_ref
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
             q, q_dot, qrw, qrw_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
@@ -157,13 +156,6 @@ class Runner:
                     ft_saved[i_ft] = t_ft  # save flight time to vector
                     i_ft += 1
 
-            sh_prev = sh
-            c_prev = c
-
-            # b_orient = transforms3d.quaternions.quat2mat(Q_base)
-            # pos = np.dot(b_orient, self.leg.position())  # [:, -1])  TODO: Check
-            # omega = np.array(self.simulator.omega_xyz)
-
             # TODO: Actual state estimator... getting it from sim is cheating
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
             # p = p + pdot * self.dt  # body position in world coordinates
@@ -176,10 +168,9 @@ class Runner:
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                                      p=p, pdot=pdot, pdot_ref=pdot_ref,
+                                                                      p=p, p_ref=p_ref, pdot=pdot,
                                                                       theta_prev=thetahist[steps - 2, :],
                                                                       fr=foot_force, skip=skip)
-
             elif self.ctrl_type == 'wbc_vert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base,
                                                                        fr=foot_force, skip=skip)
@@ -206,7 +197,6 @@ class Runner:
                     self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 else:
                     self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + self.leg.dq * kd
-                # self.u = -self.controller.wb_control(leg=self.leg, target=self.target, b_orient=b_orient, force=None)
 
             if self.model["model"] == 'design_rw':
                 rw1hist[steps - 1] = torque[4]
@@ -219,23 +209,23 @@ class Runner:
                 thetahist[steps - 1, :] = thetar
                 tau0hist[steps - 1] = torque[0]  # self.u[0]
                 tau2hist[steps - 1] = torque[2]  # self.u[1]
+                x_des_hist[steps - 1, :] = self.gait.x_des
+
+            p_base = self.simulator.base_pos[0]  # base position in world coords
+
+            phist[steps - 1, :] = p_base
 
             state_prev = state
-
-            p_base_z = self.simulator.base_pos[0][2]  # base vertical position in world coords
-
-            phist[steps - 1] = p_base_z
-
-            # print("pos = ", self.leg.position())
-            # print("kin = ", self.leg.inv_kinematics(xyz=self.target) * 180/np.pi)
-            # print("enc = ", self.leg.q * 180/np.pi)
-            # sys.stdout.write("\033[F")  # back to previous line
-            # sys.stdout.write("\033[K")  # clear line
+            sh_prev = sh
+            c_prev = c
 
         if self.plot == True:
+
             plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
                          rw1hist, rw2hist, rwzhist,
                          w1hist, w2hist, w3hist,
                          setphist[:, 0], setphist[:, 1], setphist[:, 2])
+
+            plots.posplot(phist, xfhist=x_des_hist)
 
         return ft_saved

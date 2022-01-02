@@ -5,6 +5,7 @@ Copyright (C) 2021 Benjamin Bokser
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def rwplot(total, hist1, hist2, hist3, hist4, hist5, hist6, hist7, hist8, hist9, setphist1, setphist2, setphist3):
 
     fig, axs = plt.subplots(3, 3, sharex='all')
@@ -115,5 +116,17 @@ def tauplot(total, hist1, hist2, hist3, hist4, hist5, hist6):
     axs[1, 2].plot(range(total), hist6, color='blue')
     axs[1, 2].set_title('Flight Time')
     axs[1, 2].set_ylabel("Flight Time, s")
+
+    plt.show()
+
+
+def posplot(phist, xfhist):
+
+    plt.plot(phist[:, 0], phist[:, 1], color='blue', label='body position')
+    plt.title('Body XY Position')
+    plt.ylabel("y (m)")
+    plt.xlabel("x (m)")
+    plt.scatter(xfhist[:, 0], xfhist[:, 1], color='red', marker="o", label='desired footstep position')
+    plt.legend(loc="lower right")
 
     plt.show()
