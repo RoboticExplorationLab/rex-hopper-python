@@ -24,7 +24,7 @@ class Leap(State):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.sh == 0 and self.FSM.leg_pos[2] <= -0.4:
+        if self.FSM.sh == 0 and self.FSM.leg_pos[2] < -0.4:
             self.FSM.to_transition("toReturn")
         # print(self.FSM.leg_pos[2])
         return str("Leap")
@@ -36,7 +36,7 @@ class Return(State):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.sh == 1: # and self.FSM.pdot[1] <= 0:  # Recognize that the bot is falling
+        if self.FSM.sh == 1:  # and self.FSM.pdot[2] <= 0:  # Recognize that the bot is falling
             self.FSM.to_transition("toHeelStrike")
 
         return str("Return")
@@ -48,8 +48,8 @@ class HeelStrike(State):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.leg_pos[2] >= -0.4:
         # if self.FSM.s == 0: # wait to jump until scheduled to
+        if self.FSM.leg_pos[2] >= -0.4:
             self.FSM.to_transition("toLeap")
         return str("HeelStrike")
 

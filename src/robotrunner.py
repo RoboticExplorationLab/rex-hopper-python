@@ -78,22 +78,23 @@ class Runner:
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
 
+        use_qp = False
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
-                              use_qp=True, dt=dt)
+                              use_qp=use_qp, dt=dt)
 
         # self.target = None
         self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
 
         # footstep planner values
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
-        self.p_ref = np.array([0.5, 0.5, 0])  # desired body pos in world coords
+        self.p_ref = np.array([1, 1, 0])  # desired body pos in world coords
 
     def run(self):
         p_ref = self.p_ref
         steps = 0
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
-        skip = True
+
         state_prev = str("init")
 
         ct = 0
@@ -108,9 +109,10 @@ class Runner:
         i_ft = 0  # flight timer counter
 
         total = self.total_run  # number of timesteps to plot
+        force_f = None
+        # force_f = np.zeros((3, 1))
+        # force_f[2] = -120
 
-        foot_force = np.zeros((3, 1))
-        
         tau0hist = np.zeros((total, 1))
         tau2hist = np.zeros(total)
         phist = np.zeros((total, 3))
@@ -164,19 +166,18 @@ class Runner:
 
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
 
-            foot_force[2] = -120
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
                                                                       p=p, p_ref=p_ref, pdot=pdot,
                                                                       theta_prev=thetahist[steps - 2, :],
-                                                                      fr=foot_force, skip=skip)
+                                                                      fr=force_f)
             elif self.ctrl_type == 'wbc_vert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base,
-                                                                       fr=foot_force, skip=skip)
+                                                                       fr=force_f)
 
             elif self.ctrl_type == 'wbc_static':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=foot_force, skip=skip)
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'invkin_vert':
                 time.sleep(self.dt)
@@ -226,6 +227,6 @@ class Runner:
                          w1hist, w2hist, w3hist,
                          setphist[:, 0], setphist[:, 1], setphist[:, 2])
 
-            plots.posplot(phist, xfhist=x_des_hist)
+            plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
 
         return ft_saved

@@ -120,13 +120,15 @@ def tauplot(total, hist1, hist2, hist3, hist4, hist5, hist6):
     plt.show()
 
 
-def posplot(phist, xfhist):
+def posplot(p_ref, phist, xfhist):
 
     plt.plot(phist[:, 0], phist[:, 1], color='blue', label='body position')
     plt.title('Body XY Position')
     plt.ylabel("y (m)")
     plt.xlabel("x (m)")
-    plt.scatter(xfhist[:, 0], xfhist[:, 1], color='red', marker="o", label='desired footstep position')
-    plt.legend(loc="lower right")
+    plt.scatter(xfhist[:, 0], xfhist[:, 1], color='red', marker="o", label='footstep setpoints')
+    plt.scatter(0, 0, color='green', marker="x", s=100, label='starting position')
+    plt.scatter(p_ref[0], p_ref[1], color='orange', marker="x", s=100, label='position setpoint')
+    plt.legend(loc="upper left")
 
     plt.show()
