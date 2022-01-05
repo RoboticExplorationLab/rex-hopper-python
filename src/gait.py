@@ -5,6 +5,7 @@ import numpy as np
 import rw
 import transforms3d
 import utils
+import pid
 
 
 def raibert_x(kr, kt, pdot, pdot_ref):
@@ -38,13 +39,42 @@ class Gait:
         else:
             self.controlf = self.controller.wb_control
 
-        self.err_sum = np.zeros(3)
-        self.err_prev = np.zeros(3)
         self.x_des = np.array([0, 0, 0])
         self.p_err_sum = 0
         self.p_err_prev = 0
 
-    def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, theta_prev, fr):
+        '''
+        # Gains for ideal torque source
+        ku = 180
+        kp = np.zeros((3, 3))
+        kd = np.zeros((3, 3))
+        ki = np.zeros((3, 3))
+        np.fill_diagonal(kp, [ku, -ku, 8])
+        np.fill_diagonal(ki, [ku * 0, -ku * 0, 0])
+        np.fill_diagonal(kd, [ku * 0.06, -ku * 0.06, 8 * 2.5])
+        '''
+        # torque PID gains
+        ku = 160
+        kp = np.zeros((3, 3))
+        kd = np.zeros((3, 3))
+        ki = np.zeros((3, 3))
+        np.fill_diagonal(kp, [ku, -ku, ku / 2])
+        np.fill_diagonal(ki, [ku * 0, -ku * 0, ku / 2 * 0])
+        np.fill_diagonal(kd, [ku * 0.02, -ku * 0.02, ku / 2 * 0.02])
+
+        # speed PID gains
+        ku_s = 0
+        kp_s = np.zeros((3, 3))
+        kd_s = np.zeros((3, 3))
+        ki_s = np.zeros((3, 3))
+        np.fill_diagonal(kp_s, [ku_s * 0, -ku_s * 0, ku_s])
+        np.fill_diagonal(ki_s, [ku_s * 0, -ku_s * 0, ku_s / 2 * 0])
+        np.fill_diagonal(kd_s, [ku_s * 0, -ku_s * 0, ku_s / 2 * 0.06])
+
+        self.pid_torque = pid.PID3(kp=kp, kd=kd, ki=ki)
+        self.pid_vel = pid.PID3(kp=kp_s, kd=kd_s, ki=ki_s)
+
+    def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
         # raibert hopping
         dt = self.dt
         force = np.zeros((3, 1))
@@ -71,15 +101,14 @@ class Gait:
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
                 self.target[2] = -hconst * 5.5 / 3  # brace for impact
-
-            self.controller.update_gains(150, 150 * 0.2)
+            # self.controller.update_gains(150, 150 * 0.2)
 
         elif state == 'HeelStrike':
-            self.controller.update_gains(5000, 5000 * 0.02)
+            # self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst * 5.15 / 3
 
         elif state == 'Leap':
-            self.controller.update_gains(5000, 5000 * 0.02)
+            # self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst * 5.5 / 3
             if fr is not None:
                 force = fr
@@ -90,7 +119,7 @@ class Gait:
         Q_ref = utils.vec_to_quat2(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
         u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, self.err_sum, thetar, setp = rw.rw_control_m(self.dt, Q_ref, Q_base, self.err_sum, theta_prev)
+        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_torque, self.pid_vel, Q_ref, Q_base, qrw_dot)
         self.p_err_prev = p_err
         return u, u_rw, thetar, setp
 
@@ -100,13 +129,13 @@ class Gait:
         hconst = self.hconst
         self.target[0] = -0.05
         if state == 'Return':
-            self.controller.update_gains(150, 150 * 0.3)
+            # self.controller.update_gains(150, 150 * 0.3)
             self.target[2] = -hconst * 5 / 3
         elif state == 'HeelStrike':
-            self.controller.update_gains(5000, 5000 * 0.02)
+            # self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst
         elif state == 'Leap':
-            self.controller.update_gains(5000, 5000 * 0.02)
+            # self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst * 5.5 / 3
             if fr is not None:
                 force = fr
@@ -114,20 +143,19 @@ class Gait:
             raise NameError('INVALID STATE')
 
         u = -self.controlf(target=self.target, Q_base=Q_base, force=force)
-        u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
-                                                                        self.err_sum, self.err_prev)
+        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_torque, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
-    def u_wbc_static(self, Q_base, fr):
+    def u_wbc_static(self, Q_base, qrw_dot, fr):
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         self.target[0] = -0.05
-        self.controller.update_gains(150, 150 * 0.3)
+        self.target[2] = -self.hconst * 5.5 / 3
+        # self.controller.update_gains(5000, 5000 * 0.02)
         if fr is not None:
             force = fr
-        u = -self.controlf(target=self.target, Q_base=Q_base, force=force)
-        u_rw, self.err_sum, self.err_prev, thetar, setp = rw.rw_control(self.dt, Q_ref, Q_base,
-                                                                        self.err_sum, self.err_prev)
+        u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
+        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_torque, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_invkin_vert(self, state, Q_base, k_g, k_gd, k_a, k_ad):

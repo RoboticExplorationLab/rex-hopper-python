@@ -171,9 +171,9 @@ class Sim:
             qrw_dot = q_dot_all[4:]
             torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=7) + tau_s[0]
             torque[2] = actuator.actuate(i=command[2], q_dot=q_dot[2], gr_out=7) + tau_s[1]
-            torque[4] = u_rw[0]  # actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=1)
-            torque[5] = u_rw[1]  # actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
-            torque[6] = u_rw[2]  # actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=1)
+            torque[4] = actuator.actuate(i=u_rw[0], q_dot=qrw_dot[0], gr_out=7)
+            torque[5] = actuator.actuate(i=u_rw[1], q_dot=qrw_dot[1], gr_out=7)
+            torque[6] = actuator.actuate(i=u_rw[2], q_dot=qrw_dot[2], gr_out=7)
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity

@@ -17,50 +17,9 @@ def z_rotate(Q_in, z):
     return theta_res
 
 
-def rw_control(dt, Q_ref, Q_base, err_sum, err_prev):
-    """
-    simple reaction wheel control
-    TODO: Add actuator model
-    TODO: Add inner speed control loop
-    """
-    a = -45 * np.pi / 180
-    b = 45 * np.pi / 180
-
-    ref_1 = z_rotate(Q_ref, a)
-    ref_2 = z_rotate(Q_ref, b)
-    # setp = np.array([-3.35*np.pi/180, 3.35*np.pi/180, 0])
-    setp = np.array([ref_1 - 3.35 * np.pi / 180, ref_2 + 3.35 * np.pi / 180, 0])
-
-    theta_1 = z_rotate(Q_base, a)
-    theta_2 = z_rotate(Q_base, b)
-
-    theta_3 = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
-
-    # print("angle = ", utils.anglesolve(utils.L(Q_1).T @ Q_2)*180/np.pi)
-
-    theta = np.array([theta_1, theta_2, theta_3])
-
-    ku = 180
-    kp = np.zeros((3, 3))
-    kd = np.zeros((3, 3))
-    ki = np.zeros((3, 3))
-    np.fill_diagonal(kp, [ku, -ku, 8])  # ku*0.6
-    np.fill_diagonal(ki, [ku * 0, -ku * 0, 0])  # ku*3*tu/40
-    np.fill_diagonal(kd, [ku * 0.1, -ku * 0.1, 8 * 2])  # ku*1.2/tu
-
-    err = theta[0:3] - setp[0:3]
-    err_diff = (err-err_prev)/dt
-    u_rw = kp @ err + ki @ err_sum * dt + kd @ err_diff
-    err_sum += err
-    err_prev = err
-    return u_rw, err_sum, err_prev, theta, setp
-
-
-def rw_control_m(dt, Q_ref, Q_base, err_sum, theta_prev):
+def rw_control(dt, pid_torque, pid_vel, Q_ref, Q_base, qrw_dot):
     """
     simple reaction wheel control w/ derivative on measurement
-    TODO: Add actuator model
-    TODO: Add inner speed control loop
     """
     a = -45 * np.pi / 180
     b = 45 * np.pi / 180
@@ -75,20 +34,8 @@ def rw_control_m(dt, Q_ref, Q_base, err_sum, theta_prev):
     theta_3 = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
 
     theta = np.array([theta_1, theta_2, theta_3])
+    print(theta-setp)
+    u_vel = pid_vel.pid_control(inp=qrw_dot.flatten(), setp=np.zeros(3))
+    u_tau = pid_torque.pid_control(inp=theta + u_vel, setp=setp)  # Cascaded PID Loop
 
-    ku = 180
-    kp = np.zeros((3, 3))
-    kd = np.zeros((3, 3))
-    ki = np.zeros((3, 3))
-    np.fill_diagonal(kp, [ku, -ku, 8])
-    np.fill_diagonal(ki, [ku * 0, -ku * 0, 0])
-    np.fill_diagonal(kd, [ku * 0.06, -ku * 0.06, 8 * 2.5])
-
-    err = theta[0:3] - setp[0:3]
-    # derivative on measurement (prevents derivative kick when setpoint changes)
-    in_diff = (theta[0:3] - theta_prev[0:3])/dt
-    u_rw = kp @ err + ki @ err_sum * dt + kd @ in_diff
-
-    err_sum += err
-    theta_prev = theta
-    return u_rw, err_sum, theta_prev, setp
+    return u_tau, theta + u_vel, setp

@@ -42,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=4000):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=2000, gain=4000):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -169,15 +169,12 @@ class Runner:
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                                      p=p, p_ref=p_ref, pdot=pdot,
-                                                                      theta_prev=thetahist[steps - 2, :],
-                                                                      fr=force_f)
+                                                                      p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
             elif self.ctrl_type == 'wbc_vert':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base,
-                                                                       fr=force_f)
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'wbc_static':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, qrw_dot=qrw_dot, fr=force_f)
 
             elif self.ctrl_type == 'invkin_vert':
                 time.sleep(self.dt)
