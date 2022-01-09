@@ -65,8 +65,12 @@ class Sim:
         self.spring = spring
         self.L = model["linklengths"]
         self.dir_s = model["springpolarity"]
-        self.actuator_x10 = actuator.Actuator(i_max=13, v_max=48, gr_out=7, tau_stall=50 / 7, rpm_free=190 * 7)
-        self.actuator_rw = actuator.Actuator(i_max=13, v_max=48, gr_out=4, tau_stall=50 / 7, rpm_free=190 * 7)
+
+        omega_max_x10 = 190 * 7 * (2 * np.pi / 60)
+        omega_max_rw = 190 * 7 * (2 * np.pi / 60)
+        self.actuator_x10 = actuator.Actuator(v_max=48, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
+        self.actuator_rw = actuator.Actuator(v_max=48, gr_out=4, tau_stall=50 / 7, omega_max=omega_max_rw)
+
         if gravoff == True:
             GRAVITY = 0
         else:
@@ -172,7 +176,7 @@ class Sim:
             qrw_dot = q_dot_all[4:]
             torque[0] = self.actuator_x10.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
             torque[2] = self.actuator_x10.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-            torque[4] = self.actuator_rw.actuate(i=u_rw[0], q_dot=qrw_dot[0], printval=True)
+            torque[4] = self.actuator_rw.actuate(i=u_rw[0], q_dot=qrw_dot[0])
             torque[5] = self.actuator_rw.actuate(i=u_rw[1], q_dot=qrw_dot[1])
             torque[6] = self.actuator_rw.actuate(i=u_rw[2], q_dot=qrw_dot[2])
 
