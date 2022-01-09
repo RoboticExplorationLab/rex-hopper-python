@@ -34,7 +34,7 @@ def rw_control(dt, pid_torque, pid_vel, Q_ref, Q_base, qrw_dot):
     theta_3 = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
 
     theta = np.array([theta_1, theta_2, theta_3])
-    print(theta-setp)
+
     u_vel = pid_vel.pid_control(inp=qrw_dot.flatten(), setp=np.zeros(3))
     u_tau = pid_torque.pid_control(inp=theta + u_vel, setp=setp)  # Cascaded PID Loop
 

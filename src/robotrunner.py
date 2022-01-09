@@ -42,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=2000, gain=4000):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=5000):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -70,7 +70,6 @@ class Runner:
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.state = statemachine.Char()
 
-        # gait scheduler values
         self.init_alpha = 0
         self.init_beta = 0
         self.init_gamma = 0
@@ -82,10 +81,8 @@ class Runner:
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
                               use_qp=use_qp, dt=dt)
 
-        # self.target = None
-        self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
+        # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
 
-        # footstep planner values
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.p_ref = np.array([1, 1, 0])  # desired body pos in world coords
 
@@ -167,18 +164,25 @@ class Runner:
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
 
             # calculate wbc control signal
-            if self.ctrl_type == 'wbc_raibert':
+            if self.ctrl_type == 'wbc_leap':
+                self.u, self.u_rw, thetar, setp = self.gait.u_leap(t=t, p=p, p_ref=p_ref, pdot=pdot, Q_base=Q_base,
+                                                                   qrw_dot=qrw_dot, fr=force_f)
+
+            elif self.ctrl_type == 'wbc_raibert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                                      p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
+                                                                      p=p, p_ref=p_ref, pdot=pdot, qrw_dot=qrw_dot,
+                                                                      fr=force_f)
+
             elif self.ctrl_type == 'wbc_vert':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, qrw_dot=qrw_dot,
+                                                                       fr=force_f)
 
             elif self.ctrl_type == 'wbc_static':
                 self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, qrw_dot=qrw_dot, fr=force_f)
 
             elif self.ctrl_type == 'invkin_vert':
                 time.sleep(self.dt)
-                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
+                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base, qrw_dot=qrw_dot,
                                                                           k_g=self.k_g, k_gd=self.k_gd,
                                                                           k_a=self.k_a, k_ad=self.k_ad)
 
@@ -192,9 +196,10 @@ class Runner:
                     kd = self.k_gd
 
                 if self.model["model"] == 'design' or self.model["model"] == 'design_rw':
-                    self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
+                    self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, qrw_dot=qrw_dot,
+                                                                                k=k, kd=kd)
                 else:
-                    self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3]*5/3)) * k + self.leg.dq * kd
+                    self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
             if self.model["model"] == 'design_rw':
                 rw1hist[steps - 1] = torque[4]
@@ -218,7 +223,6 @@ class Runner:
             c_prev = c
 
         if self.plot == True:
-
             plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
                          rw1hist, rw2hist, rwzhist,
                          w1hist, w2hist, w3hist,

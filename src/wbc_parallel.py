@@ -12,7 +12,7 @@ import cqp
 
 class Control:
 
-    def __init__(self, leg, dt=1e-3, gain=4000, null_control=False, **kwargs):
+    def __init__(self, leg, dt=1e-3, gain=5000, null_control=False, **kwargs):
         # self.qp = qp.Qp()
         self.cqp = cqp.Cqp()
         self.dt = dt

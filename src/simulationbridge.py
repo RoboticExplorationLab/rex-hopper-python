@@ -130,7 +130,7 @@ class Sim:
 
         # increase friction of toe to ideal
         # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
-        p.changeDynamics(self.bot, self.c_link, lateralFriction=2)  # , restitution=0.01)
+        p.changeDynamics(self.bot, self.c_link, lateralFriction=3)  # , restitution=0.01)
 
         # Record Video in real time
         if self.record_rt is True:

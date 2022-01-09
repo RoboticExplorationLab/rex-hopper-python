@@ -13,8 +13,9 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
                     choices=['design_rw', 'design', 'serial', 'parallel', 'belt'], type=str)
-parser.add_argument("ctrl", help="wbc_raibert, wbc_vert, wbc_static, invkin_vert, or invkin_static",
-                    choices=['wbc_raibert', 'wbc_vert', 'wbc_static', 'invkin_vert', 'invkin_static'], type=str)
+parser.add_argument("ctrl", help="'wbc_leap, wbc_raibert, wbc_vert, wbc_static, invkin_vert, or invkin_static",
+                    choices=['wbc_leap', 'wbc_raibert', 'wbc_vert', 'wbc_static', 'invkin_vert', 'invkin_static'],
+                    type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
@@ -51,28 +52,18 @@ else:
 print("\n")
 print("model = ", args.model)
 print("ctrl = ", args.ctrl)
-
 print("\n")
 
 if args.model == "design_rw":
     model = param.design_rw
-    import leg_parallel
-    import wbc_parallel
 elif args.model == "design":
     model = param.design
-    import leg_parallel
-    import wbc_parallel
 elif args.model == "parallel":
     model = param.parallel
-    import leg_parallel
-    import wbc_parallel
 elif args.model == "serial":
     model = param.serial
-    import leg_serial
-    import wbc_serial
 elif args.model == "belt":
     model = param.belt
-    import leg_belt
 else:
     raise NameError('INVALID MODEL')
 
