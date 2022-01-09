@@ -42,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=5000):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=2000, gain=5000):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -164,11 +164,7 @@ class Runner:
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
 
             # calculate wbc control signal
-            if self.ctrl_type == 'wbc_leap':
-                self.u, self.u_rw, thetar, setp = self.gait.u_leap(t=t, p=p, p_ref=p_ref, pdot=pdot, Q_base=Q_base,
-                                                                   qrw_dot=qrw_dot, fr=force_f)
-
-            elif self.ctrl_type == 'wbc_raibert':
+            if self.ctrl_type == 'wbc_raibert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
                                                                       p=p, p_ref=p_ref, pdot=pdot, qrw_dot=qrw_dot,
                                                                       fr=force_f)

@@ -43,7 +43,7 @@ class Gait:
         self.p_err_prev = 0
 
         # torque PID gains
-        ku = 160
+        ku = 180  # 160
         kp = np.zeros((3, 3))
         kd = np.zeros((3, 3))
         ki = np.zeros((3, 3))
@@ -52,7 +52,7 @@ class Gait:
         np.fill_diagonal(kd, [ku * 0.02, -ku * 0.02, ku / 2 * 0.02])
 
         # speed PID gains
-        ku_s = 0.00005
+        ku_s = 0  # 0.00005
         kp_s = np.zeros((3, 3))
         kd_s = np.zeros((3, 3))
         ki_s = np.zeros((3, 3))
@@ -63,18 +63,6 @@ class Gait:
         self.pid_pdot = pid.PID1(kp=0.2, ki=0.01, kd=0)  # kp=0.2, ki=0.01, kd=0
         self.pid_tau = pid.PID3(kp=kp, kd=kd, ki=ki)
         self.pid_vel = pid.PID3(kp=kp_s, kd=kd_s, ki=ki_s)
-
-    def u_leap(self, t, p, p_ref, pdot, Q_base, qrw_dot, fr):
-        # leap once to specified position
-        force = np.zeros((3, 1))
-        target = self.target
-        # Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
-        Q_ref = utils.vec_to_quat2(p_ref - p)
-        # Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
-        u = -self.controlf(target=target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
-
-        return u, u_rw, thetar, setp
 
     def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, qrw_dot, fr):
         # continuous raibert hopping
