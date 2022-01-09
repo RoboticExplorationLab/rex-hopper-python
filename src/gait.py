@@ -60,7 +60,7 @@ class Gait:
         np.fill_diagonal(ki_s, [ku_s * 0, -ku_s * 0, ku_s * 0.025 * 0])
         np.fill_diagonal(kd_s, [ku_s * 0, -ku_s * 0, ku_s * 0.025 * 0.06])
 
-        self.pid_pdot = pid.PID1(kp=0.2, ki=0.01, kd=0)
+        self.pid_pdot = pid.PID1(kp=0.2, ki=0.01, kd=0)  # kp=0.2, ki=0.01, kd=0
         self.pid_tau = pid.PID3(kp=kp, kd=kd, ki=ki)
         self.pid_vel = pid.PID3(kp=kp_s, kd=kd_s, ki=ki_s)
 
@@ -82,11 +82,7 @@ class Gait:
         force = np.zeros((3, 1))
         kr = 0.175
         kt = 0.6  # gain representing leap period accounting for vertical jump velocity at toe-off
-        # p_err = (p - p_ref)
-        # self.p_err_sum += p_err
-        # p_err_diff = (p_err - self.p_err_prev) / dt
-        # -(kp * p_err + ki * self.p_err_sum * dt + kd * p_err_diff)  # PID control for body position
-        pdot_ref = self.pid_pdot.pid_control(inp=p, setp=p_ref)
+        pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)
         # pdot_ref = np.array([0, 0.2, 0])
         hconst = self.hconst
         self.target[0] = -0.05  # adjustment for balance due to bad mockup design
@@ -100,14 +96,14 @@ class Gait:
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
                 self.target[2] = -hconst * 5.5 / 3  # brace for impact
-            # self.controller.update_gains(150, 150 * 0.2)
+            self.controller.update_gains(150, 150 * 0.2)
 
         elif state == 'HeelStrike':
-            # self.controller.update_gains(5000, 5000 * 0.02)
-            self.target[2] = -hconst * 5 / 3
+            self.controller.update_gains(5000, 5000 * 0.02)
+            self.target[2] = -hconst * 5.15 / 3
 
         elif state == 'Leap':
-            # self.controller.update_gains(5000, 5000 * 0.02)
+            self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst * 5.5 / 3
             if fr is not None:
                 force = fr
