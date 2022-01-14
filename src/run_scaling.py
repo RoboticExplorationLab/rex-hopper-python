@@ -11,8 +11,6 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 
 import param
-import leg_parallel
-import wbc_parallel
 from robotrunner import Runner
 
 

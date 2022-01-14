@@ -2,15 +2,15 @@ import actuator
 import numpy as np
 import matplotlib.pyplot as plt
 
-# i_max = 20
+i_max = 13
 gr_out = 7
 omega_max = 190 * 7 * (2 * np.pi / 60)
 q_dot_max = omega_max / gr_out
 print("omega_max = ", omega_max)
 tau_stall = 50 / 7
-motor_test = actuator.Actuator(v_max=48, gr_out=gr_out, tau_stall=tau_stall, omega_max=omega_max)
-i_max = motor_test.i_max
-print("i_max = ", i_max)
+motor_test = actuator.Actuator(i_max=i_max, gr_out=gr_out, tau_stall=tau_stall, omega_max=omega_max)
+v_max = motor_test.v_max
+print("v_max = ", v_max)
 n = 100
 
 tau = np.zeros((n, n))
