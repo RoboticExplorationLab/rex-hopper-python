@@ -42,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=5000):
+                 record=False, scale=1, gravoff=False, direct=False, recalc=False, total_run=10000, gain=5000):
 
         self.dt = dt
         self.u = np.zeros(2)
@@ -58,7 +58,7 @@ class Runner:
         controller_class = model["controllerclass"]
         leg_class = model["legclass"]
         self.L = np.array(model["linklengths"])
-        self.leg = leg_class.Leg(dt=dt, model=model)
+        self.leg = leg_class.Leg(dt=dt, model=model, recalc=recalc)
         self.k_g = model["k_g"]
         self.k_gd = model["k_gd"]
         self.k_a = model["k_a"]

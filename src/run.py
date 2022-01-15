@@ -21,6 +21,7 @@ parser.add_argument("--fixed", help="fixed base: True or False", action="store_t
 parser.add_argument("--spring", help="add spring: True or False", action="store_true")
 parser.add_argument("--record", help="record: True or False", action="store_true")
 parser.add_argument("--scale", help="change scale of robot (doesn't change mass)", type=float, default=1)
+parser.add_argument("--recalc", help="re-calculate leg data",  action="store_true")
 parser.add_argument("--gravoff", help="turn gravity off in sim", action="store_true")
 parser.add_argument("--runtime", help="sim run time in ms (integer)", type=int, default=10000)
 args = parser.parse_args()
@@ -45,6 +46,11 @@ if args.record:
 else:
     record = False
 
+if args.recalc:
+    recalc = True
+else:
+    recalc = False
+
 if args.gravoff:
     gravoff = True
 else:
@@ -68,7 +74,6 @@ elif args.model == "belt":
 else:
     raise NameError('INVALID MODEL')
 
-runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed,
-                spring=spring, record=record, scale=args.scale, gravoff=gravoff, total_run=args.runtime,
-                gain=model["k"])
+runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed, spring=spring, record=record,
+                scale=args.scale, recalc=recalc, gravoff=gravoff, total_run=args.runtime, gain=model["k"])
 runner.run()
