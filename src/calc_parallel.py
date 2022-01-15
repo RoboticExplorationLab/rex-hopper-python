@@ -228,7 +228,7 @@ def calculate(L, mass, I, coml):
     da_init = sp.lambdify([q0, q2, q0d, q2d], da)
 
     data = [M_init, G_init, C_init, Jf_init, df_init, D_init, d_init, cdot_init, pos_init, Ja_init, da_init]
-    pik = "pickle.dat"
+    pik = "data.pickle"
     dill.settings['recurse'] = True
     with open(pik, 'wb') as f:
         dill.dump(data, f)

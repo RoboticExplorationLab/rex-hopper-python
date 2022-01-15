@@ -43,33 +43,32 @@ class Gait:
         self.p_err_prev = 0
 
         # torque PID gains
-        ku = 300  # 160
-        kp_tau = [ku, -ku, ku / 2]
-        ki_tau = [ku * 0, -ku * 0, ku / 2 * 0.00001]
-        kd_tau = [ku * 0.02, -ku * 0.02, ku / 2 * 0.02]
-        self.pid_tau = pid.PID3(kp=kp_tau, kd=kd_tau, ki=ki_tau)
+        ku = 2000  # 160
+        kp_tau = [ku, -ku, ku * 0.1]
+        ki_tau = [ku * 0.01, -ku * 0.01, ku * 0.2]
+        kd_tau = [ku * 0.06, -ku * 0.06, ku * 0.02]
+        self.pid_tau = pid.PID3(kp=kp_tau, ki=ki_tau, kd=kd_tau)
 
         # speed PID gains
-        ku_s = 0 # 0.000008
-        kp_s = [ku_s * 1, -ku_s * 1, ku_s * 0.025]
-        ki_s = [ku_s * 0, -ku_s * 0, ku_s * 0.025 * 0]
-        kd_s = [ku_s * 0.06, -ku_s * 0.06, ku_s * 0.025 * 0.06]
-        self.pid_vel = pid.PID3(kp=kp_s, kd=kd_s, ki=ki_s)
+        ku_s = 0.00001
+        kp_s = [ku_s * 1, -ku_s * 1, ku_s * 2]
+        ki_s = [ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1]
+        kd_s = [ku_s * 0, -ku_s * 0, ku_s * 0]
+        self.pid_vel = pid.PID3(kp=kp_s, ki=ki_s, kd=kd_s)
 
-        self.pid_pdot = pid.PID1(kp=0.2, ki=0.01, kd=0)  # kp=0.2, ki=0.01, kd=0
+        self.pid_pdot = pid.PID1(kp=0.6, ki=0.15, kd=0.02)  # kp=0.2, ki=0.01, kd=0
 
     def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, qrw_dot, fr):
         # continuous raibert hopping
-        dt = self.dt
         force = np.zeros((3, 1))
-        kr = 0.175
-        kt = 0.6  # gain representing leap period accounting for vertical jump velocity at toe-off
         pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)
         # pdot_ref = np.array([0, 0.2, 0])
         hconst = self.hconst
-        self.target[0] = -0.05  # adjustment for balance due to bad mockup design
+        self.target[0] = -0.09  # adjustment for balance due to bad mockup design
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
+                kr = 0.4 / (np.linalg.norm(pdot_ref) + 2)  # 0.175 "speed cancellation" constant
+                kt = 0.4  # 0.6 gain representing leap period accounting for vertical jump velocity at toe-off
                 x_fb = np.zeros(3)
                 x_fb[0:2] = raibert_x(kr, kt, pdot, pdot_ref)  # desired footstep relative to current body CoM
                 self.x_des = x_fb + p  # world frame desired footstep position
@@ -77,16 +76,16 @@ class Gait:
             if pdot[2] >= 0:  # recognize that robot is still rising
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
-                self.target[2] = -hconst * 5.5 / 3  # brace for impact
+                self.target[2] = -hconst * 6 / 3  # brace for impact
             self.controller.update_gains(150, 150 * 0.2)
 
         elif state == 'HeelStrike':
             self.controller.update_gains(5000, 5000 * 0.02)
-            self.target[2] = -hconst * 5.15 / 3
+            self.target[2] = -hconst * 4.5 / 3
 
         elif state == 'Leap':
             self.controller.update_gains(5000, 5000 * 0.02)
-            self.target[2] = -hconst * 5.5 / 3
+            self.target[2] = -hconst * 6 / 3
             if fr is not None:
                 force = fr
 
@@ -96,7 +95,7 @@ class Gait:
         Q_ref = utils.vec_to_quat2(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
         u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         # self.p_err_prev = p_err
         return u, u_rw, thetar, setp
 
@@ -104,15 +103,15 @@ class Gait:
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
-        self.target[0] = -0.05
+        self.target[0] = -0.09
         if state == 'Return':
-            # self.controller.update_gains(150, 150 * 0.3)
+            self.controller.update_gains(150, 150 * 0.2)
             self.target[2] = -hconst * 5 / 3
         elif state == 'HeelStrike':
-            # self.controller.update_gains(5000, 5000 * 0.02)
+            self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst
         elif state == 'Leap':
-            # self.controller.update_gains(5000, 5000 * 0.02)
+            self.controller.update_gains(5000, 5000 * 0.02)
             self.target[2] = -hconst * 5.5 / 3
             if fr is not None:
                 force = fr
@@ -120,19 +119,19 @@ class Gait:
             raise NameError('INVALID STATE')
 
         u = -self.controlf(target=self.target, Q_base=Q_base, force=force)
-        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_wbc_static(self, Q_base, qrw_dot, fr):
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
-        self.target[0] = -0.05
+        self.target[0] = -0.09
         self.target[2] = -self.hconst * 5.5 / 3
         # self.controller.update_gains(5000, 5000 * 0.02)
         if fr is not None:
             force = fr
         u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_invkin_vert(self, state, Q_base, qrw_dot, k_g, k_gd, k_a, k_ad):
@@ -155,7 +154,7 @@ class Gait:
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
-        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_invkin_static(self, Q_base, qrw_dot, k, kd):
@@ -166,5 +165,5 @@ class Gait:
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
         u = (qa - self.leg.inv_kinematics(xyz=target[0:3])) * k + dqa * kd
-        u_rw, thetar, setp = rw.rw_control(self.dt, self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp

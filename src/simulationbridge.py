@@ -67,9 +67,9 @@ class Sim:
         self.dir_s = model["springpolarity"]
 
         omega_max_x10 = 190 * 7 * (2 * np.pi / 60)
-        omega_max_rw = 190 * 7 * (2 * np.pi / 60)
+        omega_max_rw = 3490 * (2 * np.pi / 60)
         self.actuator_x10 = actuator.Actuator(i_max=13, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
-        self.actuator_rw = actuator.Actuator(i_max=13, gr_out=1, tau_stall=50 / 7, omega_max=omega_max_rw)
+        self.actuator_rw = actuator.Actuator(i_max=92.5, gr_out=1, tau_stall=11.24, omega_max=omega_max_rw)
 
         if gravoff == True:
             GRAVITY = 0
@@ -90,7 +90,7 @@ class Sim:
         path_parent = os.path.dirname(curdir)
         model_path = model["urdfpath"]
         # self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7 * scale],
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.5*scale],  # 0.31
+        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7*scale],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
 
@@ -141,11 +141,14 @@ class Sim:
         if self.record_rt is True:
             p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
 
-        # Disable the default velocity/position motor:
         for i in range(self.numJoints):
-            p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0)  # force=0.5
+            # Disable the default velocity/position motor:
             # force=1 allows us to easily mimic joint friction rather than disabling
-            p.enableJointForceTorqueSensor(self.bot, i, 1)  # enable joint torque sensing
+            p.setJointMotorControl2(self.bot, i, p.VELOCITY_CONTROL, force=0)  # force=0.5
+            # enable joint torque sensing
+            p.enableJointForceTorqueSensor(self.bot, i, 1)
+            # increase max joint velocity (default = 100 rad/s)
+            p.changeDynamics(self.bot, i, maxJointVelocity=400)
 
     def sim_run(self, u, u_rw):
         q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))

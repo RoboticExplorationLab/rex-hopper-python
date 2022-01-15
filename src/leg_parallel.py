@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 Benjamin Bokser
+Copyright (C) 2020-2022 Benjamin Bokser
 """
 
 import numpy as np
@@ -89,7 +89,7 @@ class Leg:
             self.da_init = calc_parallel.calculate(L=self.L, mass=self.mass, I=self.I, coml=self.coml)
         else:
             # if not true then just open the pickle jar
-            pik = "pickle.dat"
+            pik = "data.pickle"
             with open(pik, "rb") as f:
                 self.M_init, self.G_init, self.C_init, self.Jf_init, self.df_init, \
                 self.D_init, self.d_init, self.cdot_init, self.pos_init, self.Ja_init, \

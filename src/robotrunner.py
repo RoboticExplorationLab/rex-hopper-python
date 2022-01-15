@@ -84,7 +84,7 @@ class Runner:
         # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
 
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
-        self.p_ref = np.array([1, 1, 0])  # desired body pos in world coords
+        self.p_ref = np.array([2, 2, 0])  # desired body pos in world coords
 
     def run(self):
         p_ref = self.p_ref

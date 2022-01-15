@@ -14,7 +14,7 @@ design_rw = {
     "csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
     "urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
-    "k": 2000,  # wbc gain
+    "k": 5000,  # wbc gain
     "k_g": 45,  # inv kin gain
     "k_gd": 45*0.02,
     "k_a": 1,
