@@ -9,11 +9,12 @@ class Actuator:
         self.i_max = i_max
         self.gr_out = gr_out
         self.tau_stall = tau_stall
-        self.omega_max = omega_max  # 190 * 7 * (2 * np.pi / 60)  # rated speed, rpm to radians/s
+        self.omega_max = omega_max  # 192 * 7 * (2 * np.pi / 60)  # rated speed, rpm to radians/s
         # self.kt_m = tau_stall * r / (v_max*gr)  # torque constant of the motor, Nm/amp. == v_max/omega_max
         self.kt_m = tau_stall / i_max  # 3.85 / 7
         # self.kt_m = self.v_max/omega_max
         self.v_max = omega_max * self.kt_m  # absolute maximum
+        # self.omega_max = self.v_max / self.kt_m
         # r = (v_max ** 2) / (omega_max * tau_stall)
         self.r = self.kt_m * self.v_max / tau_stall
 
@@ -30,12 +31,15 @@ class Actuator:
         kt_m = self.kt_m
         r = self.r
         omega = q_dot * gr_out  # convert link velocity to motor vel (thru gear ratio)
-        # omega = abs(q_dot * gr_out)  # convert link velocity to motor vel (thru gear ratio)
         tau_m = kt_m * i
         v = np.sign(i)*v_max
-        tau_max_m = abs(- omega * (kt_m ** 2) + v * kt_m) / r  # max motor torque for given speed
-        tau_max_m = np.clip(tau_max_m, -tau_stall, tau_stall)
-        tau_m = np.clip(tau_m, -tau_max_m, tau_max_m)  # ensure motor torque remains within torque-speed curve
+        tau_max_m = (- omega * (kt_m ** 2) + v * kt_m) / r  # max motor torque for given speed
+        tau_min_m = (- omega * (kt_m ** 2) - v * kt_m) / r  # min motor torque for given speed
+        if tau_max_m >= tau_min_m:
+            tau_m = np.clip(tau_m, tau_min_m, tau_max_m) # np.clip(tau_m, -abs(tau_max_m), abs(tau_max_m))
+        else:
+            tau_m = np.clip(tau_m, tau_max_m, tau_min_m)
+        tau_m = np.clip(tau_m, -tau_stall, tau_stall)  # enforce max motor torque
         return tau_m * gr_out  # actuator output torque
 
     def actuate_sat(self, i, q_dot):

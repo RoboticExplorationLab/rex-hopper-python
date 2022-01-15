@@ -42,7 +42,7 @@ def gait_check(s, s_prev, ct, t):
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
-                 record=False, scale=1, gravoff=False, direct=False, total_run=2000, gain=5000):
+                 record=False, scale=1, gravoff=False, direct=False, total_run=10000, gain=5000):
 
         self.dt = dt
         self.u = np.zeros(2)

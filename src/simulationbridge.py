@@ -25,13 +25,13 @@ def spring(q, l):
     else:
         q0 = q[0] + init_q[0]
         q2 = q[2] + init_q[1]
-    k = 1500  # spring constant, N/m
+    k = 996  # spring constant, N/m
     L0 = l[0]  # .15
     L2 = l[2]  # .3
     gamma = abs(q2 - q0)
-    rmin = 0.204*0.8
+    rmin = 0.18  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
     r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-    print("r = ", r, " and rmin = ", rmin)
+    # print("r = ", r, " and rmin = ", rmin)
     if r < rmin:
         print("error: incorrect spring params, r = ", r, " and rmin = ", rmin)
     T = k * (r - rmin)  # spring tension force
@@ -68,8 +68,8 @@ class Sim:
 
         omega_max_x10 = 190 * 7 * (2 * np.pi / 60)
         omega_max_rw = 190 * 7 * (2 * np.pi / 60)
-        self.actuator_x10 = actuator.Actuator(v_max=48, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
-        self.actuator_rw = actuator.Actuator(v_max=48, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_rw)
+        self.actuator_x10 = actuator.Actuator(i_max=13, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
+        self.actuator_rw = actuator.Actuator(i_max=13, gr_out=1, tau_stall=50 / 7, omega_max=omega_max_rw)
 
         if gravoff == True:
             GRAVITY = 0

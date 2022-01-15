@@ -43,26 +43,20 @@ class Gait:
         self.p_err_prev = 0
 
         # torque PID gains
-        ku = 180  # 160
-        kp = np.zeros((3, 3))
-        kd = np.zeros((3, 3))
-        ki = np.zeros((3, 3))
-        np.fill_diagonal(kp, [ku, -ku, ku / 2])
-        np.fill_diagonal(ki, [ku * 0, -ku * 0, ku / 2 * 0.00001])
-        np.fill_diagonal(kd, [ku * 0.02, -ku * 0.02, ku / 2 * 0.02])
+        ku = 300  # 160
+        kp_tau = [ku, -ku, ku / 2]
+        ki_tau = [ku * 0, -ku * 0, ku / 2 * 0.00001]
+        kd_tau = [ku * 0.02, -ku * 0.02, ku / 2 * 0.02]
+        self.pid_tau = pid.PID3(kp=kp_tau, kd=kd_tau, ki=ki_tau)
 
         # speed PID gains
-        ku_s = 0  # 0.00005
-        kp_s = np.zeros((3, 3))
-        kd_s = np.zeros((3, 3))
-        ki_s = np.zeros((3, 3))
-        np.fill_diagonal(kp_s, [ku_s * 1, -ku_s * 1, ku_s * 0.025])
-        np.fill_diagonal(ki_s, [ku_s * 0, -ku_s * 0, ku_s * 0.025 * 0])
-        np.fill_diagonal(kd_s, [ku_s * 0, -ku_s * 0, ku_s * 0.025 * 0.06])
+        ku_s = 0 # 0.000008
+        kp_s = [ku_s * 1, -ku_s * 1, ku_s * 0.025]
+        ki_s = [ku_s * 0, -ku_s * 0, ku_s * 0.025 * 0]
+        kd_s = [ku_s * 0.06, -ku_s * 0.06, ku_s * 0.025 * 0.06]
+        self.pid_vel = pid.PID3(kp=kp_s, kd=kd_s, ki=ki_s)
 
         self.pid_pdot = pid.PID1(kp=0.2, ki=0.01, kd=0)  # kp=0.2, ki=0.01, kd=0
-        self.pid_tau = pid.PID3(kp=kp, kd=kd, ki=ki)
-        self.pid_vel = pid.PID3(kp=kp_s, kd=kd_s, ki=ki_s)
 
     def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, qrw_dot, fr):
         # continuous raibert hopping

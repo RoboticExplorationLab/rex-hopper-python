@@ -41,10 +41,13 @@ class PID3:
     def __init__(self, kp, ki, kd, dt=1e-3,  **kwargs):
 
         # 3-Dimensional PID controller
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-
+        self.kp = np.zeros((3, 3))
+        self.kd = np.zeros((3, 3))
+        self.ki = np.zeros((3, 3))
+        np.fill_diagonal(self.kp, kp)
+        np.fill_diagonal(self.ki, ki)
+        np.fill_diagonal(self.kd, kd)
+    
         self.dt = dt
         self.inp_prev = np.zeros(3)  # previous measurement
         self.err_sum = np.zeros(3)
