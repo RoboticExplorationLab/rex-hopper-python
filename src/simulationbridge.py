@@ -67,9 +67,13 @@ class Sim:
         self.dir_s = model["springpolarity"]
 
         omega_max_x10 = 190 * 7 * (2 * np.pi / 60)
-        omega_max_rw = 3490 * (2 * np.pi / 60)
         self.actuator_x10 = actuator.Actuator(i_max=13, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
-        self.actuator_rw = actuator.Actuator(i_max=92.5, gr_out=1, tau_stall=11.24, omega_max=omega_max_rw)
+        omega_max_ea110 = 3490 * (2 * np.pi / 60)
+        self.actuator_ea110 = actuator.Actuator(i_max=92.5, gr_out=1, tau_stall=11.24, omega_max=omega_max_ea110)
+        omega_max_8318 = 3840 * (2 * np.pi / 60)
+        self.actuator_8318 = actuator.Actuator(i_max=57, gr_out=1, tau_stall=4.71, omega_max=omega_max_8318)
+        # omega_max_u8 = 3700 * (2 * np.pi / 60)
+        # self.actuator_u8 = actuator.Actuator(i_max=31, gr_out=1, tau_stall=2.8, omega_max=omega_max_u8)
 
         if gravoff == True:
             GRAVITY = 0
@@ -179,9 +183,9 @@ class Sim:
             qrw_dot = q_dot_all[4:]
             torque[0] = self.actuator_x10.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
             torque[2] = self.actuator_x10.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-            torque[4] = self.actuator_rw.actuate(i=u_rw[0], q_dot=qrw_dot[0])
-            torque[5] = self.actuator_rw.actuate(i=u_rw[1], q_dot=qrw_dot[1])
-            torque[6] = self.actuator_rw.actuate(i=u_rw[2], q_dot=qrw_dot[2])
+            torque[4] = self.actuator_ea110.actuate(i=u_rw[0], q_dot=qrw_dot[0])
+            torque[5] = self.actuator_ea110.actuate(i=u_rw[1], q_dot=qrw_dot[1])
+            torque[6] = self.actuator_8318.actuate(i=u_rw[2], q_dot=qrw_dot[2])
 
         if self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity

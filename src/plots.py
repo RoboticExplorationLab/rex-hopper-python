@@ -34,7 +34,7 @@ def rwplot(total, hist1, hist2, hist3, hist4, hist5, hist6, hist7, hist8, hist9,
     axs[1, 0].set_ylabel('Torque, Nm')
 
     axs[1, 1].plot(range(total), hist5, color='blue')
-    axs[1, 1].set_title('RW1 Torque')
+    axs[1, 1].set_title('RW2 Torque')
     axs[1, 1].set_ylabel('Torque, Nm')
 
     axs[1, 2].plot(range(total), hist6, color='blue')

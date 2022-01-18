@@ -43,11 +43,18 @@ class Gait:
         self.p_err_prev = 0
 
         # torque PID gains
-        ku = 2000  # 160
-        kp_tau = [ku, -ku, ku * 0.1]
-        ki_tau = [ku * 0.01, -ku * 0.01, ku * 0.2]
+        ku = 1600  # 2000
+        kp_tau = [ku, -ku, ku]
+        ki_tau = [ku * 0.01, -ku * 0.01, ku * 0.02]
         kd_tau = [ku * 0.06, -ku * 0.06, ku * 0.02]
         self.pid_tau = pid.PID3(kp=kp_tau, ki=ki_tau, kd=kd_tau)
+
+        # torque PID gains (static)
+        ku_ts = 1600  # 2000
+        kp_tau_s = [ku_ts, -ku_ts, ku_ts]
+        ki_tau_s = [ku_ts * 0.01, -ku_ts * 0.01, ku_ts * 0.02]
+        kd_tau_s = [ku_ts * 0.02, -ku_ts * 0.02, ku_ts * 0.02]
+        self.pid_tau_s = pid.PID3(kp=kp_tau_s, ki=ki_tau_s, kd=kd_tau_s)
 
         # speed PID gains
         ku_s = 0.00001
@@ -64,7 +71,7 @@ class Gait:
         pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)
         # pdot_ref = np.array([0, 0.2, 0])
         hconst = self.hconst
-        self.target[0] = -0.09  # adjustment for balance due to bad mockup design
+        self.target[0] = -0.08  # adjustment for balance due to bad mockup design
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
                 kr = 0.4 / (np.linalg.norm(pdot_ref) + 2)  # 0.175 "speed cancellation" constant
@@ -103,7 +110,7 @@ class Gait:
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
-        self.target[0] = -0.09
+        self.target[0] = -0.08
         if state == 'Return':
             self.controller.update_gains(150, 150 * 0.2)
             self.target[2] = -hconst * 5 / 3
@@ -125,13 +132,13 @@ class Gait:
     def u_wbc_static(self, Q_base, qrw_dot, fr):
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
-        self.target[0] = -0.09
+        self.target[0] = 0
         self.target[2] = -self.hconst * 5.5 / 3
-        # self.controller.update_gains(5000, 5000 * 0.02)
+        self.controller.update_gains(5000, 5000 * 0.02)
         if fr is not None:
             force = fr
         u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = rw.rw_control(self.pid_tau_s, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_invkin_vert(self, state, Q_base, qrw_dot, k_g, k_gd, k_a, k_ad):
