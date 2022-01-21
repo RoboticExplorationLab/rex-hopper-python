@@ -14,7 +14,7 @@ class Control:
 
     def __init__(self, leg, dt=1e-3, gain=5000, null_control=False, **kwargs):
         # self.qp = qp.Qp()
-        self.cqp = cqp.Cqp()
+        self.cqp = cqp.Cqp(leg=leg)
         self.dt = dt
         self.null_control = null_control
         self.leg = leg
@@ -29,7 +29,7 @@ class Control:
         self.B[2, 1] = 1  # q2
 
     def update_gains(self, kp, kd):
-        # Use this to update wbc PID gains in real time
+        # Use this to update wbc PD gains in real time
         m = 2  # modifier
         self.kp = np.zeros((3, 3))
         np.fill_diagonal(self.kp, [kp*m, kp*m, kp])
@@ -55,18 +55,16 @@ class Control:
         fx = utils.Z(utils.Q_inv(Q_base), Mx @ x_dd_des[0:3] + force)  # rotate back into body frame for jacobian
         # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
-
+        u = tau  # + ((- G - C).T @ B).T
+        '''
         M = leg.gen_M()
         C = leg.gen_C()
         G = leg.gen_G()
         B = self.B
-        u = tau  # + ((- G - C).T @ B).T
-        # u = ((- G - C).T @ B).T
-        '''
         qdd_new = np.linalg.solve(M, (B @ u - C - G))
         qdd_n = np.array([qdd_new[0], qdd_new[2]])
         Ja = leg.gen_jacA()
-        da = leg.gen_da()  # .flatten()
+        da = leg.gen_da()
         # print(np.shape(Ja), np.shape(qdd_n), np.shape(da))
         print("rdd_new in task space = ", Ja @ qdd_n + da)
         '''
@@ -91,8 +89,6 @@ class Control:
         r_dd_des = np.array(x_dd_des[0:3])
         # r_dd_des = np.array([[0, 0, -1]]).T
         # print("r_dd_des = ", r_dd_des)
-        x_ref = np.array([0, 0, 0, 0, 0, 0])
-        x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
-        u = self.cqp.qpcontrol(leg, r_dd_des, x_in, x_ref)
+        u = self.cqp.qpcontrol(r_dd_des)
 
         return u

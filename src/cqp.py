@@ -10,17 +10,15 @@ import itertools
 
 class Cqp:
 
-    def __init__(self, **kwargs):
-        pass
-        # self.L = np.array(model["linklengths"])
-        # self.leg = leg
+    def __init__(self, leg, **kwargs):
+        self.leg = leg
 
-    def qpcontrol(self, leg, r_dd_des, x_in, x_ref):
+    def qpcontrol(self, r_dd_des):
+        leg = self.leg
+
         M = leg.gen_M()
         C = leg.gen_C().flatten()
         G = leg.gen_G().flatten()
-        # Jf = leg.gen_jacF()
-        # df = leg.gen_df().flatten()
         Ja = leg.gen_jacA()
         da = leg.gen_da()
         D = leg.gen_D()  # constraint jacobian
