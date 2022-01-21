@@ -56,11 +56,20 @@ class Control:
         # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
 
+        M = leg.gen_M()
         C = leg.gen_C()
         G = leg.gen_G()
         B = self.B
         u = tau  # + ((- G - C).T @ B).T
         # u = ((- G - C).T @ B).T
+        '''
+        qdd_new = np.linalg.solve(M, (B @ u - C - G))
+        qdd_n = np.array([qdd_new[0], qdd_new[2]])
+        Ja = leg.gen_jacA()
+        da = leg.gen_da()  # .flatten()
+        # print(np.shape(Ja), np.shape(qdd_n), np.shape(da))
+        print("rdd_new in task space = ", Ja @ qdd_n + da)
+        '''
         return u
 
     def wb_qp_control(self, target, Q_base, force=np.zeros((3, 1))):
@@ -84,6 +93,6 @@ class Control:
         # print("r_dd_des = ", r_dd_des)
         x_ref = np.array([0, 0, 0, 0, 0, 0])
         x_in = np.array([leg.d2q[0], leg.d2q[1], leg.d2q[2], leg.d2q[3], 0., 0.])
-        u = -self.cqp.qpcontrol(leg, r_dd_des, x_in, x_ref)
+        u = self.cqp.qpcontrol(leg, r_dd_des, x_in, x_ref)
 
         return u

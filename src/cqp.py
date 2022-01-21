@@ -23,7 +23,7 @@ class Cqp:
         # df = leg.gen_df().flatten()
         Ja = leg.gen_jacA()
         da = leg.gen_da()
-        D = leg.gen_D()
+        D = leg.gen_D()  # constraint jacobian
         dc = leg.gen_d().flatten()
         B = np.zeros((4, 2))  # actuator selection matrix
         B[0, 0] = 1  # q0
@@ -41,15 +41,15 @@ class Cqp:
         # --- calculate objective --- #
         qdd_f = cp.vstack([x[0], x[2]])
         r_dd = Ja @ qdd_f + da
-        P = np.eye(3)
+        P = np.eye(3)  # TODO: play around with this
         # obj = 0.5*cp.sum_squares(r_dd - r_dd_des)
         obj = 0.5 * cp.quad_form(r_dd - r_dd_des, P)
 
         # --- calculate constraints --- #
         constr = [0 == eq1]
         constr += [0 == eq2]
-        constr += [-10 <= x]
-        constr += [10 >= x]
+        # constr += [-10 <= x]
+        # constr += [10 >= x]
 
         # --- set up solver --- #
         problem = cp.Problem(cp.Minimize(obj), constr)
@@ -57,10 +57,11 @@ class Cqp:
         u = np.zeros(2) if u.value is None else u.value
 
         # --- Check if result makes sense --- #
+        '''
         qdd_new = np.linalg.solve(M, (B @ u - C - G))
         qdd_n = np.array([qdd_new[0], qdd_new[2]])
         Ja = leg.gen_jacA()
         da = leg.gen_da().flatten()
         print("rdd_new in task space = ", Ja @ qdd_n + da)
-
-        return -u
+        '''
+        return u

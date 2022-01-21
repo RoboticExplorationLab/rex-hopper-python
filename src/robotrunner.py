@@ -77,7 +77,7 @@ class Runner:
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
 
-        use_qp = False
+        use_qp = True
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
                               use_qp=use_qp, dt=dt)
 
