@@ -101,3 +101,128 @@ def vec_to_quat2(v2):
             Q[1:4] = np.cross(u1, u_half)
             Q = Q / np.linalg.norm(Q)
     return Q_inv(Q)
+
+
+# --- from Shuo's quadruped code --- #
+def get_rotation_matrix_from_quaternion(quat):
+    w, x, y, z = quat
+    R = np.array([[2 * (w ** 2 + x ** 2) - 1, 2 * (x * y - w * z), 2 * (x * z + w * y)],
+                  [2 * (x * y + w * z), 2 * (w ** 2 + y ** 2) - 1, 2 * (y * z - w * x)],
+                  [2 * (x * z - w * y), 2 * (y * z + w * x), 2 * (w ** 2 + z ** 2) - 1]])
+    return R
+
+
+def get_rotation_matrix_from_euler(euler):
+    x, y, z = euler
+    Rx = np.array([[1.0, 0.0, 0.0],
+                   [0.0, np.cos(x), -np.sin(x)],
+                   [0.0, np.sin(x), np.cos(x)]])
+    Ry = np.array([[np.cos(y), 0.0, np.sin(y)],
+                   [0.0, 1.0, 0.0],
+                   [-np.sin(y), 0.0, np.cos(y)]])
+    Rz = np.array([[np.cos(z), -np.sin(z), 0.0],
+                   [np.sin(z), np.cos(z), 0.0],
+                   [0.0, 0.0, 1.0]])
+    R = Rz @ Ry @ Rx
+    return R
+
+
+def quaternion_to_euler(quat):
+    w, x, y, z = quat
+    y_sqr = y * y
+
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y_sqr)
+    X = np.arctan2(t0, t1)
+
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    Y = np.arcsin(t2)
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y_sqr + z * z)
+    Z = np.arctan2(t3, t4)
+
+    result = np.zeros(3)
+    result[0] = X
+    result[1] = Y
+    result[2] = Z
+
+    return result
+
+
+def euler_to_quaternion(euler):
+    x, y, z = euler
+    z = z / 2.0
+    y = y / 2.0
+    x = x / 2.0
+    cz = np.cos(z)
+    sz = np.sin(z)
+    cy = np.cos(y)
+    sy = np.sin(y)
+    cx = np.cos(x)
+    sx = np.sin(x)
+    result = np.array([
+        cx * cy * cz - sx * sy * sz,
+        cx * sy * sz + cy * cz * sx,
+        cx * cz * sy - sx * cy * sz,
+        cx * cy * sz + sx * cz * sy])
+    if result[0] < 0:
+        result = -result
+    return result
+
+
+def euler_to_quaternion_order(euler, order):
+    r, p, y = euler
+    y = y / 2.0
+    p = p / 2.0
+    r = r / 2.0
+    c3 = np.cos(y)
+    s3 = np.sin(y)
+    c2 = np.cos(p)
+    s2 = np.sin(p)
+    c1 = np.cos(r)
+    s1 = np.sin(r)
+    if order == 'XYZ':
+        result = np.array([
+            c1 * c2 * c3 - s1 * s2 * s3,
+            s1 * c2 * c3 + c1 * s2 * s3,
+            c1 * s2 * c3 - s1 * c2 * s3,
+            c1 * c2 * s3 + s1 * s2 * c3])
+        return result
+    elif order == 'YXZ':
+        result = np.array([
+            c1 * c2 * c3 + s1 * s2 * s3,
+            s1 * c2 * c3 + c1 * s2 * s3,
+            c1 * s2 * c3 - s1 * c2 * s3,
+            c1 * c2 * s3 - s1 * s2 * c3])
+        return result
+    elif order == 'ZXY':
+        result = np.array([
+            c1 * c2 * c3 - s1 * s2 * s3,
+            s1 * c2 * c3 - c1 * s2 * s3,
+            c1 * s2 * c3 + s1 * c2 * s3,
+            c1 * c2 * s3 + s1 * s2 * c3])
+        return result
+    elif order == 'ZYX':
+        result = np.array([
+            c1 * c2 * c3 + s1 * s2 * s3,
+            s1 * c2 * c3 - c1 * s2 * s3,
+            c1 * s2 * c3 + s1 * c2 * s3,
+            c1 * c2 * s3 - s1 * s2 * c3])
+        return result
+    elif order == 'YZX':
+        result = np.array([
+            c1 * c2 * c3 - s1 * s2 * s3,
+            s1 * c2 * c3 + c1 * s2 * s3,
+            c1 * s2 * c3 + s1 * c2 * s3,
+            c1 * c2 * s3 - s1 * s2 * c3])
+        return result
+    elif order == 'XZY':
+        result = np.array([
+            c1 * c2 * c3 + s1 * s2 * s3,
+            s1 * c2 * c3 - c1 * s2 * s3,
+            c1 * s2 * c3 - s1 * c2 * s3,
+            c1 * c2 * s3 + s1 * s2 * c3])
+        return result
