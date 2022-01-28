@@ -7,7 +7,6 @@ import sympy as sp
 import csv
 import os
 import pickle
-import transforms3d
 
 import calc_parallel
 

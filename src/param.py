@@ -7,12 +7,15 @@ import leg_serial
 import wbc_serial
 import leg_belt
 
+
 design_rw = {
     "model": "design_rw",
     "controllerclass": wbc_parallel,
     "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
-    "urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
+    "csvpath": "res/hopper_rev04/urdf/hopper_rev04.csv",
+    "urdfpath": "res/hopper_rev04/urdf/hopper_rev04.urdf",
+    #"csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
+    #"urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "k": 5000,  # wbc gain
     "k_g": 45,  # inv kin gain

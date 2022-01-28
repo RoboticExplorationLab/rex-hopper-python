@@ -110,7 +110,7 @@ class Gait:
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
-        self.target[0] = -0.08
+        self.target[0] = 0 # -0.08
         if state == 'Return':
             self.controller.update_gains(150, 150 * 0.2)
             self.target[2] = -hconst * 5 / 3

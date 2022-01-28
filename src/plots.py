@@ -88,32 +88,32 @@ def thetaplot(total, hist1, hist2, hist3, hist4, hist5, hist6):
     plt.show()
 
 
-def tauplot(total, hist1, hist2, hist3, hist4, hist5, hist6):
+def tauplot(total, tau0hist, tau2hist, pzhist, fxhist, fzhist, fthist):
 
     fig, axs = plt.subplots(2, 3, sharex='all')
     plt.xlabel("Timesteps")
 
-    axs[0, 0].plot(range(total), hist1, color='blue')
+    axs[0, 0].plot(range(total), tau0hist, color='blue')
     axs[0, 0].set_title('q0 torque')
     axs[0, 0].set_ylabel("q0 torque (Nm)")
 
-    axs[0, 1].plot(range(total), hist2, color='blue')
+    axs[0, 1].plot(range(total), tau2hist, color='blue')
     axs[0, 1].set_title('q1 torque')
     axs[0, 1].set_ylabel("q1 torque (Nm)")
 
-    axs[0, 2].plot(range(total), hist3, color='blue')
+    axs[0, 2].plot(range(total), pzhist, color='blue')
     axs[0, 2].set_title('base z position')
     axs[0, 2].set_ylabel("z position (m)")
 
-    axs[1, 0].plot(range(total), hist4, color='blue')
+    axs[1, 0].plot(range(total), fxhist, color='blue')
     axs[1, 0].set_title('Magnitude of X Reaction Force on joint1')
     axs[1, 0].set_ylabel("Reaction Force Fx, N")
 
-    axs[1, 1].plot(range(total), hist5, color='blue')
+    axs[1, 1].plot(range(total), fzhist, color='blue')
     axs[1, 1].set_title('Magnitude of Z Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
     axs[1, 1].set_ylabel("Reaction Force Fz, N")  # .set_ylabel("angular velocity, rpm")
 
-    axs[1, 2].plot(range(total), hist6, color='blue')
+    axs[1, 2].plot(range(total), fthist, color='blue')
     axs[1, 2].set_title('Flight Time')
     axs[1, 2].set_ylabel("Flight Time, s")
 

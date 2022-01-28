@@ -1,11 +1,9 @@
 """
 Copyright (C) 2020-2021 Benjamin Bokser
 """
-import utils
-
 import numpy as np
-import transforms3d
 
+import utils
 import cqp
 # import qp
 

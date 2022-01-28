@@ -104,15 +104,15 @@ def vec_to_quat2(v2):
 
 
 # --- from Shuo's quadruped code --- #
-def get_rotation_matrix_from_quaternion(quat):
-    w, x, y, z = quat
+def quat2rot(Q):
+    w, x, y, z = Q
     R = np.array([[2 * (w ** 2 + x ** 2) - 1, 2 * (x * y - w * z), 2 * (x * z + w * y)],
                   [2 * (x * y + w * z), 2 * (w ** 2 + y ** 2) - 1, 2 * (y * z - w * x)],
                   [2 * (x * z - w * y), 2 * (y * z + w * x), 2 * (w ** 2 + z ** 2) - 1]])
     return R
 
 
-def get_rotation_matrix_from_euler(euler):
+def euler2rot(euler):
     x, y, z = euler
     Rx = np.array([[1.0, 0.0, 0.0],
                    [0.0, np.cos(x), -np.sin(x)],
@@ -127,7 +127,7 @@ def get_rotation_matrix_from_euler(euler):
     return R
 
 
-def quaternion_to_euler(quat):
+def quat2euler(quat):
     w, x, y, z = quat
     y_sqr = y * y
 
@@ -152,7 +152,7 @@ def quaternion_to_euler(quat):
     return result
 
 
-def euler_to_quaternion(euler):
+def euler2quat(euler):
     x, y, z = euler
     z = z / 2.0
     y = y / 2.0
@@ -173,7 +173,7 @@ def euler_to_quaternion(euler):
     return result
 
 
-def euler_to_quaternion_order(euler, order):
+def euler2quat_order(euler, order):
     r, p, y = euler
     y = y / 2.0
     p = p / 2.0

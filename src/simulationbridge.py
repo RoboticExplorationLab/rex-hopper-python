@@ -110,7 +110,7 @@ class Sim:
         if self.model != 'design_rw':
             vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
-        if self.model == 'design_rw':
+        elif self.model == 'design_rw':
             # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
             jconn_1 = [x * scale for x in [0.135, 0, 0]]
             jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
@@ -174,7 +174,7 @@ class Sim:
         torque = np.zeros(self.numJoints)
         command = np.zeros(self.numJoints)
 
-        if self.model == "design_rw":
+        if self.model == "design_rw" or self.model == "design_rev04":
             command[0] = -u[0]  # readjust to match motor polarity
             command[2] = -u[1]  # readjust to match motor polarity
             q = q_all[0:4]

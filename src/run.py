@@ -61,6 +61,7 @@ print("model = ", args.model)
 print("ctrl = ", args.ctrl)
 print("\n")
 
+
 if args.model == "design_rw":
     model = param.design_rw
 elif args.model == "design":

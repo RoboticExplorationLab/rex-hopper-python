@@ -77,7 +77,7 @@ class Runner:
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
 
-        use_qp = True
+        use_qp = False  # TODO: Change
         self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
                               use_qp=use_qp, dt=dt)
 
@@ -87,6 +87,7 @@ class Runner:
         self.p_ref = np.array([-2, -2, 0])  # desired body pos in world coords
 
     def run(self):
+        total = self.total_run  # number of timesteps to plot
         p_ref = self.p_ref
         steps = 0
         t = 0  # time
@@ -102,10 +103,9 @@ class Runner:
         sh_prev = 0
 
         t_f = 0
-        ft_saved = np.zeros(self.total_run)
+        ft_saved = np.zeros(total)
         i_ft = 0  # flight timer counter
 
-        total = self.total_run  # number of timesteps to plot
         force_f = None
         # force_f = np.zeros((3, 1))
         # force_f[2] = -120
@@ -124,6 +124,8 @@ class Runner:
         thetar = np.zeros(3)
         setp = np.zeros(3)
         x_des_hist = np.zeros((total, 3))
+        fhist = np.zeros((total, 3))
+        fthist = np.zeros(total)
 
         while steps < self.total_run:
             steps += 1
@@ -151,7 +153,7 @@ class Runner:
                 t_l = t  # time of landing
                 t_ft = t_l - t_f  # last flight time
                 if t_ft > 0.1:  # ignore flight times of less than 0.1 second (these are foot bounces)
-                    print(t_ft)
+                    print("flight time = ", t_ft)
                     ft_saved[i_ft] = t_ft  # save flight time to vector
                     i_ft += 1
 
@@ -209,6 +211,8 @@ class Runner:
                 tau0hist[steps - 1] = torque[0]  # self.u[0]
                 tau2hist[steps - 1] = torque[2]  # self.u[1]
                 x_des_hist[steps - 1, :] = self.gait.x_des
+                fhist[steps - 1, :] = f[1, :]
+                fthist[steps - 1] = ft_saved[i_ft]
 
             p_base = self.simulator.base_pos[0]  # base position in world coords
 
@@ -225,5 +229,6 @@ class Runner:
                          setphist[:, 0], setphist[:, 1], setphist[:, 2])
 
             plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
-
+            plots.tauplot(total, tau0hist, tau2hist, pzhist=phist[:, 2], fxhist=fhist[:, 0],
+                          fzhist=fhist[:, 2], fthist=fthist)
         return ft_saved
