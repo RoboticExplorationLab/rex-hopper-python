@@ -63,7 +63,7 @@ class Gait:
         kd_s = [ku_s * 0, -ku_s * 0, ku_s * 0]
         self.pid_vel = pid.PID3(kp=kp_s, ki=ki_s, kd=kd_s)
 
-        self.pid_pdot = pid.PID1(kp=0.6, ki=0.15, kd=0.02)  # kp=0.2, ki=0.01, kd=0
+        self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
 
     def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, qrw_dot, fr):
         # continuous raibert hopping
@@ -71,11 +71,11 @@ class Gait:
         pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)
         # pdot_ref = np.array([0, 0.2, 0])
         hconst = self.hconst
-        self.target[0] = -0.08  # adjustment for balance due to bad mockup design
+        self.target[0] = 0 # -0.08  # adjustment for balance due to bad mockup design
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
-                kr = 0.4 / (np.linalg.norm(pdot_ref) + 2)  # 0.175 "speed cancellation" constant
-                kt = 0.4  # 0.6 gain representing leap period accounting for vertical jump velocity at toe-off
+                kr = 0.3 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
+                kt = 0.4  # 0.4 gain representing leap period accounting for vertical jump velocity at toe-off
                 x_fb = np.zeros(3)
                 x_fb[0:2] = raibert_x(kr, kt, pdot, pdot_ref)  # desired footstep relative to current body CoM
                 self.x_des = x_fb + p  # world frame desired footstep position
@@ -110,7 +110,7 @@ class Gait:
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
-        self.target[0] = 0 # -0.08
+        self.target[0] = 0
         if state == 'Return':
             self.controller.update_gains(150, 150 * 0.2)
             self.target[2] = -hconst * 5 / 3

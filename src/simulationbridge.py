@@ -29,7 +29,7 @@ def spring(q, l):
     L0 = l[0]  # .15
     L2 = l[2]  # .3
     gamma = abs(q2 - q0)
-    rmin = 0.18  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
+    rmin = 0.177  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
     r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
     # print("r = ", r, " and rmin = ", rmin)
     if r < rmin:
@@ -97,7 +97,7 @@ class Sim:
         self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7*scale],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
-
+        # p.resetDebugVisualizerCamera(cameraDistance=1.5, cameraYaw=45, cameraPitch=-45, cameraTargetPosition=[0,0,0])
         self.jointArray = range(p.getNumJoints(self.bot))
         p.setGravity(0, 0, GRAVITY)
         p.setTimeStep(self.dt)

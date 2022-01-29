@@ -84,7 +84,7 @@ class Runner:
         # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
 
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
-        self.p_ref = np.array([-2, -2, 0])  # desired body pos in world coords
+        self.p_ref = np.array([2, 0, 0])  # desired body pos in world coords
 
     def run(self):
         total = self.total_run  # number of timesteps to plot
@@ -227,7 +227,6 @@ class Runner:
                          rw1hist, rw2hist, rwzhist,
                          w1hist, w2hist, w3hist,
                          setphist[:, 0], setphist[:, 1], setphist[:, 2])
-
             plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
             plots.tauplot(total, tau0hist, tau2hist, pzhist=phist[:, 2], fxhist=fhist[:, 0],
                           fzhist=fhist[:, 2], fthist=fthist)

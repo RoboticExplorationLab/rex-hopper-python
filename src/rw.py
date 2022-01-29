@@ -26,7 +26,7 @@ def rw_control(pid_torque, pid_vel, Q_ref, Q_base, qrw_dot):
 
     ref_1 = z_rotate(Q_ref, a)
     ref_2 = z_rotate(Q_ref, b)
-    setp = np.array([ref_1 + 2.9 * np.pi / 180, ref_2 - 2.9 * np.pi / 180, 0])
+    setp = np.array([ref_1 + 0.25 * np.pi / 180, ref_2 - 0.25 * np.pi / 180, 0])
     # setp = np.array([ref_1 - 4 * np.pi / 180, ref_2 + 4 * np.pi / 180, 0])
 
     theta_1 = z_rotate(Q_base, a)
