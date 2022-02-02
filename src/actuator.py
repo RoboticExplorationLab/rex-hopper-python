@@ -18,6 +18,11 @@ class Actuator:
         # r = (v_max ** 2) / (omega_max * tau_stall)
         self.r = self.kt_m * self.v_max / tau_stall
 
+        # predicted final current and voltage of the motor
+        self.i_actual = 0
+        self.v_actual = 0
+
+
     def actuate(self, i, q_dot):
         """
         Motor Dynamics
@@ -36,10 +41,12 @@ class Actuator:
         tau_max_m = (- omega * (kt_m ** 2) + v * kt_m) / r  # max motor torque for given speed
         tau_min_m = (- omega * (kt_m ** 2) - v * kt_m) / r  # min motor torque for given speed
         if tau_max_m >= tau_min_m:
-            tau_m = np.clip(tau_m, tau_min_m, tau_max_m) # np.clip(tau_m, -abs(tau_max_m), abs(tau_max_m))
+            tau_m = np.clip(tau_m, tau_min_m, tau_max_m)  # np.clip(tau_m, -abs(tau_max_m), abs(tau_max_m))
         else:
             tau_m = np.clip(tau_m, tau_max_m, tau_min_m)
         tau_m = np.clip(tau_m, -tau_stall, tau_stall)  # enforce max motor torque
+        self.i_actual = tau_m / kt_m
+        self.v_actual = kt_m * omega + self.i_actual * r
         return tau_m * gr_out  # actuator output torque
 
     def actuate_sat(self, i, q_dot):

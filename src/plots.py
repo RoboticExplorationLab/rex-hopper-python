@@ -120,6 +120,84 @@ def tauplot(total, tau0hist, tau2hist, pzhist, fxhist, fzhist, fthist):
     plt.show()
 
 
+def electrplot(total, q0ahist, q1ahist, rw1ahist, rw2ahist, rwzahist, q0vhist, q1vhist, rw1vhist, rw2vhist, rwzvhist):
+
+    fig, axs = plt.subplots(2, 5, sharex='all')
+    plt.xlabel("Timesteps")
+
+    axs[0, 0].plot(range(total), q0ahist, color='blue')
+    axs[0, 0].set_title('q0 current')
+    axs[0, 0].set_ylabel("current (A)")
+
+    axs[0, 1].plot(range(total), q1ahist, color='blue')
+    axs[0, 1].set_title('q1 current')
+    axs[0, 1].set_ylabel("current (A)")
+
+    axs[0, 2].plot(range(total), rw1ahist, color='blue')
+    axs[0, 2].set_title('rw1 current')
+    axs[0, 2].set_ylabel("current (A)")
+
+    axs[0, 3].plot(range(total), rw2ahist, color='blue')
+    axs[0, 3].set_title('rw2 current')
+    axs[0, 3].set_ylabel("current (A)")
+
+    axs[0, 4].plot(range(total), rwzahist, color='blue')
+    axs[0, 4].set_title('rwz current')
+    axs[0, 4].set_ylabel("current (A)")
+
+    axs[1, 0].plot(range(total), q0vhist, color='blue')
+    axs[1, 0].set_title('q0 voltage')
+    axs[1, 0].set_ylabel("voltage (V)")
+
+    axs[1, 1].plot(range(total), q1vhist, color='blue')
+    axs[1, 1].set_title('q1 voltage')
+    axs[1, 1].set_ylabel("voltage (V)")
+
+    axs[1, 2].plot(range(total), rw1vhist, color='blue')
+    axs[1, 2].set_title('rw1 voltage')
+    axs[1, 2].set_ylabel("voltage (V)")
+
+    axs[1, 3].plot(range(total), rw2vhist, color='blue')
+    axs[1, 3].set_title('rw2 voltage')
+    axs[1, 3].set_ylabel("voltage (V)")
+
+    axs[1, 4].plot(range(total), rwzvhist, color='blue')
+    axs[1, 4].set_title('rwz voltage')
+    axs[1, 4].set_ylabel("voltage (V)")
+
+    plt.show()
+
+
+def electrtotalplot(total, q0ahist, q1ahist, rw1ahist, rw2ahist, rwzahist,
+                    q0vhist, q1vhist, rw1vhist, rw2vhist, rwzvhist):
+    ahist = np.sum([q0ahist, q1ahist, rw1ahist, rw2ahist, rwzahist])
+    vhist = np.sum([q0vhist, q1vhist, rw1vhist, rw2vhist, rwzvhist])
+    powerhist = np.multiply(ahist, vhist)
+
+    fig, axs = plt.subplots(3, 1, sharex='all')
+    plt.xlabel("Timesteps")
+
+    axs[0].plot(range(total), q0ahist, color='blue')
+    axs[0].set_title('total current')
+    axs[0].set_ylabel("current (A)")
+
+    print("Mean current draw is ", np.mean(ahist), " A")
+    print("Peak current draw is ", np.amax(ahist), " A")
+
+    axs[1].plot(range(total), q1ahist, color='blue')
+    axs[1].set_title('total voltage')
+    axs[1].set_ylabel("voltage (V)")
+
+    axs[1].plot(range(total), q1ahist, color='blue')
+    axs[1].set_title('total power')
+    axs[1].set_ylabel("power (W)")
+
+    print("Mean power draw is ", np.mean(powerhist), " W")
+    print("Peak power draw is ", np.amax(powerhist), " W")
+
+    plt.show()
+
+
 def posplot(p_ref, phist, xfhist):
 
     plt.plot(phist[:, 0], phist[:, 1], color='blue', label='body position')
