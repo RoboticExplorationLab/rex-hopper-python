@@ -22,7 +22,6 @@ class Actuator:
         self.i_actual = 0
         self.v_actual = 0
 
-
     def actuate(self, i, q_dot):
         """
         Motor Dynamics
@@ -46,7 +45,7 @@ class Actuator:
             tau_m = np.clip(tau_m, tau_max_m, tau_min_m)
         tau_m = np.clip(tau_m, -tau_stall, tau_stall)  # enforce max motor torque
         self.i_actual = tau_m / kt_m
-        self.v_actual = kt_m * omega + self.i_actual * r
+        self.v_actual = kt_m * np.clip(omega, -self.omega_max, self.omega_max) + self.i_actual * r
         return tau_m * gr_out  # actuator output torque
 
     def actuate_sat(self, i, q_dot):
