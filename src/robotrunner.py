@@ -126,16 +126,16 @@ class Runner:
         x_des_hist = np.zeros((total, 3))
         fhist = np.zeros((total, 3))
         fthist = np.zeros(total)
-        q0ahist = np.zeros(total)
-        q2ahist = np.zeros(total)
-        rw1ahist = np.zeros(total)
-        rw2ahist = np.zeros(total)
-        rwzahist = np.zeros(total)
-        q0vhist = np.zeros(total)
-        q2vhist = np.zeros(total)
-        rw1vhist = np.zeros(total)
-        rw2vhist = np.zeros(total)
-        rwzvhist = np.zeros(total)
+        q0ahist = np.zeros((total, 2))
+        q2ahist = np.zeros((total, 2))
+        rw1ahist = np.zeros((total, 2))
+        rw2ahist = np.zeros((total, 2))
+        rwzahist = np.zeros((total, 2))
+        q0vhist = np.zeros((total, 2))
+        q2vhist = np.zeros((total, 2))
+        rw1vhist = np.zeros((total, 2))
+        rw2vhist = np.zeros((total, 2))
+        rwzvhist = np.zeros((total, 2))
 
         while steps < self.total_run:
             steps += 1
@@ -223,16 +223,16 @@ class Runner:
                 x_des_hist[steps - 1, :] = self.gait.x_des
                 fhist[steps - 1, :] = f[1, :]
                 fthist[steps - 1] = ft_saved[i_ft]
-                q0ahist[steps - 1] = self.simulator.actuator_q0.i_actual
-                q2ahist[steps - 1] = self.simulator.actuator_q2.i_actual
-                rw1ahist[steps - 1 ] = self.simulator.actuator_rw1.i_actual
-                rw2ahist[steps - 1] = self.simulator.actuator_rw2.i_actual
-                rwzahist[steps - 1] = self.simulator.actuator_rwz.i_actual
-                q0vhist[steps - 1] = self.simulator.actuator_q0.v_actual
-                q2vhist[steps - 1] = self.simulator.actuator_q2.v_actual
-                rw1vhist[steps - 1] = self.simulator.actuator_rw1.v_actual
-                rw2vhist[steps - 1] = self.simulator.actuator_rw2.v_actual
-                rwzvhist[steps - 1] = self.simulator.actuator_rwz.v_actual
+                q0ahist[steps - 1, :] = self.simulator.actuator_q0.i_actual
+                q2ahist[steps - 1, :] = self.simulator.actuator_q2.i_actual
+                rw1ahist[steps - 1, :] = self.simulator.actuator_rw1.i_actual
+                rw2ahist[steps - 1, :] = self.simulator.actuator_rw2.i_actual
+                rwzahist[steps - 1, :] = self.simulator.actuator_rwz.i_actual
+                q0vhist[steps - 1, :] = self.simulator.actuator_q0.v_actual
+                q2vhist[steps - 1, :] = self.simulator.actuator_q2.v_actual
+                rw1vhist[steps - 1, :] = self.simulator.actuator_rw1.v_actual
+                rw2vhist[steps - 1, :] = self.simulator.actuator_rw2.v_actual
+                rwzvhist[steps - 1, :] = self.simulator.actuator_rwz.v_actual
 
             p_base = self.simulator.base_pos[0]  # base position in world coords
 
@@ -253,5 +253,5 @@ class Runner:
             plots.electrplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
                              q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist)
             plots.electrtotalplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
-                                  q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist)
+                                  q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist, dt=self.dt)
         return ft_saved

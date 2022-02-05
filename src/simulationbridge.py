@@ -29,7 +29,7 @@ def spring(q, l):
     L0 = l[0]  # .15
     L2 = l[2]  # .3
     gamma = abs(q2 - q0)
-    rmin = 0.177  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
+    rmin = 0.176  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
     r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
     # print("r = ", r, " and rmin = ", rmin)
     if r < rmin:
@@ -67,13 +67,18 @@ class Sim:
         self.dir_s = model["springpolarity"]
 
         omega_max_x10 = 190 * 7 * (2 * np.pi / 60)
-        self.actuator_q0 = actuator.Actuator(i_max=13, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
-        self.actuator_q2 = actuator.Actuator(i_max=13, gr_out=7, tau_stall=50 / 7, omega_max=omega_max_x10)
+        self.actuator_q0 = actuator.Actuator(dt=dt, i_max=13, gr_out=7, tau_stall=50 / 7,
+                                             omega_max=omega_max_x10, kt=8.4/36)
+        self.actuator_q2 = actuator.Actuator(dt=dt, i_max=13, gr_out=7, tau_stall=50 / 7,
+                                             omega_max=omega_max_x10, kt=8.4/36)
         omega_max_ea110 = 3490 * (2 * np.pi / 60)
-        self.actuator_rw1 = actuator.Actuator(i_max=92.5, gr_out=1, tau_stall=11.24, omega_max=omega_max_ea110)
-        self.actuator_rw2 = actuator.Actuator(i_max=92.5, gr_out=1, tau_stall=11.24, omega_max=omega_max_ea110)
+        self.actuator_rw1 = actuator.Actuator(dt=dt, i_max=92.5, gr_out=1, tau_stall=11.24,
+                                              omega_max=omega_max_ea110, kt=8.4/100)
+        self.actuator_rw2 = actuator.Actuator(dt=dt, i_max=92.5, gr_out=1, tau_stall=11.24,
+                                              omega_max=omega_max_ea110, kt=8.4/100)
         omega_max_8318 = 3840 * (2 * np.pi / 60)
-        self.actuator_rwz = actuator.Actuator(i_max=57, gr_out=1, tau_stall=4.71, omega_max=omega_max_8318)
+        self.actuator_rwz = actuator.Actuator(dt=dt, i_max=57, gr_out=1, tau_stall=4.71,
+                                              omega_max=omega_max_8318, kt=8.4/100)
         # omega_max_u8 = 3700 * (2 * np.pi / 60)
         # self.actuator_u8 = actuator.Actuator(i_max=31, gr_out=1, tau_stall=2.8, omega_max=omega_max_u8)
 

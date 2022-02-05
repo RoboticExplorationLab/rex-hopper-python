@@ -2,8 +2,9 @@ import actuator
 import numpy as np
 import matplotlib.pyplot as plt
 
-def test(i_max, omega_max, tau_stall, gr_out, q_dot_max):
-    motor_test = actuator.Actuator(i_max=i_max, gr_out=gr_out, tau_stall=tau_stall, omega_max=omega_max)
+
+def test(dt, i_max, omega_max, tau_stall, gr_out, q_dot_max, kt):
+    motor_test = actuator.Actuator(dt=dt, i_max=i_max, gr_out=gr_out, tau_stall=tau_stall, omega_max=omega_max, kt=kt)
     v_max = motor_test.v_max
     print("omega_max = ", motor_test.omega_max)
     print("v_max = ", v_max)
@@ -33,11 +34,13 @@ def test(i_max, omega_max, tau_stall, gr_out, q_dot_max):
     plt.show()
     return None
 
+
 # RMD-X10
-# omega_max = 190 * 7 * (2 * np.pi / 60)
-# gr_out = 7
-# test(i_max=13, omega_max=omega_max, tau_stall=50 / 7, gr_out=gr_out, q_dot_max=omega_max / gr_out * 4)
+gr_out = 7
+omega_max = 190 * gr_out * (2 * np.pi / 60)
+test(dt=1/1000, i_max=13, omega_max=omega_max, tau_stall=50 / 7, gr_out=gr_out, q_dot_max=omega_max / gr_out * 4,
+     kt=8.4/36)
 
 # EA110 100KV
 omega_max = 3490 * (2 * np.pi / 60)
-test(i_max=92.5, omega_max=omega_max, tau_stall=11.24, gr_out=1, q_dot_max=omega_max * 4)
+test(dt=1/1000, i_max=92.5, omega_max=omega_max, tau_stall=11.24, gr_out=1, q_dot_max=omega_max * 4, kt=8.4/100)
