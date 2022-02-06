@@ -2,21 +2,21 @@ import numpy as np
 
 
 class Actuator:
-    def __init__(self, dt, i_max, gr_out, tau_stall, omega_max, kt, **kwargs):
+    def __init__(self, dt, i_max, gr_out, tau_stall, omega_max, kt=None, r=None, **kwargs):
         """
         gr_out = gear ratio of output
         """
         self.i_max = i_max
         self.gr_out = gr_out
         self.tau_stall = tau_stall
-        self.omega_max = omega_max  # 192 * 7 * (2 * np.pi / 60)  # rated speed, rpm to radians/s
-        # self.kt_m = tau_stall * r / (v_max*gr)  # torque constant of the motor, Nm/amp. == v_max/omega_max
-        self.kt_m = kt  # tau_stall / i_max  # 3.85 / 7
-        # self.kt_m = self.v_max/omega_max
         self.v_max = 48  # omega_max * self.kt_m  # absolute maximum
-        # self.omega_max = self.v_max / self.kt_m
+        self.omega_max = omega_max  # rated speed, rpm to radians/s
+        # self.kt_m = tau_stall / i_max if kt is None else kt  # 3.85 / 7
+        # self.kt_m = tau_stall * r / (v_max*gr)  # torque constant of the motor, Nm/amp. == v_max/omega_max
+        self.kt_m = self.v_max/omega_max if kt is None else kt
+        # self.omega_max = self.v_max / self.kt_m if omega_max is None else omega_max  # rated speed, rpm to radians/s
+        self.r = (self.v_max ** 2) / (omega_max * tau_stall) if r is None else r
         # r = (v_max ** 2) / (omega_max * tau_stall)
-        self.r = self.kt_m * self.v_max / tau_stall
 
         # predicted final current and voltage of the motor
         self.i_actual = np.zeros(2)
@@ -54,13 +54,10 @@ class Actuator:
             tau_m = np.clip(tau_m, tau_max_m, tau_min_m)
         tau_m = np.clip(tau_m, -tau_stall, tau_stall)  # enforce max motor torque
 
-        i_actual_in = abs(tau_m / kt_m)  # abs(np.clip(i, -self.i_max, self.i_max))
-        i_actual_backemf = 0  # abs(tau_m / kt_m - i_actual_in)
-        self.i_actual = np.array([i_actual_in.reshape(1), i_actual_backemf]).flatten()
-
-        v_actual_in = abs(i_actual_in * r + kt_m * omega)
-        v_actual_backemf = 0  # abs(kt_m * omega)  # np.clip(omega, -self.omega_max, self.omega_max))
-        self.v_actual = np.array([v_actual_in.reshape(1), v_actual_backemf]).flatten()
+        self.i_actual = abs(tau_m / kt_m)
+        v_actual_in = abs(self.i_actual * r)
+        v_actual_backemf = abs(kt_m * np.clip(omega, -self.omega_max, self.omega_max))
+        self.v_actual = np.array([v_actual_in, v_actual_backemf]).flatten()
 
         return tau_m * gr_out  # actuator output torque
 
