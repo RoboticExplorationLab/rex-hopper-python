@@ -9,6 +9,7 @@ import pybullet_data
 import os
 
 import actuator
+import actuator_param
 
 useRealTime = 0  # Do NOT change to real time
 
@@ -66,21 +67,11 @@ class Sim:
         self.L = model["linklengths"]
         self.dir_s = model["springpolarity"]
 
-        omega_max_x10 = 190 * 7 * (2 * np.pi / 60)
-        self.actuator_q0 = actuator.Actuator(dt=dt, i_max=13, gr_out=7, tau_stall=50 / 7,
-                                             omega_max=omega_max_x10, kt=8.4/36)
-        self.actuator_q2 = actuator.Actuator(dt=dt, i_max=13, gr_out=7, tau_stall=50 / 7,
-                                             omega_max=omega_max_x10, kt=8.4/36)
-        omega_max_ea110 = 3490 * (2 * np.pi / 60)
-        self.actuator_rw1 = actuator.Actuator(dt=dt, i_max=92.5, gr_out=1, tau_stall=11.24,
-                                              omega_max=omega_max_ea110, kt=8.4/100)
-        self.actuator_rw2 = actuator.Actuator(dt=dt, i_max=92.5, gr_out=1, tau_stall=11.24,
-                                              omega_max=omega_max_ea110, kt=8.4/100)
-        omega_max_8318 = 3840 * (2 * np.pi / 60)
-        self.actuator_rwz = actuator.Actuator(dt=dt, i_max=57, gr_out=1, tau_stall=4.71,
-                                              omega_max=omega_max_8318, kt=8.4/100)
-        # omega_max_u8 = 3700 * (2 * np.pi / 60)
-        # self.actuator_u8 = actuator.Actuator(i_max=31, gr_out=1, tau_stall=2.8, omega_max=omega_max_u8)
+        self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
+        self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
+        self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
+        self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
+        self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
 
         if gravoff == True:
             GRAVITY = 0

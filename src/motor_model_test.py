@@ -1,20 +1,28 @@
-import actuator
+"""
+Copyright (C) 2022 Benjamin Bokser
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 
+import actuator
+import actuator_param
 
-def test(dt, i_max, omega_max, tau_stall, gr_out, kt=None, r=None, verbose=False):
 
-    motor_test = actuator.Actuator(dt=dt, i_max=i_max, gr_out=gr_out,
-                                   tau_stall=tau_stall, omega_max=omega_max, kt=kt, r=r)
-    print("omega_max = ", omega_max)
-    print("theoretical kt = ", motor_test.v_max/omega_max)
-    print("input kt = ", motor_test.kt_m)
-    print("theoretical r = ", (motor_test.v_max ** 2) / (omega_max * tau_stall))
+def test(dt, model, verbose=False):
+
+    motor_test = actuator.Actuator(dt=dt, model=model)
+    
+    print("calculated omega_max = ", motor_test.omega_max)
+    print("input kt = ", motor_test.kt)
     print("input r = ", motor_test.r)
+    print("calculated tau_max = ", motor_test.tau_max)
+    gr = model["gr"]
+    omega_max = motor_test.omega_max
+    i_max = motor_test.i_max
 
     n = 200
-    q_dot_max = omega_max / gr_out * 3
+    q_dot_max = omega_max / gr * 3
     tau = np.zeros((n, n))
     q_dot_k = np.zeros(n)
 
@@ -43,19 +51,18 @@ def test(dt, i_max, omega_max, tau_stall, gr_out, kt=None, r=None, verbose=False
     return None
 
 
-# RMD-X10
-print("RMD-X10")
-gr_out = 7
-omega_max = 250 * gr_out * (2 * np.pi / 60)
-test(dt=1/1000, i_max=13, omega_max=omega_max, tau_stall=50 / gr_out, gr_out=gr_out) # , kt=1.73/gr_out, r=0.3)
+model = actuator_param.actuator_rmdx10
+print(model["name"])
+test(dt=1/1000, model=model)
 print("\n")
-# EA110 100KV
-print("EA110-100KV")
-omega_max = 3490 * (2 * np.pi / 60)
-test(dt=1/1000, i_max=92.5, omega_max=omega_max, tau_stall=11.24, gr_out=1) # , kt=8.4/100, r=33/1000)
+
+model = actuator_param.actuator_ea110
+print(model["name"])
+test(dt=1/1000, model=model)
 print("\n")
-# EA110 100KV
-print("R100-90KV")
-omega_max = 3800 * (2 * np.pi / 60)
-test(dt=1/1000, i_max=104, omega_max=omega_max, tau_stall=11, gr_out=1) #, kt=0.106, r=51/1000)
+
+model = actuator_param.actuator_r10090kv
+print(model["name"])
+test(dt=1/1000, model=model)
+print("\n")
 
