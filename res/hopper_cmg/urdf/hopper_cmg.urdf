@@ -1,0 +1,756 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.5.1-0-g916b5db  Build Version: 1.5.7152.31018
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="hopper_cmg">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.00261236318523849 0.000103468728137993 0.0225006879651919"
+        rpy="0 0 0" />
+      <mass
+        value="4.33217212737128" />
+      <inertia
+        ixx="0.00375815398192548"
+        ixy="-3.22398991975807E-06"
+        ixz="5.54302878597224E-05"
+        iyy="0.00602760648550053"
+        iyz="8.35762984194489E-06"
+        izz="0.00485347608415349" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.898039215686275 0.898039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="Link 0">
+    <inertial>
+      <origin
+        xyz="0.0121851264299085 0.0180889013941849 0.00112690392742547"
+        rpy="0 0 0" />
+      <mass
+        value="0.256385566503952" />
+      <inertia
+        ixx="3.84650100874964E-05"
+        ixy="1.5379784060096E-05"
+        ixz="-8.48318798628567E-06"
+        iyy="0.00017263374747093"
+        iyz="1.08260201375488E-06"
+        izz="0.000148822440720501" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 0.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.898039215686275 0.898039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 0.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 0"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0.5235987755983 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="Link 0" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link 1">
+    <inertial>
+      <origin
+        xyz="0.133101645966311 0.0065299836527158 -1.77401572598601E-09"
+        rpy="0 0 0" />
+      <mass
+        value="0.0631473819780702" />
+      <inertia
+        ixx="2.55548531328561E-06"
+        ixy="6.97718053269074E-12"
+        ixz="-1.4360015064691E-12"
+        iyy="0.000104301911822778"
+        iyz="7.22908067855875E-12"
+        izz="0.000104301119173831" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.776470588235294 0.756862745098039 0.737254901960784 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 1"
+    type="revolute">
+    <origin
+      xyz="0.0999999999999999 0 0"
+      rpy="-3.14159265358979 1.0768315178335 -3.14159265358979" />
+    <parent
+      link="Link 0" />
+    <child
+      link="Link 1" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.7597"
+      upper="1.8295"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link 2">
+    <inertial>
+      <origin
+        xyz="0.0389032293637952 -0.0169313660252965 -0.000627148519961443"
+        rpy="0 0 0" />
+      <mass
+        value="0.288845046277886" />
+      <inertia
+        ixx="3.46488303623413E-05"
+        ixy="-3.2595892889737E-07"
+        ixz="5.24928685528963E-06"
+        iyy="0.000245584747760095"
+        iyz="3.01080375580464E-08"
+        izz="0.000226676363063251" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.898039215686275 0.898039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 2"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="3.14159265358979 0.553232742319403 -3.14159265358979" />
+    <parent
+      link="base_link" />
+    <child
+      link="Link 2" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="Link 3">
+    <inertial>
+      <origin
+        xyz="0.101438168501981 -0.00251001080605991 -0.014853286013961"
+        rpy="0 0 0" />
+      <mass
+        value="0.124857600403456" />
+      <inertia
+        ixx="1.60742533911176E-05"
+        ixy="-5.54606458180708E-07"
+        ixz="1.00368234247389E-06"
+        iyy="0.000116506434480003"
+        iyz="1.07130354027135E-07"
+        izz="0.000112946753756388" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/Link 3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Joint 3"
+    type="revolute">
+    <origin
+      xyz="0.270000000042219 0 0"
+      rpy="-3.14159265358979 -1.07683151743819 3.14159265358979" />
+    <parent
+      link="Link 2" />
+    <child
+      link="Link 3" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-1.8295"
+      upper="0.7597"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="gimbal0">
+    <inertial>
+      <origin
+        xyz="-3.24439967698958E-05 -0.00476693417491843 -1.47004711936322E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.145059153810549" />
+      <inertia
+        ixx="2.16270334418995E-05"
+        ixy="-3.5112429981254E-08"
+        ixz="-1.74609413517041E-09"
+        iyy="2.68084572591952E-05"
+        iyz="-1.59653002769902E-08"
+        izz="1.56100554784467E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal0.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal0.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_gimbal0"
+    type="fixed">
+    <origin
+      xyz="0.0200818325856985 -0.143506009999232 0.0469999999999983"
+      rpy="1.5707963267949 0 0.785398163397444" />
+    <parent
+      link="base_link" />
+    <child
+      link="gimbal0" />
+    <axis
+      xyz="0.707106781186545 0 -0.70710678118655" />
+  </joint>
+  <link
+    name="rw0">
+    <inertial>
+      <origin
+        xyz="-1.37939491051675E-07 -0.009459272109353 -1.05271875022739E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0987820774247233" />
+      <inertia
+        ixx="5.9232902387301E-05"
+        ixy="-8.72494565429382E-11"
+        ixz="-1.38955720649882E-12"
+        iyy="0.000115069019848817"
+        iyz="-7.3188655456447E-11"
+        izz="5.92328339979813E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw0.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.647058823529412 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw0.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_rw0"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="0 -0.834873615401156 3.14159265358979" />
+    <parent
+      link="gimbal0" />
+    <child
+      link="rw0" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="gimbal1">
+    <inertial>
+      <origin
+        xyz="-3.41130508157289E-05 -0.00476693457280208 1.02508103360238E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.145059160959023" />
+      <inertia
+        ixx="2.16762455646179E-05"
+        ixy="-3.69555052598344E-08"
+        ixz="5.81578374244821E-08"
+        iyy="2.68084600740621E-05"
+        iyz="1.1052036908392E-08"
+        izz="1.55608473369791E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_gimbal1"
+    type="fixed">
+    <origin
+      xyz="0.104934646328085 -0.058653196256847 0.0469999999999984"
+      rpy="1.5707963267949 0 0.785398163397444" />
+    <parent
+      link="base_link" />
+    <child
+      link="gimbal1" />
+    <axis
+      xyz="-0.707106781186544 0 0.707106781186551" />
+  </joint>
+  <link
+    name="rw1">
+    <inertial>
+      <origin
+        xyz="1.05271873641899E-07 -0.00945927210935277 -1.37939493688455E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0987820774247232" />
+      <inertia
+        ixx="5.92328339979811E-05"
+        ixy="7.31886554488849E-11"
+        ixz="1.38955721454563E-12"
+        iyy="0.000115069019848817"
+        iyz="-8.72494565285255E-11"
+        izz="5.92329023873008E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.647058823529412 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_rw1"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0.0185983080019021 3.14159265358979" />
+    <parent
+      link="gimbal1" />
+    <child
+      link="rw1" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="rwz">
+    <inertial>
+      <origin
+        xyz="9.05342964485634E-09 -3.1638361375208E-10 -0.0146079871766007"
+        rpy="0 0 0" />
+      <mass
+        value="0.377854494953541" />
+      <inertia
+        ixx="0.000300958121757203"
+        ixy="-4.23471734024503E-12"
+        ixz="-6.67153439225596E-12"
+        iyy="0.000300957997312782"
+        iyz="9.55842433400722E-14"
+        izz="0.000578115934214614" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rwz.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.647058823529412 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rwz.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_rwz"
+    type="continuous">
+    <origin
+      xyz="-0.076 0 0.0991000000000001"
+      rpy="0 0 -2.35619449019233" />
+    <parent
+      link="base_link" />
+    <child
+      link="rwz" />
+    <axis
+      xyz="0 0 1" />
+  </joint>
+  <link
+    name="gimbal2">
+    <inertial>
+      <origin
+        xyz="-3.24439967699305E-05 -0.00476693417491843 -1.47004711935766E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.145059153810549" />
+      <inertia
+        ixx="2.16270334418995E-05"
+        ixy="-3.5112429981238E-08"
+        ixz="-1.74609413518481E-09"
+        iyy="2.68084572591951E-05"
+        iyz="-1.5965300276996E-08"
+        izz="1.56100554784467E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_gimbal2"
+    type="fixed">
+    <origin
+      xyz="0.104934646328084 0.058653196256847 0.0470000000000001"
+      rpy="1.5707963267949 0 2.35619449019235" />
+    <parent
+      link="base_link" />
+    <child
+      link="gimbal2" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="rw2">
+    <inertial>
+      <origin
+        xyz="-1.37939491121064E-07 -0.00945927210935297 -1.05271875293356E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0987820774247234" />
+      <inertia
+        ixx="5.9232902387301E-05"
+        ixy="-8.72494564534164E-11"
+        ixz="-1.38955719675794E-12"
+        iyy="0.000115069019848817"
+        iyz="-7.31886538986355E-11"
+        izz="5.92328339979813E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.647058823529412 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_rw2"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="0 -0.834873615401156 3.14159265358979" />
+    <parent
+      link="gimbal2" />
+    <child
+      link="rw2" />
+    <axis
+      xyz="0 1 0" />
+  </joint>
+  <link
+    name="gimbal3">
+    <inertial>
+      <origin
+        xyz="-3.41130091143643E-05 -0.00476693456543522 1.02508109800087E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.145059160100867" />
+      <inertia
+        ixx="2.16762455706335E-05"
+        ixy="-3.69554946688773E-08"
+        ixz="5.81578377267636E-08"
+        iyy="2.68084600312876E-05"
+        iyz="1.10520332051306E-08"
+        izz="1.55608472953775E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/gimbal3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_gimbal3"
+    type="fixed">
+    <origin
+      xyz="0.0200818325856976 0.143506009999232 0.047"
+      rpy="1.5707963267949 0 2.35619449019235" />
+    <parent
+      link="base_link" />
+    <child
+      link="gimbal3" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="rw3">
+    <inertial>
+      <origin
+        xyz="0.00945927210935301 1.05271875036617E-07 -1.37939491051675E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0987820774247234" />
+      <inertia
+        ixx="0.000115069019848817"
+        ixy="-7.31886555445307E-11"
+        ixz="8.72494564434813E-11"
+        iyy="5.92328339979811E-05"
+        iyz="1.38955724334475E-12"
+        izz="5.92329023873009E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.898039215686275 0.898039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://hopper_cmg/meshes/rw3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint_rw3"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="-0.018598308001901 0 1.5707963267949" />
+    <parent
+      link="gimbal3" />
+    <child
+      link="rw3" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+</robot>
