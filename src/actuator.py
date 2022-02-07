@@ -8,7 +8,7 @@ class Actuator:
         """
         self.v_max = 48  # omega_max * self.kt  # absolute maximum
         self.gr = model["gr"]
-        basis = "vel"
+        basis = "ele"
 
         if basis == "ele":
             self.i_max = model["i_max"]
@@ -19,17 +19,17 @@ class Actuator:
 
         elif basis == "tau":
             self.i_max = model["i_max"]
-            tau_stall = model["tau_stall"]
+            self.tau_max = model["tau_max"]
             self.omega_max = model["omega_max"]
-            self.kt = tau_stall / self.i_max  # self.v_max/self.omega_max
-            self.r = self.kt * self.v_max / tau_stall  # (v_max ** 2) / (omega_max * tau_stall)
-            self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
+            self.kt = self.tau_max / self.i_max  # self.v_max/self.omega_max
+            self.r = self.kt * self.v_max / self.tau_max  # (v_max ** 2) / (omega_max * tau_max)
+            # self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
 
         elif basis == "vel":
             self.i_max = model["i_max"]
-            tau_stall = model["tau_stall"]
+            tau_max = model["tau_max"]
             self.omega_max = model["omega_max"]
-            self.r = (self.v_max ** 2) / (self.omega_max * tau_stall)
+            self.r = (self.v_max ** 2) / (self.omega_max * tau_max)
             self.kt = self.v_max/self.omega_max
             self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
 
@@ -53,7 +53,7 @@ class Actuator:
         """
         v_max = self.v_max
         gr = self.gr
-        # tau_stall = self.tau_stall
+        # tau_max = self.tau_max
         tau_max = self.tau_max
         kt = self.kt
         r = self.r
@@ -75,7 +75,7 @@ class Actuator:
         tau_m = np.clip(tau_m, -tau_max, tau_max)  # enforce max motor torque
 
         self.i_actual = abs(tau_m / kt)
-        v_actual_in = abs(self.i_actual * r)
+        v_actual_in = abs(self.i_actual * r + kt * np.clip(omega, -self.omega_max, self.omega_max))
         v_actual_backemf = abs(kt * np.clip(omega, -self.omega_max, self.omega_max))
         self.v_actual = np.array([v_actual_in, v_actual_backemf]).flatten()
 

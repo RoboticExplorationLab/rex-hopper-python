@@ -13,16 +13,16 @@ def test(dt, model, verbose=False):
 
     motor_test = actuator.Actuator(dt=dt, model=model)
     
-    print("calculated omega_max = ", motor_test.omega_max)
-    print("input kt = ", motor_test.kt)
-    print("input r = ", motor_test.r)
-    print("calculated tau_max = ", motor_test.tau_max)
+    print("omega_max = ", motor_test.omega_max)
+    print("kt = ", motor_test.kt)
+    print("r = ", motor_test.r)
+    print("tau_max (before gearing) = ", motor_test.tau_max)
     gr = model["gr"]
     omega_max = motor_test.omega_max
     i_max = motor_test.i_max
 
     n = 200
-    q_dot_max = omega_max / gr * 3
+    q_dot_max = omega_max / gr * 1.2
     tau = np.zeros((n, n))
     q_dot_k = np.zeros(n)
 
@@ -51,17 +51,7 @@ def test(dt, model, verbose=False):
     return None
 
 
-model = actuator_param.actuator_rmdx10
-print(model["name"])
-test(dt=1/1000, model=model)
-print("\n")
-
-model = actuator_param.actuator_ea110
-print(model["name"])
-test(dt=1/1000, model=model)
-print("\n")
-
-model = actuator_param.actuator_r10090kv
+model = actuator_param.actuator_u8
 print(model["name"])
 test(dt=1/1000, model=model)
 print("\n")
