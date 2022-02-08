@@ -66,12 +66,24 @@ class Sim:
         self.spring = spring
         self.L = model["linklengths"]
         self.dir_s = model["springpolarity"]
+        self.model = model["model"]
 
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
-        self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
-        self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
-        self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
+
+        if self.model == 'design_rw':
+            self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
+            self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
+
+        elif self.model == 'design_cmg':
+            self.actuator_gimbal01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)
+            self.actuator_gimbal23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)
+            self.actuator_rw0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
+            self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
+            self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
+            self.actuator_rw3 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
 
         if gravoff == True:
             GRAVITY = 0
@@ -103,12 +115,16 @@ class Sim:
         p.setRealTimeSimulation(useRealTime)
 
         self.c_link = 1
-        self.model = model["model"]
 
-        if self.model != 'design_rw':
+        if self.model == 'design_cmg':
+            # gimbal scissor constraints
+            p.createConstraint(self.bot, 4, self.bot, 5, p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
+            p.createConstraint(self.bot, 8, self.bot, 9, p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
+
+        if self.model != 'design_rw' or self.model != 'design_cmg':
             vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
-        elif self.model == 'design_rw':
+        elif self.model == 'design_rw' or self.model == 'design_cmg':
             # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
             jconn_1 = [x * scale for x in [0.135, 0, 0]]
             jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
@@ -119,8 +135,7 @@ class Sim:
         elif self.model == 'design':
             jconn_1 = [x*scale for x in [0.15, 0, 0]]
             jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
-            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
-                                     p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
+            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3, p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
 
@@ -172,7 +187,7 @@ class Sim:
         torque = np.zeros(self.numJoints)
         command = np.zeros(self.numJoints)
 
-        if self.model == "design_rw" or self.model == "design_rev04":
+        if self.model == "design_rw":
             command[0] = -u[0]  # readjust to match motor polarity
             command[2] = -u[1]  # readjust to match motor polarity
             q = q_all[0:4]
@@ -185,7 +200,20 @@ class Sim:
             torque[5] = self.actuator_rw2.actuate(i=u_rw[1], q_dot=qrw_dot[1])
             torque[6] = self.actuator_rwz.actuate(i=u_rw[2], q_dot=qrw_dot[2])
 
-        if self.model == "design":
+        elif self.model == "design_cmg":
+            command[0] = -u[0]  # readjust to match motor polarity
+            command[2] = -u[1]  # readjust to match motor polarity
+            q = q_all[0:4]
+            q_dot = q_dot_all[0:4]
+            qrw = q_all[4:]
+            qrw_dot = q_dot_all[4:]
+            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
+            torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
+            torque[4] = self.actuator_rw1.actuate(i=u_rw[0], q_dot=qrw_dot[0])
+            torque[5] = self.actuator_rw2.actuate(i=u_rw[1], q_dot=qrw_dot[1])
+            torque[6] = self.actuator_rwz.actuate(i=u_rw[2], q_dot=qrw_dot[2])
+
+        elif self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity
             command[2] = -u[1]  # readjust to match motor polarity
             q = q_all

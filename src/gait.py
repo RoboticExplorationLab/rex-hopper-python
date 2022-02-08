@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 Benjamin Bokser
+Copyright (C) 2020-2022 Benjamin Bokser
 """
 import numpy as np
 import rw
@@ -18,7 +18,7 @@ def raibert_x(kr, kt, pdot, pdot_ref):
 
 
 class Gait:
-    def __init__(self, controller, leg, target, hconst, use_qp=False, dt=1e-3, **kwargs):
+    def __init__(self, model, controller, leg, target, hconst, use_qp=False, dt=1e-3, **kwargs):
 
         self.swing_steps = 0
         self.trajectory = None
@@ -28,6 +28,7 @@ class Gait:
         self.init_gamma = 0
         self.init_angle = np.array([self.init_alpha, self.init_beta, self.init_gamma])
         self.controller = controller
+        self.model = model
         self.leg = leg
         self.x_last = None
         self.hconst = hconst
@@ -39,29 +40,48 @@ class Gait:
             self.controlf = self.controller.wb_control
 
         self.x_des = np.array([0, 0, 0])
-        self.p_err_sum = 0
-        self.p_err_prev = 0
 
-        # torque PID gains
-        ku = 1600  # 2000
-        kp_tau = [ku, -ku, ku]
-        ki_tau = [ku * 0.01, -ku * 0.01, ku * 0.02]
-        kd_tau = [ku * 0.06, -ku * 0.06, ku * 0.02]
-        self.pid_tau = pid.PID3(kp=kp_tau, ki=ki_tau, kd=kd_tau)
+        self.moment_ctrl = None
 
-        # torque PID gains (static)
-        ku_ts = 1600  # 2000
-        kp_tau_s = [ku_ts, -ku_ts, ku_ts]
-        ki_tau_s = [ku_ts * 0.01, -ku_ts * 0.01, ku_ts * 0.02]
-        kd_tau_s = [ku_ts * 0.02, -ku_ts * 0.02, ku_ts * 0.02]
-        self.pid_tau_s = pid.PID3(kp=kp_tau_s, ki=ki_tau_s, kd=kd_tau_s)
+        if self.model["model"] == "design_rw":
+            self.moment_ctrl = rw.rw_control
+            # torque PID gains
+            ku = 1600  # 2000
+            kp_tau = [ku, -ku, ku]
+            ki_tau = [ku * 0.01, -ku * 0.01, ku * 0.02]
+            kd_tau = [ku * 0.06, -ku * 0.06, ku * 0.02]
+            self.pid_tau = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
 
-        # speed PID gains
-        ku_s = 0.00001
-        kp_s = [ku_s * 1, -ku_s * 1, ku_s * 2]
-        ki_s = [ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1]
-        kd_s = [ku_s * 0, -ku_s * 0, ku_s * 0]
-        self.pid_vel = pid.PID3(kp=kp_s, ki=ki_s, kd=kd_s)
+            # torque PID gains (static)
+            ku_ts = 1600  # 2000
+            kp_tau_s = [ku_ts, -ku_ts, ku_ts]
+            ki_tau_s = [ku_ts * 0.01, -ku_ts * 0.01, ku_ts * 0.02]
+            kd_tau_s = [ku_ts * 0.02, -ku_ts * 0.02, ku_ts * 0.02]
+            self.pid_tau_s = pid.PIDn(kp=kp_tau_s, ki=ki_tau_s, kd=kd_tau_s)
+
+            # speed PID gains
+            ku_s = 0.00001
+            kp_s = [ku_s * 1, -ku_s * 1, ku_s * 2]
+            ki_s = [ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1]
+            kd_s = [ku_s * 0, -ku_s * 0, ku_s * 0]
+            self.pid_vel = pid.PIDn(kp=kp_s, ki=ki_s, kd=kd_s)
+
+        elif self.model["model"] == "design_cmg":
+            self.moment_ctrl = rw.cmg_control
+            # torque PID gains
+            # for gimbals
+            ku = 1600  # 2000
+            kp_tau = [ku,        -ku,         ku]
+            ki_tau = [ku * 0.01, -ku * 0.01,  ku * 0.02]
+            kd_tau = [ku * 0.06, -ku * 0.06,  ku * 0.02]
+            self.pid_tau = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
+
+            # speed PID gains for flywheels
+            ku_s = 0.01
+            kp_s = [ku_s,       -ku_s,       ku_s,       -ku_s,       ku_s * 2]
+            ki_s = [ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1]
+            kd_s = [ku_s * 0,   -ku_s * 0,   ku_s * 0,   -ku_s * 0,   ku_s * 0]
+            self.pid_vel = pid.PIDn(kp=kp_s, ki=ki_s, kd=kd_s)
 
         self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
 
@@ -102,7 +122,7 @@ class Gait:
         Q_ref = utils.vec_to_quat2(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
         u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = self.moment_ctrl(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         # self.p_err_prev = p_err
         return u, u_rw, thetar, setp
 
@@ -126,7 +146,7 @@ class Gait:
             raise NameError('INVALID STATE')
 
         u = -self.controlf(target=self.target, Q_base=Q_base, force=force)
-        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = self.moment_ctrl(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_wbc_static(self, Q_base, qrw_dot, fr):
@@ -138,7 +158,7 @@ class Gait:
         if fr is not None:
             force = fr
         u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = rw.rw_control(self.pid_tau_s, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = self.moment_ctrl(self.pid_tau_s, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_invkin_vert(self, state, Q_base, qrw_dot, k_g, k_gd, k_a, k_ad):
@@ -161,7 +181,7 @@ class Gait:
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
-        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = self.moment_ctrl(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp
 
     def u_invkin_static(self, Q_base, qrw_dot, k, kd):
@@ -172,5 +192,5 @@ class Gait:
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
         u = (qa - self.leg.inv_kinematics(xyz=target[0:3])) * k + dqa * kd
-        u_rw, thetar, setp = rw.rw_control(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
+        u_rw, thetar, setp = self.moment_ctrl(self.pid_tau, self.pid_vel, Q_ref, Q_base, qrw_dot)
         return u, u_rw, thetar, setp

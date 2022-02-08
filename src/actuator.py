@@ -6,7 +6,7 @@ class Actuator:
         """
         gr = gear ratio of output
         """
-        self.v_max = 48  # omega_max * self.kt  # absolute maximum
+        self.v_max = model["v_max"]  # omega_max * self.kt  # absolute maximum
         self.gr = model["gr"]
         basis = "ele"
 

@@ -36,21 +36,22 @@ class PID1:
         return u
 
 
-class PID3:
+class PIDn:
 
     def __init__(self, kp, ki, kd, dt=1e-3,  **kwargs):
 
-        # 3-Dimensional PID controller
-        self.kp = np.zeros((3, 3))
-        self.kd = np.zeros((3, 3))
-        self.ki = np.zeros((3, 3))
+        # n-Dimensional PID controller
+        n = np.shape(kp)[0]  # get size
+        self.kp = np.zeros((n, n))
+        self.kd = np.zeros((n, n))
+        self.ki = np.zeros((n, n))
         np.fill_diagonal(self.kp, kp)
         np.fill_diagonal(self.ki, ki)
         np.fill_diagonal(self.kd, kd)
     
         self.dt = dt
-        self.inp_prev = np.zeros(3)  # previous measurement
-        self.err_sum = np.zeros(3)
+        self.inp_prev = np.zeros(n)  # previous measurement
+        self.err_sum = np.zeros(n)
 
     def update_k(self, kp, ki, kd):
         # Use this to update PID gains in real time

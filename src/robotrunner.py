@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2021 Benjamin Bokser
+Copyright (C) 2020-2022 Benjamin Bokser
 """
 import simulationbridge
 import statemachine
@@ -78,7 +78,7 @@ class Runner:
         self.sh = 1  # estimated contact state
 
         use_qp = False  # TODO: Change
-        self.gait = gait.Gait(controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
+        self.gait = gait.Gait(model=model, controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
                               use_qp=use_qp, dt=dt)
 
         # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
@@ -167,7 +167,7 @@ class Runner:
                     ft_saved[i_ft] = t_ft  # save flight time to vector
                     i_ft += 1
 
-            # TODO: Actual state estimator... getting it from sim is cheating
+            # TODO: Actual state estimator... getting it straight from sim is cheating
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
             # p = p + pdot * self.dt  # body position in world coordinates
             p = np.array(self.simulator.p)
@@ -203,11 +203,8 @@ class Runner:
                     k = self.k_g
                     kd = self.k_gd
 
-                if self.model["model"] == 'design' or self.model["model"] == 'design_rw':
-                    self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, qrw_dot=qrw_dot,
-                                                                                k=k, kd=kd)
-                else:
-                    self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
+                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, qrw_dot=qrw_dot, k=k, kd=kd)
+                # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
             if self.model["model"] == 'design_rw':
                 rw1hist[steps - 1] = torque[4]
