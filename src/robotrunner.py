@@ -5,6 +5,7 @@ import simulationbridge
 import statemachine
 import gait
 import plots
+import moment_ctrl
 
 import time
 # import sys
@@ -68,6 +69,8 @@ class Runner:
         self.controller = controller_class.Control(leg=self.leg, dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
+        self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
+
         self.state = statemachine.Char()
 
         self.init_alpha = 0
@@ -78,8 +81,8 @@ class Runner:
         self.sh = 1  # estimated contact state
 
         use_qp = False  # TODO: Change
-        self.gait = gait.Gait(model=model, controller=self.controller, leg=self.leg, target=self.target, hconst=self.hconst,
-                              use_qp=use_qp, dt=dt)
+        self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
+                              target=self.target, hconst=self.hconst, use_qp=use_qp, dt=dt)
 
         # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
 
@@ -143,10 +146,11 @@ class Runner:
 
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
-            q, q_dot, qrw, qrw_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
+            q, q_dot, qm, qm_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
+            self.moment.update_state(q_in=qm, qdot_in=qm_dot)
 
             s_prev = s
             # prevents stuck in stance bug
@@ -178,19 +182,17 @@ class Runner:
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
                 self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                                      p=p, p_ref=p_ref, pdot=pdot, qrw_dot=qrw_dot,
-                                                                      fr=force_f)
+                                                                      p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
 
             elif self.ctrl_type == 'wbc_vert':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, qrw_dot=qrw_dot,
-                                                                       fr=force_f)
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'wbc_static':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, qrw_dot=qrw_dot, fr=force_f)
+                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'invkin_vert':
                 time.sleep(self.dt)
-                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base, qrw_dot=qrw_dot,
+                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
                                                                           k_g=self.k_g, k_gd=self.k_gd,
                                                                           k_a=self.k_a, k_ad=self.k_ad)
 
@@ -203,16 +205,16 @@ class Runner:
                     k = self.k_g
                     kd = self.k_gd
 
-                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, qrw_dot=qrw_dot, k=k, kd=kd)
+                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
             if self.model["model"] == 'design_rw':
                 rw1hist[steps - 1] = torque[4]
                 rw2hist[steps - 1] = torque[5]
                 rwzhist[steps - 1] = torque[6]
-                w1hist[steps - 1] = qrw_dot[0]
-                w2hist[steps - 1] = qrw_dot[1]
-                w3hist[steps - 1] = qrw_dot[2]
+                w1hist[steps - 1] = qm_dot[0]
+                w2hist[steps - 1] = qm_dot[1]
+                w3hist[steps - 1] = qm_dot[2]
                 setphist[steps - 1, :] = setp
                 thetahist[steps - 1, :] = thetar
                 tau0hist[steps - 1] = torque[0]  # self.u[0]
