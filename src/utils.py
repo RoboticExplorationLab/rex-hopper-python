@@ -77,7 +77,7 @@ def z_rotate(Q_in, z):
     # rotate quaternion about its z-axis by specified angle "z"
     # and get rotation about x-axis of that (confusing, I know)
     Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
-    Q_res = utils.L(Q_z).T @ Q_in
+    Q_res = L(Q_z).T @ Q_in
     Q_res = Q_res / (np.linalg.norm(Q_res))
     theta_res = 2 * np.arcsin(Q_res[1])  # x-axis of rotated body quaternion
     return theta_res

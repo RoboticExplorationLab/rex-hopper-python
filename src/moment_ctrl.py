@@ -42,20 +42,23 @@ class MomentCtrl:
             self.q = np.zeros(9)
             self.dq = np.zeros(9)
             self.ctrl = self.cmg_control
-            # torque PID gains
-            # for gimbals
-            ku = 1600  # 2000
-            kp_tau = [ku,        -ku,         ku]
-            ki_tau = [ku * 0.01, -ku * 0.01,  ku * 0.02]
-            kd_tau = [ku * 0.06, -ku * 0.06,  ku * 0.02]
-            self.pid_tau = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
 
-            # speed PID gains for flywheels
-            ku_s = 0.01
-            kp_s = [ku_s,       -ku_s,       ku_s,       -ku_s,       ku_s * 2]
-            ki_s = [ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1]
-            kd_s = [ku_s * 0,   -ku_s * 0,   ku_s * 0,   -ku_s * 0,   ku_s * 0]
-            self.pid_vel = pid.PIDn(kp=kp_s, ki=ki_s, kd=kd_s)
+            # gimbal gains
+            ku = 200
+            kp_tau = [ku,        -ku]
+            ki_tau = [ku * 0.01, -ku * 0.01]
+            kd_tau = [ku * 0.06, -ku * 0.06]
+            self.pid_g = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
+
+            # PID gains for flywheels
+            ku_s = 1000
+            kp_s = [ku_s,       ku_s,       ku_s,       ku_s]
+            ki_s = [ku_s * 0.1, ku_s * 0.1, ku_s * 0.1, ku_s * 0.1]
+            kd_s = [ku_s * 0,   ku_s * 0,   ku_s * 0,   ku_s * 0]
+            self.pid_fl = pid.PIDn(kp=kp_s, ki=ki_s, kd=kd_s)
+
+            self.pid_rwz_vel = pid.PID1(kp=0.02, ki=0.001, kd=0)
+            self.pid_rwz_tau = pid.PID1(kp=1600, ki=1600*0.02, kd=1600*0.02)
 
     def update_state(self, q_in, qdot_in):
         self.q = q_in
@@ -98,12 +101,22 @@ class MomentCtrl:
         """
         simple CMG control w/ derivative on measurement pid
         """
+        # q = self.q
+        # qg = np.array([q[0], q[5]])  # position of gimbals
         dq = self.dq
         theta, setp = self.orient(Q_ref, Q_base)  # get body angle and setpoint in rw/cmg frame
-        qg_dot = np.array([dq[0], dq[5]])  # speed of gimbals
-        qf_dot = np.array([dq[1], dq[3], dq[6], dq[8]])  # speed of gimbal flywheels
-        u_vel = self.pid_vel.pid_control(inp=dq.flatten(), setp=np.zeros(3))
 
-        u_tau = self.pid_tau.pid_control(inp=theta, setp=setp)
+        dqf = np.array([dq[1], dq[3], dq[6], dq[8]])  # speed of flywheels
+        v_des = 6000 * (2 * np.pi / 60)
+        u_fl = self.pid_fl.pid_control(inp=dqf.flatten(), setp=np.array([v_des, -v_des, v_des, -v_des]))
 
-        return u_tau, theta, setp - u_vel
+        u_g = self.pid_g.pid_control(inp=theta[0:2], setp=setp[0:2])  # gimbal torques
+
+        u_rwz_vel = self.pid_rwz_vel.pid_control(inp=dq[4], setp=setp[2])
+        setp_cascaded = setp[2] - u_rwz_vel
+        setp[2] = setp_cascaded
+        u_rwz = self.pid_rwz_tau.pid_control(inp=theta[2], setp=setp_cascaded)[0]  # Cascaded PID Loop
+
+        u_cmg = np.array([u_g[1], u_fl[0], 0, u_fl[1], u_rwz, u_g[0], u_fl[2], 0, u_fl[3]])
+
+        return u_cmg, theta, setp

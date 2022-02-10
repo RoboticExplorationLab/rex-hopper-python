@@ -112,19 +112,22 @@ class Sim:
         p.setGravity(0, 0, GRAVITY)
         p.setTimeStep(self.dt)
         self.numJoints = p.getNumJoints(self.bot)
+
         p.setRealTimeSimulation(useRealTime)
 
         self.c_link = 1
 
         if self.model == 'design_cmg':
             # gimbal scissor constraints
-            p.createConstraint(self.bot, 4, self.bot, 5, p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
-            p.createConstraint(self.bot, 8, self.bot, 9, p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
+            g1 = p.createConstraint(self.bot, 4, self.bot, 6, p.JOINT_GEAR, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+            g2 = p.createConstraint(self.bot, 9, self.bot, 11, p.JOINT_GEAR, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+            p.changeConstraint(g1, gearRatio=1, maxForce=10000, erp=0.2)
+            p.changeConstraint(g2, gearRatio=1, maxForce=10000, erp=0.2)
 
-        if self.model != 'design_rw' or self.model != 'design_cmg':
+        if self.model != 'design_rw' and self.model != 'design_cmg':
             vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
-        elif self.model == 'design_rw' or self.model == 'design_cmg':
+        if self.model == 'design_rw' or self.model == 'design_cmg':
             # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
             jconn_1 = [x * scale for x in [0.135, 0, 0]]
             jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
@@ -167,7 +170,7 @@ class Sim:
             # increase max joint velocity (default = 100 rad/s)
             p.changeDynamics(self.bot, i, maxJointVelocity=400)
 
-    def sim_run(self, u, u_rw):
+    def sim_run(self, u, u_m):
         q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
         q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
@@ -196,9 +199,9 @@ class Sim:
             qm_dot = q_dot_all[4:]
             torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
             torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-            torque[4] = self.actuator_rw1.actuate(i=u_rw[0], q_dot=qm_dot[0])
-            torque[5] = self.actuator_rw2.actuate(i=u_rw[1], q_dot=qm_dot[1])
-            torque[6] = self.actuator_rwz.actuate(i=u_rw[2], q_dot=qm_dot[2])
+            torque[4] = self.actuator_rw1.actuate(i=u_m[0], q_dot=qm_dot[0])
+            torque[5] = self.actuator_rw2.actuate(i=u_m[1], q_dot=qm_dot[1])
+            torque[6] = self.actuator_rwz.actuate(i=u_m[2], q_dot=qm_dot[2])
 
         elif self.model == "design_cmg":
             command[0] = -u[0]  # readjust to match motor polarity
@@ -209,9 +212,13 @@ class Sim:
             qm_dot = q_dot_all[4:]
             torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
             torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-            torque[4] = self.actuator_rw1.actuate(i=u_rw[0], q_dot=qm_dot[0])
-            torque[5] = self.actuator_rw2.actuate(i=u_rw[1], q_dot=qm_dot[1])
-            torque[6] = self.actuator_rwz.actuate(i=u_rw[2], q_dot=qm_dot[2])
+            torque[4] = self.actuator_gimbal01.actuate(i=u_m[0], q_dot=qm_dot[0])
+            torque[5] = self.actuator_rw0.actuate(i=u_m[1], q_dot=qm_dot[1])
+            torque[7] = self.actuator_rw1.actuate(i=u_m[3], q_dot=qm_dot[3])
+            torque[8] = self.actuator_rwz.actuate(i=u_m[4], q_dot=qm_dot[4])
+            torque[9] = self.actuator_gimbal23.actuate(i=u_m[5], q_dot=qm_dot[5])
+            torque[10] = self.actuator_rw2.actuate(i=u_m[6], q_dot=qm_dot[6])
+            torque[12] = self.actuator_rw3.actuate(i=u_m[8], q_dot=qm_dot[8])
 
         elif self.model == "design":
             command[0] = -u[0]  # readjust to match motor polarity

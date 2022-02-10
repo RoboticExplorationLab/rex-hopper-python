@@ -47,7 +47,12 @@ class Runner:
 
         self.dt = dt
         self.u = np.zeros(2)
-        self.u_rw = np.zeros(3)
+        if model["model"] == 'design_rw':
+            self.u_m = np.zeros(3)
+        elif model["model"] == 'design_cmg':
+            self.u_m = np.zeros(9)
+        else:
+            self.u_m = None
         self.total_run = total_run
         # height constant
 
@@ -92,7 +97,7 @@ class Runner:
     def run(self):
         total = self.total_run  # number of timesteps to plot
         p_ref = self.p_ref
-        steps = 0
+        steps = -1
         t = 0  # time
         p = np.array([0, 0, 0])  # initialize body position
 
@@ -113,22 +118,19 @@ class Runner:
         # force_f = np.zeros((3, 1))
         # force_f[2] = -120
 
-        tau0hist = np.zeros((total, 1))
+        tau0hist = np.zeros(total)
         tau2hist = np.zeros(total)
         phist = np.zeros((total, 3))
         thetahist = np.zeros((total, 3))
         setphist = np.zeros((total, 3))
-        rw1hist = np.zeros(total)
-        rw2hist = np.zeros(total)
-        rwzhist = np.zeros(total)
-        w1hist = np.zeros(total)
-        w2hist = np.zeros(total)
-        w3hist = np.zeros(total)
-        thetar = np.zeros(3)
-        setp = np.zeros(3)
-        x_des_hist = np.zeros((total, 3))
         fhist = np.zeros((total, 3))
         fthist = np.zeros(total)
+        x_des_hist = np.zeros((total, 3))
+        thetar = np.zeros(3)
+        setp = np.zeros(3)
+
+        rw_tauhist = np.zeros((total, 3))
+        rw_whist = np.zeros((total, 3))
         q0ahist = np.zeros(total)
         q2ahist = np.zeros(total)
         rw1ahist = np.zeros(total)
@@ -146,7 +148,7 @@ class Runner:
 
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
-            q, q_dot, qm, qm_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
+            q, q_dot, qm, qm_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_m=self.u_m)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -181,18 +183,18 @@ class Runner:
 
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
-                self.u, self.u_rw, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
+                self.u, self.u_m, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
                                                                       p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
 
             elif self.ctrl_type == 'wbc_vert':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
+                self.u, self.u_m, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'wbc_static':
-                self.u, self.u_rw, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
+                self.u, self.u_m, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'invkin_vert':
                 time.sleep(self.dt)
-                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
+                self.u, self.u_m, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
                                                                           k_g=self.k_g, k_gd=self.k_gd,
                                                                           k_a=self.k_a, k_ad=self.k_ad)
 
@@ -205,47 +207,41 @@ class Runner:
                     k = self.k_g
                     kd = self.k_gd
 
-                self.u, self.u_rw, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
+                self.u, self.u_m, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
+            tau0hist[steps] = torque[0]  # self.u[0]
+            tau2hist[steps] = torque[2]  # self.u[1]
+            x_des_hist[steps, :] = self.gait.x_des
+            fhist[steps, :] = f[1, :]
+            fthist[steps] = ft_saved[i_ft]
+            setphist[steps, :] = setp
+            thetahist[steps, :] = thetar
+
             if self.model["model"] == 'design_rw':
-                rw1hist[steps - 1] = torque[4]
-                rw2hist[steps - 1] = torque[5]
-                rwzhist[steps - 1] = torque[6]
-                w1hist[steps - 1] = qm_dot[0]
-                w2hist[steps - 1] = qm_dot[1]
-                w3hist[steps - 1] = qm_dot[2]
-                setphist[steps - 1, :] = setp
-                thetahist[steps - 1, :] = thetar
-                tau0hist[steps - 1] = torque[0]  # self.u[0]
-                tau2hist[steps - 1] = torque[2]  # self.u[1]
-                x_des_hist[steps - 1, :] = self.gait.x_des
-                fhist[steps - 1, :] = f[1, :]
-                fthist[steps - 1] = ft_saved[i_ft]
-                q0ahist[steps - 1] = self.simulator.actuator_q0.i_actual
-                q2ahist[steps - 1] = self.simulator.actuator_q2.i_actual
-                rw1ahist[steps - 1] = self.simulator.actuator_rw1.i_actual
-                rw2ahist[steps - 1] = self.simulator.actuator_rw2.i_actual
-                rwzahist[steps - 1] = self.simulator.actuator_rwz.i_actual
-                q0vhist[steps - 1, :] = self.simulator.actuator_q0.v_actual
-                q2vhist[steps - 1, :] = self.simulator.actuator_q2.v_actual
-                rw1vhist[steps - 1, :] = self.simulator.actuator_rw1.v_actual
-                rw2vhist[steps - 1, :] = self.simulator.actuator_rw2.v_actual
-                rwzvhist[steps - 1, :] = self.simulator.actuator_rwz.v_actual
+                rw_tauhist[steps, :] = torque[4:7]
+                rw_whist[steps, :] = qm_dot[0:3]
+                q0ahist[steps] = self.simulator.actuator_q0.i_actual
+                q2ahist[steps] = self.simulator.actuator_q2.i_actual
+                rw1ahist[steps] = self.simulator.actuator_rw1.i_actual
+                rw2ahist[steps] = self.simulator.actuator_rw2.i_actual
+                rwzahist[steps] = self.simulator.actuator_rwz.i_actual
+                q0vhist[steps, :] = self.simulator.actuator_q0.v_actual
+                q2vhist[steps, :] = self.simulator.actuator_q2.v_actual
+                rw1vhist[steps, :] = self.simulator.actuator_rw1.v_actual
+                rw2vhist[steps, :] = self.simulator.actuator_rw2.v_actual
+                rwzvhist[steps, :] = self.simulator.actuator_rwz.v_actual
 
             p_base = self.simulator.base_pos[0]  # base position in world coords
 
-            phist[steps - 1, :] = p_base
+            phist[steps, :] = p_base
 
             state_prev = state
             sh_prev = sh
             c_prev = c
 
         if self.plot == True:
-            plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
-                         rw1hist, rw2hist, rwzhist,
-                         w1hist, w2hist, w3hist,
-                         setphist[:, 0], setphist[:, 1], setphist[:, 2])
+            plots.rwplot(total, thetahist, rw_tauhist, rw_whist, setphist)
             plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
             plots.tauplot(total, tau0hist, tau2hist, pzhist=phist[:, 2], fxhist=fhist[:, 0],
                           fzhist=fhist[:, 2], fthist=fthist)
