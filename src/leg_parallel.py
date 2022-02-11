@@ -249,7 +249,7 @@ class Leg:
             assert len(dq) == self.DOF
 
     def update_state(self, q_in):
-        # Update the local variables
+        # Update the local variables  # TODO: should not take unactuated q from simulator
         # Pull values in from simulator and calibrate encoders
         self.q = np.add(q_in.flatten(), self.q_calibration)
         # self.dq = np.reshape([j[1] for j in p.getJointStates(1, range(0, 4))], (-1, 1))

@@ -133,11 +133,11 @@ class Runner:
 
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
-            q, q_dot, Q_base, c, torque, f, i, v = self.simulator.sim_run(u=self.u)
 
+            q, dq, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)
             # enter encoder values into leg kinematics/dynamics
-            self.leg.update_state(q_in=q[0:4])
-            self.moment.update_state(q_in=q[4:], qdot_in=q_dot[4:])
+            self.leg.update_state(q_in=q[0:4])  # TODO: should not take unactuated q from simulator
+            self.moment.update_state(q_in=q[4:], qdot_in=dq[2:])
 
             s_prev = s
             # prevents stuck in stance bug
@@ -195,20 +195,13 @@ class Runner:
                 self.u, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
-            if self.model["model"] == "design_cmg":
-                tau = np.delete(torque, [1, 3, 6, 11], 0)  # delete 2nd  and 4th torque rows (no actuator)
-                dq = np.delete(q_dot, [1, 3, 6, 11], 0)  # delete 2nd and 4th qdot rows (no actuator)
-            else:
-                tau = np.delete(torque, [1, 3], 0)  # delete 2nd  and 4th torque rows (no actuator)
-                dq = np.delete(q_dot, [1, 3], 0)  # delete 2nd and 4th qdot rows (no actuator)
-
             x_des_hist[steps, :] = self.gait.x_des
             fhist[steps, :] = f[1, :]
             fthist[steps] = ft_saved[i_ft]
             setphist[steps, :] = setp
             thetahist[steps, :] = thetar
             tauhist[steps, :] = tau
-            dqhist[steps, :] = dq.flatten()
+            dqhist[steps, :] = dq
             ahist[steps, :] = i
             vhist[steps, :] = v
             phist[steps, :] = self.simulator.base_pos[0]  # base position in world coords
@@ -220,11 +213,11 @@ class Runner:
         if self.plot == True:
             plots.thetaplot(total, thetahist, setphist)
             plots.tauplot(total, n_a, tauhist)
-            plots.fplot(total, phist, fhist, fthist)
+            # plots.fplot(total, phist, fhist, fthist)
             plots.dqplot(total, n_a, dqhist)
-            plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
-            plots.currentplot(total, n_a, ahist)
-            plots.voltageplot(total, n_a, vhist)
+            # plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
+            # plots.currentplot(total, n_a, ahist)
+            # plots.voltageplot(total, n_a, vhist)
             plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
 
         return ft_saved

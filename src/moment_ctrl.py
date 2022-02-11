@@ -106,16 +106,16 @@ class MomentCtrl:
         dq = self.dq
         theta, setp = self.orient(Q_ref, Q_base)  # get body angle and setpoint in rw/cmg frame
 
-        dqf = np.array([dq[1], dq[3], dq[6], dq[8]])  # speed of flywheels
+        dqf = np.array([dq[1], dq[2], dq[5], dq[6]])  # speed of flywheels
         v_des = 6000 * (2 * np.pi / 60)
         u_fl = self.pid_fl.pid_control(inp=dqf.flatten(), setp=np.array([v_des, -v_des, v_des, -v_des]))
 
         u_g = self.pid_g.pid_control(inp=theta[0:2], setp=setp[0:2])  # gimbal torques
 
-        u_rwz_vel = self.pid_rwz_vel.pid_control(inp=dq[4], setp=setp[2])
+        u_rwz_vel = self.pid_rwz_vel.pid_control(inp=dq[3], setp=setp[2])
         setp_cascaded = setp[2] - u_rwz_vel
         setp[2] = setp_cascaded
-        u_rwz = self.pid_rwz_tau.pid_control(inp=theta[2], setp=setp_cascaded)[0]  # Cascaded PID Loop
+        u_rwz = self.pid_rwz_tau.pid_control(inp=theta[2], setp=setp_cascaded)  # Cascaded PID Loop
 
         # u_cmg = np.array([u_g[1], u_fl[0], 0, u_fl[1], u_rwz, u_g[0], u_fl[2], 0, u_fl[3]])
         u_cmg = np.array([u_g[1], u_fl[0], u_fl[1], u_rwz, u_g[0], u_fl[2], u_fl[3]])
