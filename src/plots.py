@@ -39,9 +39,8 @@ def tauplot(total, n_a, tauhist):
     fig = plt.figure(1)
     totalr = range(total)
     for k in range(n_a):
-        # add every single subplot to the figure with a for loop
         ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, tauhist[:, k])  # Or whatever you want in the subplot
+        ax.plot(totalr, tauhist[:, k])  
         ax.set_ylabel('Torque, Nm')
     plt.xlabel("Timesteps")
     plt.show()
@@ -55,9 +54,8 @@ def dqplot(total, n_a, dqhist):
     fig = plt.figure(1)
     totalr = range(total)
     for k in range(n_a):
-        # add every single subplot to the figure with a for loop
         ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, dqhist[:, k]*60/(2*np.pi))  # Or whatever you want in the subplot
+        ax.plot(totalr, dqhist[:, k]*60/(2*np.pi))  
         ax.set_ylabel('Angular Velocity, RPM')
     plt.xlabel("Timesteps")
     plt.show()

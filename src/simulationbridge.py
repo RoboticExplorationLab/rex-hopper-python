@@ -73,11 +73,29 @@ class Sim:
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
 
         if self.model == 'design_rw':
+            S = np.zeros((7, 5))
+            S[0, 0] = 1
+            S[2, 1] = 1
+            S[4, 2] = 1
+            S[5, 3] = 1
+            S[6, 4] = 1
+            self.S = S
             self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
             self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
             self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
 
         elif self.model == 'design_cmg':
+            S = np.zeros((13, 9))
+            S[0, 0] = 1
+            S[2, 1] = 1
+            S[4, 2] = 1
+            S[5, 3] = 1
+            S[7, 4] = 1
+            S[8, 5] = 1
+            S[9, 6] = 1
+            S[10, 7] = 1
+            S[12, 8] = 1
+            self.S = S
             self.actuator_gimbal01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)
             self.actuator_gimbal23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)
             self.actuator_rw0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
@@ -125,8 +143,8 @@ class Sim:
             p.changeConstraint(g1, gearRatio=1, maxForce=10000, erp=0.2)
             p.changeConstraint(g2, gearRatio=1, maxForce=10000, erp=0.2)
 
-        if self.model != 'design_rw' and self.model != 'design_cmg':
-            vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
+        # if self.model != 'design_rw' and self.model != 'design_cmg':
+        #     vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
         if self.model == 'design_rw' or self.model == 'design_cmg':
             # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
@@ -135,24 +153,6 @@ class Sim:
             linkjoint = p.createConstraint(self.bot, 1, self.bot, 3, p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
             p.changeConstraint(linkjoint, maxForce=1000)
             self.c_link = 3
-
-        elif self.model == 'design':
-            jconn_1 = [x*scale for x in [0.15, 0, 0]]
-            jconn_2 = [x*scale for x in [-0.01317691945, 0, 0.0153328498]]
-            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3, p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
-            p.changeConstraint(linkjoint, maxForce=1000)
-            self.c_link = 3
-
-        elif self.model == 'parallel':
-            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3,
-                                     p.JOINT_POINT2POINT, [0, 0, 0], [0, 0, 0], [.15, 0, 0])
-            p.changeConstraint(linkjoint, maxForce=1000)
-
-        elif self.model == 'belt':
-            # vert = p.createConstraint(self.bot, -1, -1, 1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0.3, 0, 0])
-            belt = p.createConstraint(self.bot, 0, self.bot, 1,
-                                     p.JOINT_GEAR, [0, 1, 0], [0, 0, 0], [0, 0, 0])
-            p.changeConstraint(belt, gearRatio=0.5, gearAuxLink=-1, maxForce=1000)
 
         # increase friction of toe to ideal
         # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
@@ -198,14 +198,14 @@ class Sim:
 
         elif self.model == "design_cmg":
             torque[0], i[0], v[0] = self.actuator_q0.actuate(i=-u[0], q_dot=q_dot[0]) + tau_s[0]
-            torque[2], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[2]) + tau_s[1]
-            torque[4], i[2], v[2] = self.actuator_gimbal01.actuate(i=u[4], q_dot=q_dot[4])
-            torque[5], i[3], v[3] = self.actuator_rw0.actuate(i=u[5], q_dot=q_dot[5])
-            torque[7], i[4], v[4] = self.actuator_rw1.actuate(i=u[7], q_dot=q_dot[7])
-            torque[8], i[5], v[5] = self.actuator_rwz.actuate(i=u[8], q_dot=q_dot[8])
-            torque[9], i[6], v[6] = self.actuator_gimbal23.actuate(i=u[9], q_dot=q_dot[9])
-            torque[10], i[7], v[7] = self.actuator_rw2.actuate(i=u[10], q_dot=q_dot[10])
-            torque[12], i[8], v[8] = self.actuator_rw3.actuate(i=u[12], q_dot=q_dot[12])
+            torque[2], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[1]) + tau_s[1]
+            torque[4], i[2], v[2] = self.actuator_gimbal01.actuate(i=u[2], q_dot=q_dot[2])
+            torque[5], i[3], v[3] = self.actuator_rw0.actuate(i=u[3], q_dot=q_dot[3])
+            torque[7], i[4], v[4] = self.actuator_rw1.actuate(i=u[4], q_dot=q_dot[4])
+            torque[8], i[5], v[5] = self.actuator_rwz.actuate(i=u[5], q_dot=q_dot[5])
+            torque[9], i[6], v[6] = self.actuator_gimbal23.actuate(i=u[6], q_dot=q_dot[6])
+            torque[10], i[7], v[7] = self.actuator_rw2.actuate(i=u[7], q_dot=q_dot[7])
+            torque[12], i[8], v[8] = self.actuator_rw3.actuate(i=u[8], q_dot=q_dot[8])
 
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)

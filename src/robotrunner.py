@@ -195,10 +195,12 @@ class Runner:
                 self.u, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
-            tau = np.delete(torque, 1, 0)  # delete 2nd torque row (no actuator)
-            tau = np.delete(tau, 3, 0)  # delete 4th torque value (no actuator)
-            dq = np.delete(q_dot, 1, 0)  # delete 2nd qdot row (no actuator)
-            dq = np.delete(dq, 3, 0)  # delete 4th qdot value (no actuator)
+            if self.model["model"] == "design_cmg":
+                tau = np.delete(torque, [1, 3, 6, 11], 0)  # delete 2nd  and 4th torque rows (no actuator)
+                dq = np.delete(q_dot, [1, 3, 6, 11], 0)  # delete 2nd and 4th qdot rows (no actuator)
+            else:
+                tau = np.delete(torque, [1, 3], 0)  # delete 2nd  and 4th torque rows (no actuator)
+                dq = np.delete(q_dot, [1, 3], 0)  # delete 2nd and 4th qdot rows (no actuator)
 
             x_des_hist[steps, :] = self.gait.x_des
             fhist[steps, :] = f[1, :]

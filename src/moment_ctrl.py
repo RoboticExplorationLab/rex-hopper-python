@@ -117,6 +117,7 @@ class MomentCtrl:
         setp[2] = setp_cascaded
         u_rwz = self.pid_rwz_tau.pid_control(inp=theta[2], setp=setp_cascaded)[0]  # Cascaded PID Loop
 
-        u_cmg = np.array([u_g[1], u_fl[0], 0, u_fl[1], u_rwz, u_g[0], u_fl[2], 0, u_fl[3]])
+        # u_cmg = np.array([u_g[1], u_fl[0], 0, u_fl[1], u_rwz, u_g[0], u_fl[2], 0, u_fl[3]])
+        u_cmg = np.array([u_g[1], u_fl[0], u_fl[1], u_rwz, u_g[0], u_fl[2], u_fl[3]])
 
         return u_cmg, theta, setp
