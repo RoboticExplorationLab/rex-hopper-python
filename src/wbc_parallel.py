@@ -53,7 +53,7 @@ class Control:
         fx = utils.Z(utils.Q_inv(Q_base), Mx @ x_dd_des[0:3] + force)  # rotate back into body frame for jacobian
         # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
-        u = tau  # + ((- G - C).T @ B).T
+        u = tau.flatten()  # + ((- G - C).T @ B).T
         '''
         M = leg.gen_M()
         C = leg.gen_C()

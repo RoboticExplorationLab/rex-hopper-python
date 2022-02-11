@@ -33,10 +33,6 @@ class Actuator:
             self.kt = self.v_max/self.omega_max
             self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
 
-        # predicted final current and voltage of the motor
-        self.i_actual = np.zeros(2)
-        self.v_actual = np.zeros(2)
-
         # smoothing bandwidth
         self.i_smoothed = 0
         dt = dt
@@ -74,12 +70,11 @@ class Actuator:
 
         tau_m = np.clip(tau_m, -tau_max, tau_max)  # enforce max motor torque
 
-        self.i_actual = abs(tau_m / kt)
-        v_actual_in = abs(self.i_actual * r + kt * np.clip(omega, -self.omega_max, self.omega_max))
-        v_actual_backemf = abs(kt * np.clip(omega, -self.omega_max, self.omega_max))
-        self.v_actual = np.array([v_actual_in, v_actual_backemf]).flatten()
+        i = abs(tau_m / kt)
+        v = abs(i * r + kt * np.clip(omega, -self.omega_max, self.omega_max))
+        v_backemf = abs(kt * np.clip(omega, -self.omega_max, self.omega_max))
 
-        return tau_m * gr  # actuator output torque
+        return tau_m * gr, i, v  # actuator output torque, current draw, voltage
 
     def actuate_sat(self, i, q_dot):
         """

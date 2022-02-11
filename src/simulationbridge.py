@@ -67,6 +67,7 @@ class Sim:
         self.L = model["linklengths"]
         self.dir_s = model["springpolarity"]
         self.model = model["model"]
+        self.n_a = model["n_a"]
 
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
@@ -170,12 +171,12 @@ class Sim:
             # increase max joint velocity (default = 100 rad/s)
             p.changeDynamics(self.bot, i, maxJointVelocity=400)
 
-    def sim_run(self, u, u_m):
-        q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-        q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+    def sim_run(self, u):
+        q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+        q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
         if self.spring:
-            tau_s = spring(q_all, self.L) * self.dir_s
+            tau_s = spring(q, self.L) * self.dir_s
         else:
             tau_s = np.zeros(2)
 
@@ -183,74 +184,28 @@ class Sim:
         Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
         Q_base = np.roll(Q_base_p, 1)  # move last element to first place
-        q = np.zeros(self.numJoints)
-        q_dot = np.zeros(self.numJoints)
-        qm = np.zeros(3)
-        qm_dot = np.zeros(3)
         torque = np.zeros(self.numJoints)
-        command = np.zeros(self.numJoints)
+
+        i = np.zeros(self.n_a)
+        v = np.zeros(self.n_a)
 
         if self.model == "design_rw":
-            command[0] = -u[0]  # readjust to match motor polarity
-            command[2] = -u[1]  # readjust to match motor polarity
-            q = q_all[0:4]
-            q_dot = q_dot_all[0:4]
-            qm = q_all[4:]
-            qm_dot = q_dot_all[4:]
-            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
-            torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-            torque[4] = self.actuator_rw1.actuate(i=u_m[0], q_dot=qm_dot[0])
-            torque[5] = self.actuator_rw2.actuate(i=u_m[1], q_dot=qm_dot[1])
-            torque[6] = self.actuator_rwz.actuate(i=u_m[2], q_dot=qm_dot[2])
+            torque[0], i[0], v[0] = self.actuator_q0.actuate(i=-u[0], q_dot=q_dot[0]) + tau_s[0]
+            torque[2], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[1]) + tau_s[1]
+            torque[4], i[2], v[2] = self.actuator_rw1.actuate(i=u[2], q_dot=q_dot[2])
+            torque[5], i[3], v[3] = self.actuator_rw2.actuate(i=u[3], q_dot=q_dot[3])
+            torque[6], i[4], v[4] = self.actuator_rwz.actuate(i=u[4], q_dot=q_dot[4])
 
         elif self.model == "design_cmg":
-            command[0] = -u[0]  # readjust to match motor polarity
-            command[2] = -u[1]  # readjust to match motor polarity
-            q = q_all[0:4]
-            q_dot = q_dot_all[0:4]
-            qm = q_all[4:]
-            qm_dot = q_dot_all[4:]
-            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
-            torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-            torque[4] = self.actuator_gimbal01.actuate(i=u_m[0], q_dot=qm_dot[0])
-            torque[5] = self.actuator_rw0.actuate(i=u_m[1], q_dot=qm_dot[1])
-            torque[7] = self.actuator_rw1.actuate(i=u_m[3], q_dot=qm_dot[3])
-            torque[8] = self.actuator_rwz.actuate(i=u_m[4], q_dot=qm_dot[4])
-            torque[9] = self.actuator_gimbal23.actuate(i=u_m[5], q_dot=qm_dot[5])
-            torque[10] = self.actuator_rw2.actuate(i=u_m[6], q_dot=qm_dot[6])
-            torque[12] = self.actuator_rw3.actuate(i=u_m[8], q_dot=qm_dot[8])
-
-        elif self.model == "design":
-            command[0] = -u[0]  # readjust to match motor polarity
-            command[2] = -u[1]  # readjust to match motor polarity
-            q = q_all
-            q_dot = q_dot_all
-            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
-            torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-
-        elif self.model == "serial":
-            command = -u
-            q = q_all
-            q_dot = q_dot_all
-            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0])
-            torque[1] = self.actuator_q2.actuate(i=command[1], q_dot=q_dot[1])
-
-        elif self.model == "parallel":
-            command[0] = -u[1]  # readjust to match motor polarity
-            command[2] = -u[0]  # readjust to match motor polarity
-            q[0] = q_all[2]
-            q[2] = q_all[0]
-            q_dot[0] = q_dot_all[2]
-            q_dot[2] = q_dot_all[0]  # modified from [1] to [2] 11-5-21
-            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0]) + tau_s[0]
-            torque[2] = self.actuator_q2.actuate(i=command[2], q_dot=q_dot[2]) + tau_s[1]
-
-        elif self.model == "belt":
-            command[0] = -u[0]  # only 1 DoF actuated
-            q = q_all[0]  # only 1 DoF actuated, remove extra.
-            q_dot[0] = q_dot_all[0]
-            torque[0] = self.actuator_q0.actuate(i=command[0], q_dot=q_dot[0])
-            # torque[0] = actuator.actuate(i=command[0], q_dot=q_dot[0], gr_out=21)
+            torque[0], i[0], v[0] = self.actuator_q0.actuate(i=-u[0], q_dot=q_dot[0]) + tau_s[0]
+            torque[2], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[2]) + tau_s[1]
+            torque[4], i[2], v[2] = self.actuator_gimbal01.actuate(i=u[4], q_dot=q_dot[4])
+            torque[5], i[3], v[3] = self.actuator_rw0.actuate(i=u[5], q_dot=q_dot[5])
+            torque[7], i[4], v[4] = self.actuator_rw1.actuate(i=u[7], q_dot=q_dot[7])
+            torque[8], i[5], v[5] = self.actuator_rwz.actuate(i=u[8], q_dot=q_dot[8])
+            torque[9], i[6], v[6] = self.actuator_gimbal23.actuate(i=u[9], q_dot=q_dot[9])
+            torque[10], i[7], v[7] = self.actuator_rw2.actuate(i=u[10], q_dot=q_dot[10])
+            torque[12], i[8], v[8] = self.actuator_rw3.actuate(i=u[12], q_dot=q_dot[12])
 
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
@@ -264,4 +219,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, q_dot, qm, qm_dot, Q_base, c, torque, f
+        return q, q_dot, Q_base, c, torque, f, i, v

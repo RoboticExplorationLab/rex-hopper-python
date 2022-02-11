@@ -46,13 +46,7 @@ class Runner:
                  record=False, scale=1, gravoff=False, direct=False, recalc=False, total_run=10000, gain=5000):
 
         self.dt = dt
-        self.u = np.zeros(2)
-        if model["model"] == 'design_rw':
-            self.u_m = np.zeros(3)
-        elif model["model"] == 'design_cmg':
-            self.u_m = np.zeros(9)
-        else:
-            self.u_m = None
+        self.u = np.zeros(model["n_a"])
         self.total_run = total_run
         # height constant
 
@@ -93,13 +87,14 @@ class Runner:
 
         self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.p_ref = np.array([2, 0, 0])  # desired body pos in world coords
+        self.n_a = model["n_a"]
 
     def run(self):
-        total = self.total_run  # number of timesteps to plot
+        total = self.total_run + 1  # number of timesteps to plot
         p_ref = self.p_ref
         steps = -1
         t = 0  # time
-        p = np.array([0, 0, 0])  # initialize body position
+        # p = np.array([0, 0, 0])  # initialize body position
 
         state_prev = str("init")
 
@@ -117,9 +112,12 @@ class Runner:
         force_f = None
         # force_f = np.zeros((3, 1))
         # force_f[2] = -120
+        n_a = self.n_a
+        tauhist = np.zeros((total, n_a))
+        dqhist = np.zeros((total, n_a))
+        ahist = np.zeros((total, n_a))
+        vhist = np.zeros((total, n_a))
 
-        tau0hist = np.zeros(total)
-        tau2hist = np.zeros(total)
         phist = np.zeros((total, 3))
         thetahist = np.zeros((total, 3))
         setphist = np.zeros((total, 3))
@@ -129,30 +127,17 @@ class Runner:
         thetar = np.zeros(3)
         setp = np.zeros(3)
 
-        rw_tauhist = np.zeros((total, 3))
-        rw_whist = np.zeros((total, 3))
-        q0ahist = np.zeros(total)
-        q2ahist = np.zeros(total)
-        rw1ahist = np.zeros(total)
-        rw2ahist = np.zeros(total)
-        rwzahist = np.zeros(total)
-        q0vhist = np.zeros((total, 2))
-        q2vhist = np.zeros((total, 2))
-        rw1vhist = np.zeros((total, 2))
-        rw2vhist = np.zeros((total, 2))
-        rwzvhist = np.zeros((total, 2))
-
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
 
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
-            q, q_dot, qm, qm_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_m=self.u_m)
+            q, q_dot, Q_base, c, torque, f, i, v = self.simulator.sim_run(u=self.u)
 
             # enter encoder values into leg kinematics/dynamics
-            self.leg.update_state(q_in=q)
-            self.moment.update_state(q_in=qm, qdot_in=qm_dot)
+            self.leg.update_state(q_in=q[0:4])
+            self.moment.update_state(q_in=q[4:], qdot_in=q_dot[4:])
 
             s_prev = s
             # prevents stuck in stance bug
@@ -183,20 +168,20 @@ class Runner:
 
             # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
-                self.u, self.u_m, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                                      p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
+                self.u, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
+                                                           p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
 
             elif self.ctrl_type == 'wbc_vert':
-                self.u, self.u_m, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
+                self.u, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'wbc_static':
-                self.u, self.u_m, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
+                self.u, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
 
             elif self.ctrl_type == 'invkin_vert':
                 time.sleep(self.dt)
-                self.u, self.u_m, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
-                                                                          k_g=self.k_g, k_gd=self.k_gd,
-                                                                          k_a=self.k_a, k_ad=self.k_ad)
+                self.u, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
+                                                               k_g=self.k_g, k_gd=self.k_gd,
+                                                               k_a=self.k_a, k_ad=self.k_ad)
 
             elif self.ctrl_type == 'invkin_static':
                 time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
@@ -207,46 +192,37 @@ class Runner:
                     k = self.k_g
                     kd = self.k_gd
 
-                self.u, self.u_m, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
+                self.u, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
                 # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
 
-            tau0hist[steps] = torque[0]  # self.u[0]
-            tau2hist[steps] = torque[2]  # self.u[1]
+            tau = np.delete(torque, 1, 0)  # delete 2nd torque row (no actuator)
+            tau = np.delete(tau, 3, 0)  # delete 4th torque value (no actuator)
+            dq = np.delete(q_dot, 1, 0)  # delete 2nd qdot row (no actuator)
+            dq = np.delete(dq, 3, 0)  # delete 4th qdot value (no actuator)
+
             x_des_hist[steps, :] = self.gait.x_des
             fhist[steps, :] = f[1, :]
             fthist[steps] = ft_saved[i_ft]
             setphist[steps, :] = setp
             thetahist[steps, :] = thetar
-
-            if self.model["model"] == 'design_rw':
-                rw_tauhist[steps, :] = torque[4:7]
-                rw_whist[steps, :] = qm_dot[0:3]
-                q0ahist[steps] = self.simulator.actuator_q0.i_actual
-                q2ahist[steps] = self.simulator.actuator_q2.i_actual
-                rw1ahist[steps] = self.simulator.actuator_rw1.i_actual
-                rw2ahist[steps] = self.simulator.actuator_rw2.i_actual
-                rwzahist[steps] = self.simulator.actuator_rwz.i_actual
-                q0vhist[steps, :] = self.simulator.actuator_q0.v_actual
-                q2vhist[steps, :] = self.simulator.actuator_q2.v_actual
-                rw1vhist[steps, :] = self.simulator.actuator_rw1.v_actual
-                rw2vhist[steps, :] = self.simulator.actuator_rw2.v_actual
-                rwzvhist[steps, :] = self.simulator.actuator_rwz.v_actual
-
-            p_base = self.simulator.base_pos[0]  # base position in world coords
-
-            phist[steps, :] = p_base
+            tauhist[steps, :] = tau
+            dqhist[steps, :] = dq.flatten()
+            ahist[steps, :] = i
+            vhist[steps, :] = v
+            phist[steps, :] = self.simulator.base_pos[0]  # base position in world coords
 
             state_prev = state
             sh_prev = sh
             c_prev = c
 
         if self.plot == True:
-            plots.rwplot(total, thetahist, rw_tauhist, rw_whist, setphist)
+            plots.thetaplot(total, thetahist, setphist)
+            plots.tauplot(total, n_a, tauhist)
+            plots.fplot(total, phist, fhist, fthist)
+            plots.dqplot(total, n_a, dqhist)
             plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
-            plots.tauplot(total, tau0hist, tau2hist, pzhist=phist[:, 2], fxhist=fhist[:, 0],
-                          fzhist=fhist[:, 2], fthist=fthist)
-            plots.electrplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
-                             q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist)
-            plots.electrtotalplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
-                                  q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist, dt=self.dt)
+            plots.currentplot(total, n_a, ahist)
+            plots.voltageplot(total, n_a, vhist)
+            plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
+
         return ft_saved

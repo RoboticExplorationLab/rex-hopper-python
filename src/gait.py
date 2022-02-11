@@ -33,7 +33,7 @@ class Gait:
         self.x_last = None
         self.hconst = hconst
         self.target = target  # np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
-
+        self.n_a = model["n_a"]
         if use_qp is True:
             self.controlf = self.controller.wb_qp_control
         else:
@@ -45,6 +45,7 @@ class Gait:
 
     def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
         # continuous raibert hopping
+        u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)
         # pdot_ref = np.array([0, 0.2, 0])
@@ -79,11 +80,12 @@ class Gait:
         # Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         Q_ref = utils.vec_to_quat2(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
-        u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = self.moment.ctrl(Q_ref, Q_base)
-        return u, u_rw, thetar, setp
+        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        return u, thetar, setp
 
     def u_wbc_vert(self, state, Q_base, fr):
+        u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
@@ -102,11 +104,12 @@ class Gait:
         else:
             raise NameError('INVALID STATE')
 
-        u = -self.controlf(target=self.target, Q_base=Q_base, force=force)
-        u_rw, thetar, setp = self.moment.ctrl(Q_ref, Q_base)
-        return u, u_rw, thetar, setp
+        u[0:2] = -self.controlf(target=self.target, Q_base=Q_base, force=force)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        return u, thetar, setp
 
     def u_wbc_static(self, Q_base, fr):
+        u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         self.target[0] = 0
@@ -114,11 +117,12 @@ class Gait:
         self.controller.update_gains(5000, 5000 * 0.02)
         if fr is not None:
             force = fr
-        u = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u_rw, thetar, setp = self.moment.ctrl(Q_ref, Q_base)
-        return u, u_rw, thetar, setp
+        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        return u, thetar, setp
 
     def u_invkin_vert(self, state, Q_base, k_g, k_gd, k_a, k_ad):
+        u = np.zeros(self.n_a)
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
         k = k_g
@@ -137,17 +141,18 @@ class Gait:
             kd = k_gd
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
-        u = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
-        u_rw, thetar, setp = self.moment.ctrl(Q_ref, Q_base)
-        return u, u_rw, thetar, setp
+        u[0:2] = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        return u, thetar, setp
 
     def u_invkin_static(self, Q_base, k, kd):
+        u = np.zeros(self.n_a)
         target = self.target
         target[2] = -self.hconst * 5 / 3
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
-        u = (qa - self.leg.inv_kinematics(xyz=target[0:3])) * k + dqa * kd
-        u_rw, thetar, setp = self.moment.ctrl(Q_ref, Q_base)
-        return u, u_rw, thetar, setp
+        u[0:2] = (qa - self.leg.inv_kinematics(xyz=target[0:3])) * k + dqa * kd
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        return u, thetar, setp
