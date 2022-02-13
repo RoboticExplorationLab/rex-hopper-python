@@ -9,8 +9,8 @@ design_cmg = {
     "model": "design_cmg",
     "controllerclass": wbc_parallel,
     "legclass": leg_parallel,
-    "csvpath": "res/hopper_cmg/urdf/hopper_cmg.csv",
-    "urdfpath": "res/hopper_cmg/urdf/hopper_cmg.urdf",
+    "csvpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.csv",
+    "urdfpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "k": 5000,  # wbc gain
     "k_g": 45,  # inv kin gain

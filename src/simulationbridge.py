@@ -96,13 +96,13 @@ class Sim:
             S[10, 7] = 1
             S[12, 8] = 1
             self.S = S
-            self.actuator_gimbal01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)
-            self.actuator_gimbal23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)
+            self.actuator_gimbal01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)  # mn1005kv90
+            self.actuator_gimbal23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
             self.actuator_rw0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
             self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
             self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
             self.actuator_rw3 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # 8318
 
         if gravoff == True:
             GRAVITY = 0
@@ -169,7 +169,9 @@ class Sim:
             # enable joint torque sensing
             p.enableJointForceTorqueSensor(self.bot, i, 1)
             # increase max joint velocity (default = 100 rad/s)
-            p.changeDynamics(self.bot, i, maxJointVelocity=400)
+            p.changeDynamics(self.bot, i, maxJointVelocity=800)  # max 3800 rpm
+
+        self.p = np.zeros(3)
 
     def sim_run(self, u):
         q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))

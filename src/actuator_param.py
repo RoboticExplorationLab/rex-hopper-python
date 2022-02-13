@@ -8,11 +8,11 @@ import numpy as np
 actuator_mn3110kv700 = {
     "name": "mn3110",
     "v_max": 24,
-    "kt": 8.4/700,
+    "kt": 1/(700 * (2 * np.pi / 60)),
     "omega_max": 8600 * (2 * np.pi / 60),
     "tau_max": None,
     "r": 0.092,
-    "i_max": 21,
+    "i_max": 26,
     "gr": 1
 }
 

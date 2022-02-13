@@ -119,13 +119,8 @@ def electrtotalplot(total, ahist, vhist, dt):
 
     ainhist = np.sum(ahist, axis=1)
     vmeanhist = np.average(vhist, axis=1)
-    print(np.shape(ahist))
-    print(np.shape(vhist))
     power_array = ahist @ vhist.T
     powerhist = np.diag(power_array)
-
-    print(np.shape(powerhist))
-    print(np.shape(vmeanhist))
     fig, axs = plt.subplots(3)
     plt.xlabel("Timesteps")
 
