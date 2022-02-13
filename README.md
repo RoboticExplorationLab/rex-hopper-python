@@ -17,10 +17,6 @@ This repository mainly contains Python code for simulation of the REx Hopper in 
 
 1. Clone this directory wherever you want.
 
-```shell 
-git clone https://github.com/LocknutBushing/spryped.git
-```  
-
 2. Make sure both Python 3.7 and pip are installed.
 
 ```shell
@@ -33,7 +29,7 @@ python3.7 -m pip install --upgrade pip
 
 ```shell
 sudo apt-get install python3.7-venv
-cd flyhopper/src
+cd rex_hopper_python/src
 python3.7 -m venv env
 ```
 For more information on virtual environments: https://docs.python.org/3/library/venv.html
@@ -55,7 +51,7 @@ Here is the [PyBullet tutorial](https://docs.google.com/document/d/10sXEhzFRSnvF
 Here is some example code, which runs a simulation of a hopper standing with reaction wheels:
 
 ```shell
-cd flyhopper/src
+cd rex_hopper_python/src
 source env/bin/activate
 python3.7 run.py design_rw static_invkin
 ```
@@ -90,7 +86,7 @@ Choices:
 There's also an iterative analysis that checks how changing the size of the robot affects flight time. It also checks a range of PD control gains for each scale.
 
 ```shell
-cd flyhopper/src
+cd rex_hopper_python/src
 source env/bin/activate
 python3.7 run_scaling.py
 ```
