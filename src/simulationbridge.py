@@ -68,7 +68,6 @@ class Sim:
         self.dir_s = model["springpolarity"]
         self.model = model["model"]
         self.n_a = model["n_a"]
-
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
 
@@ -80,9 +79,9 @@ class Sim:
             S[5, 3] = 1
             S[6, 4] = 1
             self.S = S
-            self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
-            self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)
+            self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
+            self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)  # mn1005kv90
 
         elif self.model == 'design_cmg':
             S = np.zeros((13, 9))
@@ -96,8 +95,8 @@ class Sim:
             S[10, 7] = 1
             S[12, 8] = 1
             self.S = S
-            self.actuator_gimbal01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)  # mn1005kv90
-            self.actuator_gimbal23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
+            self.actuator_g01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)  # mn1005kv90
+            self.actuator_g23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
             self.actuator_rw0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
             self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
             self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
@@ -188,13 +187,13 @@ class Sim:
         Q_base = np.roll(Q_base_p, 1)  # move last element to first place
         # torque = np.zeros(self.numJoints)
         tau = np.zeros(self.n_a)
-
         i = np.zeros(self.n_a)
         v = np.zeros(self.n_a)
 
         if self.model == "design_rw":
-            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=-u[0], q_dot=q_dot[0]) + tau_s[0]
-            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[1]) + tau_s[1]
+            u *= -1
+            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=q_dot[0]) + tau_s[0]
+            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=q_dot[1]) + tau_s[1]
             tau[2], i[2], v[2] = self.actuator_rw1.actuate(i=u[2], q_dot=q_dot[2])
             tau[3], i[3], v[3] = self.actuator_rw2.actuate(i=u[3], q_dot=q_dot[3])
             tau[4], i[4], v[4] = self.actuator_rwz.actuate(i=u[4], q_dot=q_dot[4])
@@ -202,11 +201,11 @@ class Sim:
         elif self.model == "design_cmg":
             tau[0], i[0], v[0] = self.actuator_q0.actuate(i=-u[0], q_dot=q_dot[0]) + tau_s[0]
             tau[1], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[1]) + tau_s[1]
-            tau[2], i[2], v[2] = self.actuator_gimbal01.actuate(i=u[2], q_dot=q_dot[2])
+            tau[2], i[2], v[2] = self.actuator_g01.actuate(i=u[2], q_dot=q_dot[2])
             tau[3], i[3], v[3] = self.actuator_rw0.actuate(i=u[3], q_dot=q_dot[3])
             tau[4], i[4], v[4] = self.actuator_rw1.actuate(i=u[4], q_dot=q_dot[4])
             tau[5], i[5], v[5] = self.actuator_rwz.actuate(i=u[5], q_dot=q_dot[5])
-            tau[6], i[6], v[6] = self.actuator_gimbal23.actuate(i=u[6], q_dot=q_dot[6])
+            tau[6], i[6], v[6] = self.actuator_g23.actuate(i=u[6], q_dot=q_dot[6])
             tau[7], i[7], v[7] = self.actuator_rw2.actuate(i=u[7], q_dot=q_dot[7])
             tau[8], i[8], v[8] = self.actuator_rw3.actuate(i=u[8], q_dot=q_dot[8])
         # print(np.shape(q_dot), np.shape(self.S))

@@ -19,23 +19,16 @@ class MomentCtrl:
             self.ctrl = self.rw_control
             # torque PID gains
             ku = 1600  # 2000
-            kp_tau = [ku, -ku, ku]
-            ki_tau = [ku * 0.01, -ku * 0.01, ku * 0.02]
-            kd_tau = [ku * 0.06, -ku * 0.06, ku * 0.02]
+            kp_tau = [ku,        ku,        ku]
+            ki_tau = [ku * 0.01, ku * 0.01, ku * 0.02]
+            kd_tau = [ku * 0.06, ku * 0.06, ku * 0.02]
             self.pid_tau = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
-
-            # torque PID gains (static)
-            ku_ts = 1600  # 2000
-            kp_tau_s = [ku_ts, -ku_ts, ku_ts]
-            ki_tau_s = [ku_ts * 0.01, -ku_ts * 0.01, ku_ts * 0.02]
-            kd_tau_s = [ku_ts * 0.02, -ku_ts * 0.02, ku_ts * 0.02]
-            self.pid_tau_s = pid.PIDn(kp=kp_tau_s, ki=ki_tau_s, kd=kd_tau_s)
 
             # speed PID gains
             ku_s = 0.00001
-            kp_s = [ku_s * 1, -ku_s * 1, ku_s * 2]
-            ki_s = [ku_s * 0.1, -ku_s * 0.1, ku_s * 0.1]
-            kd_s = [ku_s * 0, -ku_s * 0, ku_s * 0]
+            kp_s = [ku_s * 1,   ku_s * 1,   ku_s * 2]
+            ki_s = [ku_s * 0.1, ku_s * 0.1, ku_s * 0.1]
+            kd_s = [ku_s * 0,   ku_s * 0,   ku_s * 0]
             self.pid_vel = pid.PIDn(kp=kp_s, ki=ki_s, kd=kd_s)
 
         elif self.model["model"] == "design_cmg":
@@ -82,8 +75,8 @@ class MomentCtrl:
         b = self.b
         ref_1 = utils.z_rotate(Q_ref, a)
         ref_2 = utils.z_rotate(Q_ref, b)
+        # setp = np.array([ref_1 - 0 * np.pi / 180, ref_2 + 0 * np.pi / 180, 0])
         setp = np.array([ref_1 - 2 * np.pi / 180, ref_2 + 2 * np.pi / 180, 0])
-        # self.setp = np.array([ref_1 - 4 * np.pi / 180, ref_2 + 4 * np.pi / 180, 0])
         theta_1 = utils.z_rotate(Q_base, a)
         theta_2 = utils.z_rotate(Q_base, b)
 

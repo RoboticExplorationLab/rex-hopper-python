@@ -213,11 +213,11 @@ class Runner:
         if self.plot == True:
             plots.thetaplot(total, thetahist, setphist)
             plots.tauplot(total, n_a, tauhist)
-            # plots.fplot(total, phist, fhist, fthist)
             plots.dqplot(total, n_a, dqhist)
-            # plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
+            # plots.fplot(total, phist, fhist, fthist)
+            plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
             # plots.currentplot(total, n_a, ahist)
             # plots.voltageplot(total, n_a, vhist)
-            plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
+            # plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
 
         return ft_saved
