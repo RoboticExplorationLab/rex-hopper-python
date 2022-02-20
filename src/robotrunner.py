@@ -134,10 +134,10 @@ class Runner:
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
 
-            q, dq, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)
+            qa, dqa, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)
             # enter encoder values into leg kinematics/dynamics
-            self.leg.update_state(q_in=q[0:4])  # TODO: should not take unactuated q from simulator
-            self.moment.update_state(q_in=q[4:], qdot_in=dq[2:])
+            self.leg.update_state(q_in=qa[0:2])  # TODO: should not take unactuated q from simulator
+            self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
 
             s_prev = s
             # prevents stuck in stance bug
@@ -201,7 +201,7 @@ class Runner:
             setphist[steps, :] = setp
             thetahist[steps, :] = thetar
             tauhist[steps, :] = tau
-            dqhist[steps, :] = dq
+            dqhist[steps, :] = dqa
             ahist[steps, :] = i
             vhist[steps, :] = v
             phist[steps, :] = self.simulator.base_pos[0]  # base position in world coords

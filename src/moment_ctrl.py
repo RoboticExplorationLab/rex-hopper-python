@@ -12,7 +12,7 @@ class MomentCtrl:
         self.model = model
         self.a = -45 * np.pi / 180
         self.b = 45 * np.pi / 180
-
+        self.v_des = 8000 * (2 * np.pi / 60)
         if self.model["model"] == "design_rw":
             self.q = np.zeros(3)
             self.dq = np.zeros(3)
@@ -44,10 +44,10 @@ class MomentCtrl:
             self.pid_g_pos = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
 
             # gimbal gains
-            ku = 10
+            ku = 1
             kp_tau = [ku, ku]
-            ki_tau = [ku * 11, ku * 11]
-            kd_tau = [ku * 0.02, ku * 0.02]
+            ki_tau = [ku * 0.1, ku * 0.1]
+            kd_tau = [ku * 0.2, ku * 0.2]
             self.pid_g = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
 
             # PID gains for flywheels
@@ -60,15 +60,12 @@ class MomentCtrl:
             self.pid_rwz_vel = pid.PID1(kp=0.0002, ki=0.00001, kd=0)
             self.pid_rwz_tau = pid.PID1(kp=1600, ki=1600*0.02, kd=1600*0.02)
 
-    def update_state(self, q_in, qdot_in):
+    def update_state(self, q_in, dq_in):
         self.q = q_in
-        self.dq = qdot_in
-        # self.dq = (self.q - self.q_previous) / self.dt
+        self.dq = dq_in
         # Make sure this only happens once per time step
+        # self.dq = (self.q - self.q_previous) / self.dt
         # self.d2q = (self.dq - self.dq_previous) / self.dt
-        # self.q_previous = self.q
-        # self.dq_previous = self.dq
-        # self.d2q_previous = self.d2q
 
     def orient(self, Q_ref, Q_base):
         a = self.a
@@ -101,18 +98,19 @@ class MomentCtrl:
         """
         simple CMG control w/ derivative on measurement pid
         """
+        v_des = self.v_des
         q = self.q
-        qg = np.array([q[0], q[4]]).flatten()  # position of gimbals
         dq = self.dq
+
         theta, setp = self.orient(Q_ref, Q_base)  # get body angle and setpoint in rw/cmg frame
-        setp_cascaded = np.zeros(len(setp))
 
         dqf = np.array([dq[1], dq[2], dq[5], dq[6]])  # speed of flywheels
-        v_des = 8000 * (2 * np.pi / 60)
         u_fl = self.pid_fl.pid_control(inp=dqf.flatten(), setp=np.array([v_des, -v_des, v_des, -v_des]))
 
-        u_g_pos = self.pid_g_pos.pid_control(inp=qg, setp=np.zeros(2))
-        setp_cascaded[0:2] = setp[0:2] - u_g_pos
+        qg = np.array([q[0], q[4]]).flatten()  # position of gimbals (one per scissored pair)
+        # u_g_pos = self.pid_g_pos.pid_control(inp=qg, setp=np.zeros(2))
+        setp_cascaded = np.zeros(len(setp))
+        setp_cascaded[0:2] = setp[0:2]  # - u_g_pos
         u_g = self.pid_g.pid_control(inp=theta[0:2], setp=setp_cascaded[0:2])  # gimbal torques
 
         u_rwz_vel = self.pid_rwz_vel.pid_control(inp=dq[3], setp=setp[2])

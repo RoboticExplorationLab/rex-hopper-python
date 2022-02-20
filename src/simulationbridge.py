@@ -173,8 +173,13 @@ class Sim:
         self.p = np.zeros(3)
 
     def sim_run(self, u):
-        q = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-        q_dot = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+        q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+        dq_ = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
+
+        q = q_.flatten()
+        dq = dq_.flatten()
+        qa = (q.T @ self.S).flatten()
+        dqa = (dq_.T @ self.S).flatten()
 
         if self.spring:
             tau_s = spring(q, self.L) * self.dir_s
@@ -192,25 +197,26 @@ class Sim:
 
         if self.model == "design_rw":
             u *= -1
-            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=q_dot[0]) + tau_s[0]
-            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=q_dot[1]) + tau_s[1]
-            tau[2], i[2], v[2] = self.actuator_rw1.actuate(i=u[2], q_dot=q_dot[2])
-            tau[3], i[3], v[3] = self.actuator_rw2.actuate(i=u[3], q_dot=q_dot[3])
-            tau[4], i[4], v[4] = self.actuator_rwz.actuate(i=u[4], q_dot=q_dot[4])
+            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=dqa[0]) + tau_s[0]
+            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=dqa[1]) + tau_s[1]
+            tau[2], i[2], v[2] = self.actuator_rw1.actuate(i=u[2], q_dot=dqa[2])
+            tau[3], i[3], v[3] = self.actuator_rw2.actuate(i=u[3], q_dot=dqa[3])
+            tau[4], i[4], v[4] = self.actuator_rwz.actuate(i=u[4], q_dot=dqa[4])
 
         elif self.model == "design_cmg":
-            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=-u[0], q_dot=q_dot[0]) + tau_s[0]
-            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=-u[1], q_dot=q_dot[1]) + tau_s[1]
-            tau[2], i[2], v[2] = self.actuator_g01.actuate(i=u[2], q_dot=q_dot[2])
-            tau[3], i[3], v[3] = self.actuator_rw0.actuate(i=u[3], q_dot=q_dot[3])
-            tau[4], i[4], v[4] = self.actuator_rw1.actuate(i=u[4], q_dot=q_dot[4])
-            tau[5], i[5], v[5] = self.actuator_rwz.actuate(i=u[5], q_dot=q_dot[5])
-            tau[6], i[6], v[6] = self.actuator_g23.actuate(i=u[6], q_dot=q_dot[6])
-            tau[7], i[7], v[7] = self.actuator_rw2.actuate(i=u[7], q_dot=q_dot[7])
-            tau[8], i[8], v[8] = self.actuator_rw3.actuate(i=u[8], q_dot=q_dot[8])
-        # print(np.shape(q_dot), np.shape(self.S))
-        dq = (q_dot.T @ self.S).flatten()
+            u *= -1
+            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=dqa[0]) + tau_s[0]
+            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=dqa[1]) + tau_s[1]
+            tau[2], i[2], v[2] = self.actuator_g01.actuate(i=u[2], q_dot=dqa[2])
+            tau[3], i[3], v[3] = self.actuator_rw0.actuate(i=u[3], q_dot=dqa[3])
+            tau[4], i[4], v[4] = self.actuator_rw1.actuate(i=u[4], q_dot=dqa[4])
+            tau[5], i[5], v[5] = self.actuator_rwz.actuate(i=u[5], q_dot=dqa[5])
+            tau[6], i[6], v[6] = self.actuator_g23.actuate(i=u[6], q_dot=dqa[6])
+            tau[7], i[7], v[7] = self.actuator_rw2.actuate(i=u[7], q_dot=dqa[7])
+            tau[8], i[8], v[8] = self.actuator_rw3.actuate(i=u[8], q_dot=dqa[8])
+
         torque = self.S @ tau
+
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
@@ -223,4 +229,4 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, dq, Q_base, c, tau, f, i, v
+        return qa, dqa, Q_base, c, tau, f, i, v
