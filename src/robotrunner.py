@@ -6,11 +6,12 @@ import statemachine
 import gait
 import plots
 import moment_ctrl
+import utils
+import mpc
 
 import time
 # import sys
 
-import transforms3d
 import numpy as np
 
 np.set_printoptions(suppress=True, linewidth=np.nan)
@@ -66,6 +67,7 @@ class Runner:
         self.hconst = model["hconst"]  # 0.3
         self.fixed = fixed
         self.controller = controller_class.Control(leg=self.leg, dt=dt, gain=gain)
+        self.mpc = mpc.Mpc(dt=dt)
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
@@ -85,8 +87,9 @@ class Runner:
 
         # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
 
-        self.omega_d = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
+        self.omega_ref = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
         self.p_ref = np.array([2, 0, 0])  # desired body pos in world coords
+        self.pdot_ref = np.array([0, 0, 0])  # desired body velocity in world coords
         self.n_a = model["n_a"]
 
     def run(self):
@@ -109,9 +112,14 @@ class Runner:
         ft_saved = np.zeros(total)
         i_ft = 0  # flight timer counter
 
+        mpc_dt = 0.025  # mpc period
+        mpc_factor = mpc_dt / self.dt  # repeat mpc every x seconds
+        mpc_counter = mpc_factor
+        skip = False
         force_f = None
         # force_f = np.zeros((3, 1))
         # force_f[2] = -120
+
         n_a = self.n_a
         tauhist = np.zeros((total, n_a))
         dqhist = np.zeros((total, n_a))
@@ -165,8 +173,26 @@ class Runner:
             # delp = pdot * self.dt
 
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
+            
+            # calculate control signal
+            if self.ctrl_type == 'mpc':
+                if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
+                    mpc_counter = 0  # restart the mpc counter
+                    omega = np.array(self.simulator.omega_xyz)
+                    theta = utils.quat2euler(Q_base)
+                    x_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
+                    x_ref = np.hstack([np.zeros(3), self.p_ref, self.omega_ref, self.pdot_ref]).T  # desired state
+                    if np.linalg.norm(x_in - x_ref) > 1e-2:  # then check if the error is high enough to warrant it
+                        pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
+                        force_f = self.mpc.mpcontrol(Q_base=Q_base, x_in=x_in, x_ref=x_ref, pf=pf)
+                        skip = False
+                    else:
+                        skip = True  # tells gait ctrlr to default to position control.
+                        print("skipping mpc")
+                    self.u, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
+                                                               p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
+                mpc_counter += 1
 
-            # calculate wbc control signal
             if self.ctrl_type == 'wbc_raibert':
                 self.u, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
                                                            p=p, p_ref=p_ref, pdot=pdot, fr=force_f)

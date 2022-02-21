@@ -10,6 +10,7 @@ import pickle
 
 import calc_parallel
 
+
 class Leg:
 
     def __init__(self, dt, model, recalc, init_q=None, init_dq=None, **kwargs):
@@ -242,7 +243,6 @@ class Leg:
             q = q.tolist()
         if isinstance(dq, np.ndarray):
             dq = dq.tolist()
-
         if q:
             assert len(q) == self.DOF
         if dq:
