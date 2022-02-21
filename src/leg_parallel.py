@@ -249,7 +249,6 @@ class Leg:
             assert len(dq) == self.DOF
 
     def update_state(self, q_in):
-        # Update the local variables  # TODO: should not take unactuated q from simulator
         # Pull values in from simulator and calibrate encoders
         q_in = np.add(q_in, self.q_calibration)
         q0 = q_in[0]
@@ -259,7 +258,7 @@ class Leg:
         self.q = np.array([q0, q1, q2, q3])
         # self.dq = np.reshape([j[1] for j in p.getJointStates(1, range(0, 4))], (-1, 1))
         # self.dq = [i * self.kv for i in self.dq_previous] + (self.q - self.q_previous) / self.dt
-        self.dq = (self.q - self.q_previous) / self.dt  # TODO: upgrade from Euler to rk4 or something
+        self.dq = (self.q - self.q_previous) / self.dt  # TODO: upgrade from Euler?
         # Make sure this only happens once per time step
         # self.d2q = [i * self.kv for i in self.d2q_previous] + (self.dq - self.dq_previous) / self.dt
         self.d2q = (self.dq - self.dq_previous) / self.dt
