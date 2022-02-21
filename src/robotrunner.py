@@ -189,11 +189,11 @@ class Runner:
                     else:
                         skip = True  # tells gait ctrlr to default to position control.
                         print("skipping mpc")
-                    self.u, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                               p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
+                    self.u, thetar, setp = self.gait.u_mpc(state=state, state_prev=state_prev, Q_base=Q_base,
+                                                           p=p, p_ref=p_ref, pdot=pdot, fr=force_f, skip=skip)
                 mpc_counter += 1
 
-            if self.ctrl_type == 'wbc_raibert':
+            elif self.ctrl_type == 'wbc_raibert':
                 self.u, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
                                                            p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
 

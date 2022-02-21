@@ -45,7 +45,7 @@ class MomentCtrl:
 
             # gimbal gains
             ku = 1
-            kp_tau = [ku, ku]
+            kp_tau = [ku,       ku]
             ki_tau = [ku * 0.1, ku * 0.1]
             kd_tau = [ku * 0.2, ku * 0.2]
             self.pid_g = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)

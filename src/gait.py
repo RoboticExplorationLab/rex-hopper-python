@@ -43,6 +43,41 @@ class Gait:
 
         self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
 
+    def u_mpc(self, state, state_prev, p, p_ref, pdot, Q_base, fr, skip):
+        # mpc-based hopping
+        u = np.zeros(self.n_a)
+        force = np.zeros((3, 1))
+        hconst = self.hconst
+        self.target[0] = 0  # -0.08  # adjustment for balance due to bad mockup design
+        if state == 'Return':
+            if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
+                self.x_des = x_fb + p  # world frame desired footstep position
+                self.x_des[2] = 0  # enforce footstep location is on ground plane
+            if pdot[2] >= 0:  # recognize that robot is still rising
+                self.target[2] = -hconst  # pull leg up to prevent stubbing
+            else:
+                self.target[2] = -hconst * 6 / 3  # brace for impact
+            self.controller.update_gains(150, 150 * 0.2)
+
+        elif state == 'HeelStrike':
+            self.controller.update_gains(5000, 5000 * 0.02)
+            self.target[2] = -hconst * 4.5 / 3
+
+        elif state == 'Leap':
+            self.controller.update_gains(5000, 5000 * 0.02)
+            self.target[2] = -hconst * 6 / 3
+            if fr is not None:
+                force = fr
+
+        else:
+            raise NameError('INVALID STATE')
+
+        Q_ref = utils.vec_to_quat2(self.x_des - p)
+        Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
+        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        return u, thetar, setp
+
     def u_raibert(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
         # continuous raibert hopping
         u = np.zeros(self.n_a)
