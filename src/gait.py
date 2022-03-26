@@ -5,6 +5,7 @@ import numpy as np
 import transforms3d
 import utils
 import pid
+import time
 
 
 def raibert_x(kr, kt, pdot, pdot_ref):
@@ -34,6 +35,8 @@ class Gait:
         self.hconst = hconst
         self.target = target  # np.hstack(np.append(np.array([0, 0, -self.hconst]), self.init_angle))
         self.n_a = model["n_a"]
+        self.k_k = model["k_k"][0]
+        self.kd_k = model["k_k"][1]
         if use_qp is True:
             self.controlf = self.controller.wb_qp_control
         else:
@@ -43,7 +46,7 @@ class Gait:
 
         self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
 
-    def u_mpc(self, state, state_prev, p, p_ref, pdot, Q_base, fr, skip):
+    def u_mpc(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
         # mpc-based hopping
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
@@ -119,7 +122,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_wbc_vert(self, state, Q_base, fr):
+    def u_wbc_vert(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
@@ -143,7 +146,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_wbc_static(self, Q_base, fr):
+    def u_wbc_static(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
@@ -156,7 +159,8 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_invkin_vert(self, state, Q_base, k_g, k_gd, k_a, k_ad):
+    def u_invkin_vert(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
+        time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
         u = np.zeros(self.n_a)
         Q_ref = transforms3d.euler.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
         hconst = self.hconst
@@ -164,23 +168,25 @@ class Gait:
         kd = k_gd
         if state == 'Return':
             self.target[2] = -hconst * 5 / 3
-            k = k_a
-            kd = k_ad
+            k = self.k_k/45
+            kd = self.kd_k/45
         elif state == 'HeelStrike':
             self.target[2] = -hconst
-            k = k_g
-            kd = k_gd
+            k = self.k_k
+            kd = self.kd_k
         elif state == 'Leap':
             self.target[2] = -hconst * 5.5 / 3
-            k = k_g
-            kd = k_gd
+            k = self.k_k
+            kd = self.kd_k
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         u[0:2] = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_invkin_static(self, Q_base, k, kd):
+    def u_invkin_static(self, state, state_prev, p, p_ref, pdot, Q_base, fr):
+        k = self.k_k
+        kd = self.kd_k
         u = np.zeros(self.n_a)
         target = self.target
         target[2] = -self.hconst * 5 / 3

@@ -10,6 +10,7 @@ import utils
 import mpc
 
 import time
+import copy
 # import sys
 
 import numpy as np
@@ -25,7 +26,7 @@ def contact_check(c, c_s, c_prev, steps, con_c):
         c_s = c  # saved contact value
     if c_prev != c and con_c - steps <= 10:  # TODO: reset con_c
         c = c_s
-    return c, c_s, con_c
+    return int(c), c_s, con_c
 
 
 def gait_check(s, s_prev, ct, t):
@@ -43,7 +44,7 @@ def gait_check(s, s_prev, ct, t):
 
 class Runner:
 
-    def __init__(self, model, dt=1e-3, ctrl_type='simple_invkin', plot=False, fixed=False, spring=False,
+    def __init__(self, model, dt=1e-3, ctrl_type='invkin_vert', plot=False, fixed=False, spring=False,
                  record=False, scale=1, gravoff=False, direct=False, recalc=False, total_run=10000, gain=5000):
 
         self.dt = dt
@@ -60,36 +61,50 @@ class Runner:
         leg_class = model["legclass"]
         self.L = np.array(model["linklengths"])
         self.leg = leg_class.Leg(dt=dt, model=model, recalc=recalc)
-        self.k_g = model["k_g"]
-        self.k_gd = model["k_gd"]
-        self.k_a = model["k_a"]
-        self.k_ad = model["k_ad"]
         self.hconst = model["hconst"]  # 0.3
         self.fixed = fixed
         self.controller = controller_class.Control(leg=self.leg, dt=dt, gain=gain)
-        self.mpc = mpc.Mpc(dt=dt)
+        self.mu = 0.3  # friction
+        self.g = 9.81
+        if ctrl_type == 'mpc':
+            self.N = 10  # mpc horizon
+            self.t_p = 1  # gait period, seconds
+            self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+            # for now, mpc sampling time is equal to gait period
+            self.mpc_t = copy.copy(self.t_p * self.phi_switch)  # mpc sampling time
+            self.mpc = mpc.Mpc(t=self.mpc_t, N=self.N, m=self.leg.mass, g=self.g, mu=self.mu)
+
         self.simulator = simulationbridge.Sim(dt=dt, model=model, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
 
         self.state = statemachine.Char()
 
-        self.init_alpha = 0
-        self.init_beta = 0
-        self.init_gamma = 0
-        self.target_init = np.array([0, 0, -self.hconst, self.init_alpha, self.init_beta, self.init_gamma])
+        self.target_init = np.array([0, 0, -self.hconst, 0, 0, 0])
         self.target = self.target_init[:]
         self.sh = 1  # estimated contact state
 
         use_qp = False  # TODO: Change
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
                               target=self.target, hconst=self.hconst, use_qp=use_qp, dt=dt)
+        if self.ctrl_type == 'mpc':
+            self.gaitfn = self.gait.u_mpc
+        elif self.ctrl_type == 'wbc_raibert':
+            self.gaitfn = self.gait.u_raibert
+        elif self.ctrl_type == 'wbc_vert':
+            self.gaitfn = self.gait.u_wbc_vert
+        elif self.ctrl_type == 'wbc_static':
+            self.gaitfn = self.gait.u_wbc_static
+        elif self.ctrl_type == 'invkin_vert':
+            self.gaitfn = self.gait.u_invkin_vert
+        elif self.ctrl_type == 'invkin_static':
+            self.gaitfn = self.gait.u_invkin_static
 
         # self.r = np.array([0, 0, -self.hconst])  # initial footstep planning position
-
-        self.omega_ref = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
-        self.p_ref = np.array([2, 0, 0])  # desired body pos in world coords
+        # self.omega_ref = np.array([0, 0, 0])  # desired angular acceleration for footstep planner
+        self.p_ref = np.array([2, 0, 0.5])  # desired body pos in world coords
         self.pdot_ref = np.array([0, 0, 0])  # desired body velocity in world coords
+        self.X_ref = np.hstack([self.p_ref, self.pdot_ref]).T  # desired state
         self.n_a = model["n_a"]
 
     def run(self):
@@ -97,7 +112,8 @@ class Runner:
         p_ref = self.p_ref
         steps = -1
         t = 0  # time
-        # p = np.array([0, 0, 0])  # initialize body position
+
+        X_traj[0, -1] = self.g  # initial conditions
 
         state_prev = str("init")
 
@@ -112,13 +128,9 @@ class Runner:
         ft_saved = np.zeros(total)
         i_ft = 0  # flight timer counter
 
-        mpc_dt = 0.025  # mpc period
-        mpc_factor = mpc_dt / self.dt  # repeat mpc every x seconds
+        mpc_factor = self.mpc_t / self.dt  # repeat mpc every x seconds
         mpc_counter = mpc_factor
-        skip = False
         force_f = None
-        # force_f = np.zeros((3, 1))
-        # force_f[2] = -120
 
         n_a = self.n_a
         tauhist = np.zeros((total, n_a))
@@ -140,20 +152,13 @@ class Runner:
             t = t + self.dt
 
             # run simulator to get encoder and IMU feedback
-            # TODO: More realistic contact detection
-
-            qa, dqa, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)
-            # enter encoder values into leg kinematics/dynamics
-            self.leg.update_state(q_in=qa[0:2])  # TODO: should not take unactuated q from simulator
+            qa, dqa, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)  # TODO: More realistic contact detect
+            self.leg.update_state(q_in=qa[0:2])  # enter encoder values into leg kinematics/dynamics
             self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
 
             s_prev = s
-            # prevents stuck in stance bug
-            go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)
-
-            # Like using limit switches
-            c, c_s, con_c = contact_check(c, c_s, c_prev, steps, con_c)
-            sh = int(c)
+            c, c_s, con_c = contact_check(c, c_s, c_prev, steps, con_c)  # Like using limit switches
+            sh = copy.copy(c)
 
             # flight time checker
             if sh == 0 and sh_prev == 1:
@@ -172,54 +177,19 @@ class Runner:
             p = np.array(self.simulator.p)
             # delp = pdot * self.dt
 
+            go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)  # prevents stuck in stance bug
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
-            
+            pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
             # calculate control signal
             if self.ctrl_type == 'mpc':
                 if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
-                    omega = np.array(self.simulator.omega_xyz)
-                    theta = utils.quat2euler(Q_base)
-                    x_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
-                    x_ref = np.hstack([np.zeros(3), self.p_ref, self.omega_ref, self.pdot_ref]).T  # desired state
-                    if np.linalg.norm(x_in - x_ref) > 1e-2:  # then check if the error is high enough to warrant it
-                        pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
-                        force_f = self.mpc.mpcontrol(Q_base=Q_base, x_in=x_in, x_ref=x_ref, pf=pf)
-                        skip = False
-                    else:
-                        skip = True  # tells gait ctrlr to default to position control.
-                        print("skipping mpc")
-                    self.u, thetar, setp = self.gait.u_mpc(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                           p=p, p_ref=p_ref, pdot=pdot, fr=force_f, skip=skip)
+                    X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
+                    force_f, sm = self.mpc.mpcontrol(X_in=X_in, X_ref=self.X_ref, s=s)
                 mpc_counter += 1
 
-            elif self.ctrl_type == 'wbc_raibert':
-                self.u, thetar, setp = self.gait.u_raibert(state=state, state_prev=state_prev, Q_base=Q_base,
-                                                           p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
-
-            elif self.ctrl_type == 'wbc_vert':
-                self.u, thetar, setp = self.gait.u_wbc_vert(state=state, Q_base=Q_base, fr=force_f)
-
-            elif self.ctrl_type == 'wbc_static':
-                self.u, thetar, setp = self.gait.u_wbc_static(Q_base=Q_base, fr=force_f)
-
-            elif self.ctrl_type == 'invkin_vert':
-                time.sleep(self.dt)
-                self.u, thetar, setp = self.gait.u_invkin_vert(state=state, Q_base=Q_base,
-                                                               k_g=self.k_g, k_gd=self.k_gd,
-                                                               k_a=self.k_a, k_ad=self.k_ad)
-
-            elif self.ctrl_type == 'invkin_static':
-                time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
-                if self.fixed == True:
-                    k = self.k_a
-                    kd = self.k_ad
-                else:
-                    k = self.k_g
-                    kd = self.k_gd
-
-                self.u, thetar, setp = self.gait.u_invkin_static(Q_base=Q_base, k=k, kd=kd)
-                # self.u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3] * 5 / 3)) * k + self.leg.dq * kd
+            self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, Q_base=Q_base,
+                                               p=p, p_ref=p_ref, pdot=pdot, fr=force_f)
 
             x_des_hist[steps, :] = self.gait.x_des
             fhist[steps, :] = f[1, :]
@@ -247,3 +217,11 @@ class Runner:
             # plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
 
         return ft_saved
+
+    def gait_scheduler(self, t, t0):
+        phi = np.mod((t - t0) / self.t_p, 1)
+        if phi > self.phi_switch:
+            s = 0  # scheduled swing
+        else:
+            s = 1  # scheduled stance
+        return s

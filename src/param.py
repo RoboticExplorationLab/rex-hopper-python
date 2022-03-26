@@ -3,7 +3,7 @@ Copyright (C) 2021 Benjamin Bokser
 """
 import leg_parallel
 import wbc_parallel
-
+import gait
 
 design_cmg = {
     "model": "design_cmg",
@@ -13,10 +13,7 @@ design_cmg = {
     "urdfpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "k": 5000,  # wbc gain
-    "k_g": 45,  # inv kin gain
-    "k_gd": 45*0.02,
-    "k_a": 1,
-    "k_ad": 1*0.08,
+    "k_k": [45, 45*0.02],  # inv kin gain  1
     "springpolarity": 1,
     "hconst": 0.27,
     "n_a": 9
@@ -28,14 +25,9 @@ design_rw = {
     "legclass": leg_parallel,
     "csvpath": "res/hopper_rev06/urdf/hopper_rev06.csv",
     "urdfpath": "res/hopper_rev06/urdf/hopper_rev06.urdf",
-    #"csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
-    #"urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "k": 5000,  # wbc gain
-    "k_g": 45,  # inv kin gain
-    "k_gd": 45*0.02,
-    "k_a": 1,
-    "k_ad": 1*0.08,
+    "k_k": [45, 45*0.02],  # inv kin gain
     "springpolarity": 1,
     "hconst": 0.27,
     "n_a": 5
