@@ -262,7 +262,7 @@ class Runner:
         #https://stackoverflow.com/questions/30305069/numpy-concatenate-2d-arrays-with-1d-array
         # TODO: also save ground truth
         sensor_data = np.hstack([time_hist[:, None],acc_hist,gyro_hist,joint_hist,foot_force_hist[:, None]])
-        np.savetxt("sensor_data.csv", sensor_data, delimiter=",") 
+        np.savetxt("sensor_data_process/data/sensor_data.csv", sensor_data, delimiter=",") 
 
         if self.plot == True:
             # plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
