@@ -3,7 +3,6 @@ Copyright (C) 2020 Benjamin Bokser
 """
 
 import numpy as np
-import transforms3d
 import pybullet as p
 import pybullet_data
 import os
@@ -56,7 +55,8 @@ def reaction_force(numJoints, bot):
 
 class Sim:
 
-    def __init__(self, model, dt=1e-3, fixed=False, spring=False, record=False, scale=1, gravoff=False, direct=False):
+    def __init__(self, X_0, model, dt=1e-3, fixed=False, spring=False, record=False, scale=1,
+                 gravoff=False, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -122,7 +122,7 @@ class Sim:
         path_parent = os.path.dirname(curdir)
         model_path = model["urdfpath"]
         # self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7 * scale],
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), [0, 0, 0.7*scale],  # 0.31
+        self.bot = p.loadURDF(os.path.join(path_parent, model_path), X_0[0:3],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
         # p.resetDebugVisualizerCamera(cameraDistance=1.5, cameraYaw=45, cameraPitch=-45, cameraTargetPosition=[0,0,0])
@@ -171,6 +171,7 @@ class Sim:
             p.changeDynamics(self.bot, i, maxJointVelocity=800)  # max 3800 rpm
 
         self.p = np.zeros(3)
+        # mass_mtx = p.calculateMassMatrix(self.bot, [0, 0, 0, 0, 0, 0, 0])
 
     def sim_run(self, u):
         q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))

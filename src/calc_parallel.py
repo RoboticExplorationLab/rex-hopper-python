@@ -4,6 +4,7 @@ import sympy as sp
 import numpy as np
 from sympy.physics.vector import dynamicsymbols
 
+
 def calculate(L, mass, I, coml):
     # --- Forward Kinematics --- #
     l0 = L[0]

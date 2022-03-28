@@ -31,16 +31,14 @@ class Mpc:
         self.g = g
         n_x = np.shape(self.A)[1]
         n_u = np.shape(self.B)[1]
-
         AB = np.vstack((np.hstack((self.A, self.B)), np.zeros((n_u, n_x + n_u))))
         M = expm(AB * t)
         self.Ad = M[0:n_x, 0:n_x]
         self.Bd = M[0:n_x, n_x:n_x + n_u]
-
         self.Q = np.eye(n_x)
-        Q[n_u, n_u] *= 0.01
-        Q[n_u + 1, n_u + 1] *= 0.01
-        Q[n_u + 2, n_u + 2] *= 0.01
+        self.Q[n_u, n_u] *= 0.01
+        self.Q[n_u + 1, n_u + 1] *= 0.01
+        self.Q[n_u + 2, n_u + 2] *= 0.01
         self.R = np.eye(n_u) * 0
         self.n_u = n_u
         self.n_x = n_x
@@ -65,7 +63,7 @@ class Mpc:
         for k in range(0, N):
             kf = 10 if k == N - 1 else 1  # terminal cost
             kuf = 0 if k == N - 1 else 1  # terminal cost
-            cost += cp.quad_form(X[:, k+1] - X_ref, Q * kf) + cp.quad_form(U[:, k] - U_ref, R * kuf)
+            cost += cp.quad_form(X[:, k+1] - X_ref[k, :], Q * kf) + cp.quad_form(U[:, k] - U_ref, R * kuf)
             fx = U[0, k]
             fy = U[1, k]
             fz = U[2, k]
@@ -81,7 +79,7 @@ class Mpc:
                            0 >= fy - mu * fz,
                            0 >= -fy - mu * fz,
                            0 <= fz]
-        constr += [X[:, 0] == X_in, X[:, N] == X_ref]  # initial and final condition
+        constr += [X[:, 0] == X_in, X[:, N] == X_ref[-1, :]]  # initial and final condition
         # --- set up solver --- #
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(solver=cp.OSQP)  # , verbose=True)

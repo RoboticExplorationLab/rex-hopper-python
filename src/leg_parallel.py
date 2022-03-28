@@ -3,7 +3,6 @@ Copyright (C) 2020-2022 Benjamin Bokser
 """
 
 import numpy as np
-import sympy as sp
 import csv
 import os
 import pickle
@@ -46,6 +45,7 @@ class Leg:
         izz = values_direct[13].astype(np.float)
 
         self.mass = values_direct[7].astype(np.float)
+        self.m_total = sum(self.mass)
         self.mass = np.delete(self.mass, 0)  # remove body value
         self.coml = values_direct[1:4].astype(np.float)
         self.coml = np.delete(self.coml, 0, axis=1)  # remove body value
