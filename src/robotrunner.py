@@ -137,13 +137,20 @@ class Runner:
         rw2vhist = np.zeros((total, 2))
         rwzvhist = np.zeros((total, 2))
 
+        # sensor data hist
+        time_hist = np.zeros(total)
+        acc_hist = np.zeros((total, 3))
+        gyro_hist = np.zeros((total, 3))
+        joint_hist = np.zeros((total, 2))
+        foot_force_hist = np.zeros(total)
+
         while steps < self.total_run:
             steps += 1
             t = t + self.dt
 
             # run simulator to get encoder and IMU feedback
             # TODO: More realistic contact detection
-            q, q_dot, qrw, qrw_dot, Q_base, c, torque, f = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
+            q, q_dot, qrw, qrw_dot, Q_base, c, torque, f, acc_b_out, gyro_b_out, joint_angle_out, force_out = self.simulator.sim_run(u=self.u, u_rw=self.u_rw)
 
             # enter encoder values into leg kinematics/dynamics
             self.leg.update_state(q_in=q)
@@ -234,6 +241,13 @@ class Runner:
                 rw2vhist[steps - 1, :] = self.simulator.actuator_rw2.v_actual
                 rwzvhist[steps - 1, :] = self.simulator.actuator_rwz.v_actual
 
+                # sensor history record
+                time_hist[steps - 1] = t
+                acc_hist[steps - 1] = acc_b_out
+                gyro_hist[steps - 1]  = gyro_b_out
+                joint_hist[steps - 1]  = joint_angle_out
+                foot_force_hist[steps - 1]  = force_out
+
             p_base = self.simulator.base_pos[0]  # base position in world coords
 
             phist[steps - 1, :] = p_base
@@ -242,16 +256,26 @@ class Runner:
             sh_prev = sh
             c_prev = c
 
+
+        # end of the simulation
+        # save sensor data to csv 
+        #https://stackoverflow.com/questions/30305069/numpy-concatenate-2d-arrays-with-1d-array
+        # TODO: also save ground truth
+        sensor_data = np.hstack([time_hist[:, None],acc_hist,gyro_hist,joint_hist,foot_force_hist[:, None]])
+        np.savetxt("sensor_data.csv", sensor_data, delimiter=",") 
+
         if self.plot == True:
-            plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
-                         rw1hist, rw2hist, rwzhist,
-                         w1hist, w2hist, w3hist,
-                         setphist[:, 0], setphist[:, 1], setphist[:, 2])
-            plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
-            plots.tauplot(total, tau0hist, tau2hist, pzhist=phist[:, 2], fxhist=fhist[:, 0],
-                          fzhist=fhist[:, 2], fthist=fthist)
-            plots.electrplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
-                             q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist)
-            plots.electrtotalplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
-                                  q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist, dt=self.dt)
+            # plots.rwplot(total, thetahist[:, 0], thetahist[:, 1], thetahist[:, 2],
+            #              rw1hist, rw2hist, rwzhist,
+            #              w1hist, w2hist, w3hist,
+            #              setphist[:, 0], setphist[:, 1], setphist[:, 2])
+            # plots.posplot(p_ref=p_ref, phist=phist, xfhist=x_des_hist)
+            # plots.tauplot(total, tau0hist, tau2hist, pzhist=phist[:, 2], fxhist=fhist[:, 0],
+            #               fzhist=fhist[:, 2], fthist=fthist)
+            # plots.electrplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
+            #                  q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist)
+            # plots.electrtotalplot(total, q0ahist, q2ahist, rw1ahist, rw2ahist, rwzahist,
+            #                       q0vhist, q2vhist, rw1vhist, rw2vhist, rwzvhist, dt=self.dt)
+            plots.sensor_plot(total, acc_hist, gyro_hist, joint_hist, foot_force_hist)
+            
         return ft_saved

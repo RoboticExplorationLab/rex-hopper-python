@@ -241,3 +241,19 @@ def posplot(p_ref, phist, xfhist):
     plt.legend(loc="upper left")
 
     plt.show()
+
+
+def sensor_plot(total, acc_hist, gyro_hist, joint_hist, foot_force_hist):
+
+    fig, axs = plt.subplots(2, 2, sharex='all')
+    plt.xlabel("Timesteps")
+
+    axs[0, 0].plot(range(total), acc_hist, color='blue')
+
+    axs[0, 1].plot(range(total), gyro_hist, color='blue')
+
+    axs[1, 0].plot(range(total), joint_hist, color='blue')
+
+    axs[1, 1].plot(range(total), foot_force_hist, color='blue')
+
+    plt.show()

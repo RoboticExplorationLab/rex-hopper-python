@@ -11,6 +11,9 @@ import os
 import actuator
 import actuator_param
 
+# used in sensor simulation
+from utils import quat2rot
+
 useRealTime = 0  # Do NOT change to real time
 
 
@@ -52,6 +55,17 @@ def reaction_force(numJoints, bot):
     # 4x3 array [Fx, Fy, Fz]
     # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # selected all joints Fz
     return f
+
+
+def joint_torques(numJoints, bot):
+    # returns joint_torques
+    reaction = np.array([j[2] for j in p.getJointStates(bot, range(numJoints))])  # j[2]=jointReactionForces
+    # 4x6 array [Fx, Fy, Fz, Mx, My, Mz]
+    torques = reaction[:, 5]  # selected all joints Fz
+    # 4x3 array [Fx, Fy, Fz]
+    # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # selected all joints Fz
+    return torques
+
 
 
 class Sim:
@@ -152,6 +166,12 @@ class Sim:
             # increase max joint velocity (default = 100 rad/s)
             p.changeDynamics(self.bot, i, maxJointVelocity=400)
 
+        self.prev_velocities = np.zeros(6)
+        self.IMU_ACC_NOISE = 0.01
+        self.IMU_GYRO_NOISE = 0.01
+        self.JOINT_ANGLE_NOISE = 0.005
+        self.FOOT_FORCE_NOISE = 0.01
+
     def sim_run(self, u, u_rw):
         q_all = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
         q_dot_all = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
@@ -220,13 +240,43 @@ class Sim:
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
-        self.omega_xyz = velocities[1]  # base angular velocity in XYZ
+        self.omega_xyz = velocities[1]  # base angular velocity in XYZ in global Cartesian coordinates
         self.base_pos = p.getBasePositionAndOrientation(self.bot)
         f = reaction_force(self.numJoints, self.bot)
         # Detect contact with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]))
 
+        # Section: sensor simulation
+        # Sensor 1: IMU Acceleration
+        prev_v = self.prev_velocities[0]
+        acc = (np.array(self.v) - np.array(prev_v))/ self.dt # base linear acceleration in global Cartesian coordinates
+        rot_mat = quat2rot(Q_base)
+        acc_b = rot_mat.T @ acc                       # base linear acceleration in robot body coordinates
+        acc_noise = np.random.normal(0,self.IMU_ACC_NOISE,3)
+        acc_b_out = acc_b + acc_noise + rot_mat.T @ np.array([0.0, 0.0, 9.8])
+        # Sensor 2: IMU Gyroscope
+        gyro_noise = np.random.normal(0,self.IMU_GYRO_NOISE,3)
+        gyro_b_out = rot_mat.T @ np.array(self.omega_xyz) + gyro_noise 
+
+        # Sensor 3: Leg joint encoders
+        encoder_noise = np.random.normal(0,self.JOINT_ANGLE_NOISE,2)
+        joint_angles = np.array([float(q_all[0]), float(q_all[2])])
+        joint_angle_out = joint_angles + encoder_noise    # q[0] q[2] are related to leg eepos calculation
+
+        # Sensor 4: Foot contact
+        # TODO: which joints are directly related to foot force?
+        force_noise = np.random.normal(0,self.FOOT_FORCE_NOISE,1)
+        force = [c[9] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        average_force = np.average(force)
+        if np.isnan(average_force):
+            average_force = 0
+        force_out = average_force + force_noise
+
+        self.prev_velocities = velocities
+
+
         if useRealTime == 0:
             p.stepSimulation()
 
-        return q, q_dot, qrw, qrw_dot, Q_base, c, torque, f
+        # TODO: return acc_b_out, gyro_b_out, joint_angle_out, force_out
+        return q, q_dot, qrw, qrw_dot, Q_base, c, torque, f, acc_b_out, gyro_b_out, joint_angle_out, force_out
