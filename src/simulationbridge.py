@@ -181,6 +181,9 @@ class Sim:
         else:
             tau_s = np.zeros(2)
 
+        mass_mtx = p.calculateMassMatrix(self.bot, [0,0,0,0,0,0,0])
+        print(mass_mtx)
+
         self.p = np.array(p.getBasePositionAndOrientation(self.bot)[0])
         Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
@@ -253,15 +256,19 @@ class Sim:
         rot_mat = quat2rot(Q_base)
         acc_b = rot_mat.T @ acc                       # base linear acceleration in robot body coordinates
         acc_noise = np.random.normal(0,self.IMU_ACC_NOISE,3)
-        acc_b_out = acc_b + acc_noise + rot_mat.T @ np.array([0.0, 0.0, 9.8])
+        gravity = rot_mat.T @ np.array([0.0, 0.0, 0.0])
+        acc_b_out = acc_b + gravity
+        # acc_b_out += acc_noise 
         # Sensor 2: IMU Gyroscope
         gyro_noise = np.random.normal(0,self.IMU_GYRO_NOISE,3)
-        gyro_b_out = rot_mat.T @ np.array(self.omega_xyz) + gyro_noise 
+        gyro_b_out = rot_mat.T @ np.array(self.omega_xyz) 
+        # gyro_b_out += gyro_noise 
 
         # Sensor 3: Leg joint encoders
         encoder_noise = np.random.normal(0,self.JOINT_ANGLE_NOISE,2)
         joint_angles = np.array([float(q_all[0]), float(q_all[2])])
-        joint_angle_out = joint_angles + encoder_noise    # q[0] q[2] are related to leg eepos calculation
+        joint_angle_out = joint_angles    # q[0] q[2] are related to leg eepos calculation
+        # joint_angle_out += encoder_noise 
 
         # Sensor 4: Foot contact
         # TODO: which joints are directly related to foot force?
@@ -270,7 +277,8 @@ class Sim:
         average_force = np.average(force)
         if np.isnan(average_force):
             average_force = 0
-        force_out = average_force + force_noise
+        force_out = average_force
+        # force_out += force_noise
 
         self.prev_velocities = velocities
 
