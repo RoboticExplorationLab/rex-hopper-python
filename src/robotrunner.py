@@ -88,8 +88,9 @@ class Runner:
         t_st = self.t_p * self.phi_switch  # time spent in stance
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
                               target=self.target, hconst=self.hconst, t_st=t_st, use_qp=False, gain=gain, dt=dt)
+        self.N = 10  # mpc horizon
+        self.horz_len = self.t_p * self.phi_switch * self.N / self.dt  # horizon length (timesteps)
         if self.ctrl_type == 'mpc':
-            self.N = 10  # mpc horizon
             self.mpc_t = self.t_p * self.phi_switch  # mpc sampling time (s)
             self.gaitfn = self.gait.u_mpc
             self.mpc = mpc.Mpc(t=self.mpc_t, N=self.N, m=self.leg.m_total, g=self.g, mu=self.mu)
@@ -105,7 +106,7 @@ class Runner:
         elif self.ctrl_type == 'ik_static':
             self.gaitfn = self.gait.u_ik_static
 
-        self.X_f = np.hstack([2, 0, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
+        self.X_f = np.hstack([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
 
     def run(self):
         total = self.total_run + 1  # number of timesteps to plot
@@ -121,7 +122,7 @@ class Runner:
             mpc_factor = self.mpc_factor  # repeat mpc every x seconds
             mpc_counter = copy.copy(mpc_factor)
 
-        force_f = None
+        force_f = np.zeros((3, 1))
         n_a = self.n_a
         tauhist = np.zeros((total, n_a))
         dqhist = np.zeros((total, n_a))
@@ -166,12 +167,9 @@ class Runner:
                     X_refN = X_ref[::int(self.mpc_factor)]
                     force_f, sm = self.mpc.mpcontrol(X_in=X_in, X_ref=X_refN, s=s)
                 mpc_counter += 1
-                self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in,
-                                                   X_ref=X_ref[k, :], Q_base=Q_base,
-                                                   fr=np.reshape(force_f[:, 0], (3, 1)))
-            else:
-                self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in,
-                                                   X_ref=self.X_f, Q_base=Q_base, fr=force_f)
+
+            self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in, X_ref=X_ref[100, :],
+                                               Q_base=Q_base, fr=np.reshape(force_f[:, 0], (3, 1)))
 
             x_des_hist[k, :] = self.gait.x_des
             fhist[k, :] = f[1, :]
@@ -211,7 +209,7 @@ class Runner:
     def path_plan(self, X_in):
         # Path planner--generate reference trajectory
         dt = self.dt
-        size_mpc = int(self.mpc_factor*self.N)  # length of MPC horizon in s TODO: Perhaps N should vary wrt time?
+        size_mpc = int(self.horz_len)  # length of MPC horizon in s TODO: Perhaps N should vary wrt time?
         # timesteps given to get to target, either mpc length or based on distance (whichever is smaller)
         t_ref = int(np.minimum(size_mpc, np.linalg.norm(self.X_f[0:2] - X_in[0:2]) * 1000))
         X_ref = np.linspace(start=X_in, stop=self.X_f, num=t_ref)  # interpolate positions

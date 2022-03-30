@@ -1,0 +1,91 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+
+\begin{document}
+
+%\begin{equation}
+\begin{align}
+\min_{u,\ddot{q}, \lambda} \quad & \lVert \ddot{r} - \ddot{r}_{REF} \lVert \\
+\textrm{s.t.} \quad & M(q) \ddot{q} + C(q, \dot{q}) + G(q) = Bu + J_c(q)^\top \lambda\\
+  & J_c(q)\ddot{q} + d_c(q, \dot{q}) = 0    
+\end{align}
+%\end{equation}
+
+\begin{equation}
+	\ddot{r} = J_f \ddot{q} + d_f(q, \dot{q})
+\end{equation}
+
+%\begin{equation}
+\begin{align}
+\min_{u,\ddot{q}, \lambda} \quad & \lVert J_f \ddot{q} + d_f(q, \dot{q}) - \ddot{r}_{REF} \lVert \\
+\textrm{s.t.} \quad & M(q) \ddot{q} + C(q, \dot{q}) + G(q) = Bu + J_c(q)^\top \lambda\\
+  & J_c(q)\ddot{q} + d_c(q, \dot{q}) = 0    
+\end{align}
+%\end{equation}
+
+\begin{equation}
+	c = \begin{bmatrix}
+	x_1 - x_c\\
+	0 \\
+	z_1 - z_c
+	\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+	J_c(q) = \frac{\partial c}{\partial q}
+\end{equation}
+
+\begin{equation}
+	d_c = \frac{\partial }{\partial q}(J_c(q)\dot{q})\dot{q}
+\end{equation}
+
+\begin{equation}
+    x_0 = l_0 \cos(q_0)
+\end{equation}
+\begin{equation}
+    z_0 = l_0 \sin(q_0)
+\end{equation}
+
+\begin{equation}
+    \rho = \sqrt{x_0^2 + z_0^2}
+\end{equation}
+
+\begin{equation}
+    x_1 = l_2 \cos(q_2)
+\end{equation}
+\begin{equation}
+    z_1 = l_2 \sin(q_2)
+\end{equation}
+\begin{equation}
+    h = \sqrt{(x_0 - x_1)^2 + (z_0 - z_1)^2}
+\end{equation}
+\begin{equation}
+    \mu = \arccos\left(\frac{l_3^2 + h^2 - l1^2}{2 l_3 h}\right)
+\end{equation}
+\begin{equation}
+    \eta = \arccos\left(\frac{h^2 + l_2^2 - \rho^2}{2 h l_2}\right)
+\end{equation}
+\begin{equation}
+    \alpha = \pi - (\eta + \mu) + q_2
+\end{equation}
+    
+\begin{equation}
+    k(q_0, q_2) = \begin{bmatrix}
+    l_2 \cos(q_2) + (l_3 + l_4) \cos(\alpha) + l_5 \cos(\alpha - \pi / 2) \\
+    0 \\
+    l_2 \sin(q_2) + (l_3 + l_4) \sin(\alpha) + l_5 \cos(\alpha - \pi / 2)
+    \end{bmatrix}
+\end{equation}
+
+\begin{equation}
+	J_f(q) = \frac{\partial k}{\partial q}
+\end{equation}
+
+\begin{equation}
+	d_f = \frac{\partial }{\partial q}(J_k(q)\dot{q})\dot{q}
+\end{equation}
+    
+\end{document}

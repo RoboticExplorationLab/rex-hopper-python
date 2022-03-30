@@ -54,7 +54,7 @@ class Gait:
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
                 x_fb = np.zeros(3)
-                kr = 0.3 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
+                kr = 0.4 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
                 x_fb[0:2] = 0.5*self.t_st*pdot[0:2] + kr * (pdot[0:2] - pdot_ref[0:2])
                 self.x_des = x_fb + p  # world frame desired footstep position
                 self.x_des[2] = 0  # enforce footstep location is on ground plane
@@ -89,7 +89,7 @@ class Gait:
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)  # pdot_ref = np.array([0, 0.2, 0])
-        self.target[0] = 0  # -0.08  # adjustment for balance due to bad mockup design
+        self.target[0] = -0.04  # -0.08  # adjustment for balance due to bad mockup design
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
                 kr = 0.3 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
