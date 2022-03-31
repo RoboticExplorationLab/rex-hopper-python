@@ -146,15 +146,30 @@ def electrtotalplot(total, ahist, vhist, dt):
     plt.show()
 
 
-def posplot(p_ref, phist, xfhist):
+def posplot(p_ref, phist, x_des_hist):
 
     plt.plot(phist[:, 0], phist[:, 1], color='blue', label='body position')
     plt.title('Body XY Position')
     plt.ylabel("y (m)")
     plt.xlabel("x (m)")
-    plt.scatter(xfhist[:, 0], xfhist[:, 1], color='red', marker="o", label='footstep setpoints')
+    plt.scatter(x_des_hist[:, 0], x_des_hist[:, 1], color='red', marker="o", label='footstep setpoints')
     plt.scatter(0, 0, color='green', marker="x", s=100, label='starting position')
     plt.scatter(p_ref[0], p_ref[1], color='orange', marker="x", s=100, label='position setpoint')
     plt.legend(loc="upper left")
+
+    plt.show()
+
+
+def posplot_3d(p_ref, phist, x_des_hist):
+    ax = plt.axes(projection='3d')
+    ax.plot(phist[:, 0], phist[:, 1], phist[:, 2], color='red', label='body position')
+    ax.set_title('Body XYZ Position')
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_zlabel("z (m)")
+    ax.scatter(0, 0, 0, color='green', label='starting position')
+    ax.scatter(p_ref[0], p_ref[1], p_ref[2], color='orange', label='position setpoint')
+    ax.scatter(x_des_hist[:, 0], x_des_hist[:, 1], x_des_hist[:, 2], color='blue', label='foot position')
+    ax.legend()
 
     plt.show()

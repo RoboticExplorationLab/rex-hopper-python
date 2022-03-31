@@ -19,8 +19,8 @@ class MomentCtrl:
             self.ctrl = self.rw_control
             # torque PID gains
             ku = 1600  # 2000
-            kp_tau = [ku,        ku,        ku]
-            ki_tau = [ku * 0.01, ku * 0.01, ku * 0.02]
+            kp_tau = [ku,        ku,        ku*0.5]
+            ki_tau = [ku * 0.01, ku * 0.01, ku * 0.01]
             kd_tau = [ku * 0.06, ku * 0.06, ku * 0.02]
             self.pid_tau = pid.PIDn(kp=kp_tau, ki=ki_tau, kd=kd_tau)
 

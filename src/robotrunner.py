@@ -7,6 +7,7 @@ import gait
 import plots
 import moment_ctrl
 import mpc
+import utils
 # import time
 # import sys
 import copy
@@ -129,6 +130,7 @@ class Runner:
         ahist = np.zeros((total, n_a))
         vhist = np.zeros((total, n_a))
         phist = np.zeros((total, 3))
+        pfhist = np.zeros((total, 3))
         thetahist = np.zeros((total, 3))
         setphist = np.zeros((total, 3))
         fhist = np.zeros((total, 3))
@@ -182,6 +184,8 @@ class Runner:
             ahist[k, :] = i
             vhist[k, :] = v
             phist[k, :] = self.simulator.base_pos[0]  # base position in world coords
+            # foot position in world coords
+            pfhist[k, :] = self.simulator.base_pos[0] + utils.Z(Q_base, self.leg.position()).flatten()
 
             state_prev = state
             sh_prev = sh
@@ -192,7 +196,8 @@ class Runner:
             plots.tauplot(total, n_a, tauhist)
             plots.dqplot(total, n_a, dqhist)
             # plots.fplot(total, phist, fhist, fthist)
-            plots.posplot(p_ref=self.X_f[0:3], phist=phist, xfhist=x_des_hist)
+            plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
+            # plots.posplot(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
             # plots.currentplot(total, n_a, ahist)
             # plots.voltageplot(total, n_a, vhist)
             # plots.electrtotalplot(total, ahist, vhist, dt=self.dt)

@@ -96,16 +96,15 @@ class Gait:
         # pdot_ref = X_ref[3:6]/1000
         self.target[0] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
         v_ref = X_ref - X_in
-        if np.linalg.norm(self.X_f[0:2]-X_in[0:2]) >= 1:
+
+        if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
-            hconst = self.hconst
-            kr = 0.3 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
-            kt = 0.42  # 0.4 gain representing leap period accounting for vertical jump velocity at toe-off
-        else:
-            hconst = self.hconst*0.9
-            kr = 0.2  # "speed cancellation" constant
-            kt = 0.38  # 0.4 gain representing leap period accounting for vertical jump velocity at toe-off
- 
+
+        k_b = (np.clip(np.linalg.norm(self.X_f[0:2] - X_in[0:2]), 0.5, 1) + 2)/3  # "Braking" gain based on dist
+        hconst = self.hconst * k_b
+        kr = .15 / k_b  # "speed cancellation" constant
+        kt = 0.4  # gain representing leap period accounting for vertical jump velocity at toe-off
+
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
                 self.x_des = raibert_x(kr, kt, pdot, pdot_ref) + p  # world frame desired footstep position
