@@ -29,7 +29,7 @@ def spring(q, l):
     L0 = l[0]  # .15
     L2 = l[2]  # .3
     gamma = abs(q2 - q0)
-    rmin = 0.176  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
+    rmin = 0.17  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
     r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
     # print("r = ", r, " and rmin = ", rmin)
     if r < rmin:
@@ -81,7 +81,7 @@ class Sim:
             self.S = S
             self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
             self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn1005kv90)  # mn1005kv90
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # mn1005kv90
 
         elif self.model == 'design_cmg':
             S = np.zeros((13, 9))

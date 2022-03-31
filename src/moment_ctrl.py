@@ -67,34 +67,34 @@ class MomentCtrl:
         # self.dq = (self.q - self.q_previous) / self.dt
         # self.d2q = (self.dq - self.dq_previous) / self.dt
 
-    def orient(self, Q_ref, Q_base):
+    def orient(self, Q_ref, Q_base, z_ref):
         a = self.a
         b = self.b
         ref_1 = utils.z_rotate(Q_ref, a)
         ref_2 = utils.z_rotate(Q_ref, b)
         # setp = np.array([ref_1 - 0 * np.pi / 180, ref_2 + 0 * np.pi / 180, 0])
-        setp = np.array([ref_1 - 2 * np.pi / 180, ref_2 + 2 * np.pi / 180, 0])
+        setp = np.array([ref_1 - 2 * np.pi / 180,
+                         ref_2 + 2 * np.pi / 180,
+                         z_ref])
         theta_1 = utils.z_rotate(Q_base, a)
         theta_2 = utils.z_rotate(Q_base, b)
-
         theta_3 = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
-
         theta = np.array([theta_1, theta_2, theta_3])
         return theta, setp
 
-    def rw_control(self, Q_ref, Q_base):
+    def rw_control(self, Q_ref, Q_base, z_ref):
         """
         simple reaction wheel control w/ derivative on measurement pid
         """
         dq = self.dq
-        theta, setp = self.orient(Q_ref, Q_base)  # get body angle and setpoint in rw/cmg frame
+        theta, setp = self.orient(Q_ref, Q_base, z_ref)  # get body angle and setpoint in rw/cmg frame
         u_vel = self.pid_vel.pid_control(inp=dq.flatten(), setp=np.zeros(3))
         setp_cascaded = setp - u_vel
-        u_tau = self.pid_tau.pid_control(inp=theta, setp=setp_cascaded)  # Cascaded PID Loop
+        u_tau = self.pid_tau.pid_control_wrap(inp=theta, setp=setp_cascaded)  # Cascaded PID Loop
 
         return u_tau, theta, setp_cascaded
 
-    def cmg_control(self, Q_ref, Q_base):
+    def cmg_control(self, Q_ref, Q_base, z_ref):
         """
         simple CMG control w/ derivative on measurement pid
         """
@@ -102,7 +102,7 @@ class MomentCtrl:
         q = self.q
         dq = self.dq
 
-        theta, setp = self.orient(Q_ref, Q_base)  # get body angle and setpoint in rw/cmg frame
+        theta, setp = self.orient(Q_ref, Q_base, z_ref)  # get body angle and setpoint in rw/cmg frame
 
         dqf = np.array([dq[1], dq[2], dq[5], dq[6]])  # speed of flywheels
         u_fl = self.pid_fl.pid_control(inp=dqf.flatten(), setp=np.array([v_des, -v_des, v_des, -v_des]))
@@ -121,3 +121,4 @@ class MomentCtrl:
         u_cmg = np.array([u_g[0], u_fl[0], u_fl[1], -u_rwz, u_g[1], u_fl[2], u_fl[3]])
 
         return u_cmg, theta, setp_cascaded
+

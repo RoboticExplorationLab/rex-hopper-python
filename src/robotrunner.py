@@ -77,6 +77,7 @@ class Runner:
         self.mu = 0.3  # friction
         self.g = 9.81
         X_0 = np.array([0, 0, 0.7*scale, 0, 0, 0, self.g])  # initial conditions
+        self.X_f = np.hstack([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
         self.simulator = simulationbridge.Sim(X_0=X_0, model=model, dt=dt, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
@@ -87,14 +88,15 @@ class Runner:
         self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
         t_st = self.t_p * self.phi_switch  # time spent in stance
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
-                              target=self.target, hconst=self.hconst, t_st=t_st, use_qp=False, gain=gain, dt=dt)
+                              target=self.target, hconst=self.hconst, t_st=t_st, X_f=self.X_f,
+                              use_qp=False, gain=gain, dt=dt)
         self.N = 10  # mpc horizon
         self.horz_len = self.t_p * self.phi_switch * self.N / self.dt  # horizon length (timesteps)
         if self.ctrl_type == 'mpc':
             self.mpc_t = self.t_p * self.phi_switch  # mpc sampling time (s)
-            self.gaitfn = self.gait.u_mpc
             self.mpc = mpc.Mpc(t=self.mpc_t, N=self.N, m=self.leg.m_total, g=self.g, mu=self.mu)
             self.mpc_factor = self.mpc_t / self.dt  # mpc sampling time (timesteps)
+            self.gaitfn = self.gait.u_mpc
         elif self.ctrl_type == 'wbc_raibert':
             self.gaitfn = self.gait.u_raibert
         elif self.ctrl_type == 'wbc_vert':
@@ -105,8 +107,6 @@ class Runner:
             self.gaitfn = self.gait.u_ik_vert
         elif self.ctrl_type == 'ik_static':
             self.gaitfn = self.gait.u_ik_static
-
-        self.X_f = np.hstack([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
 
     def run(self):
         total = self.total_run + 1  # number of timesteps to plot
@@ -153,14 +153,15 @@ class Runner:
             # TODO: Actual state estimator... getting it straight from sim is cheating
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
             p = np.array(self.simulator.p)  # p = p + pdot * self.dt  # body position in world coordinates
+            X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
+            X_ref = self.path_plan(X_in=X_in)
             # delp = pdot * self.dt
 
             go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)  # prevents stuck in stance bug
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
             # pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
             # calculate control signal
-            X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
-            X_ref = self.path_plan(X_in=X_in)
+
             if self.ctrl_type == 'mpc':
                 if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter

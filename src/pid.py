@@ -2,7 +2,7 @@
 Copyright (C) 2022 Benjamin Bokser
 """
 import numpy as np
-
+import utils
 
 class PID1:
 
@@ -66,6 +66,21 @@ class PIDn:
         kd = self.kd
         err_sum = self.err_sum
         err = inp - setp
+        inp_diff = (inp - self.inp_prev) / dt
+        u = kp @ err + ki @ err_sum * dt + kd @ inp_diff
+        self.inp_prev = inp
+        self.err_sum += err
+
+        return u
+
+    def pid_control_wrap(self, inp, setp):
+        # pid control for angles (wraps error to pi)
+        dt = self.dt
+        kp = self.kp
+        ki = self.ki
+        kd = self.kd
+        err_sum = self.err_sum
+        err = utils.wrap_to_pi(inp - setp)
         inp_diff = (inp - self.inp_prev) / dt
         u = kp @ err + ki @ err_sum * dt + kd @ inp_diff
         self.inp_prev = inp

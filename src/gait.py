@@ -9,14 +9,13 @@ import time
 
 def raibert_x(kr, kt, pdot, pdot_ref):
     # footstep placement wrt base CoM in world frame for neutral motion
-    x_f0 = pdot[0:2] * kt * np.abs(pdot[2]) / 2   # takes vertical leaping speed into account
-    # footstep placement in world frame with desired acceleration
-    x_f = x_f0 + kr * (pdot[0:2] - pdot_ref[0:2])
-    return x_f  # 2x1
+    x_f0 = pdot * kt * np.abs(pdot[2]) / 2   # takes vertical leaping speed into account
+    x_f = x_f0 + kr * (pdot - pdot_ref)  # footstep placement in world frame with desired acceleration
+    return x_f  # 3x1
 
 
 class Gait:
-    def __init__(self, model, moment, controller, leg, target, hconst, t_st,
+    def __init__(self, model, moment, controller, leg, target, hconst, t_st, X_f,
                  use_qp=False, gain=5000, dt=1e-3, **kwargs):
 
         self.swing_steps = 0
@@ -38,7 +37,13 @@ class Gait:
         else:
             self.controlf = self.controller.wb_control
         self.x_des = np.array([0, 0, 0])
-        self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
+        # self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
+        kp = [0.02, 0.02,  0]
+        ki = [0.2,  0.2,  0]
+        kd = [0.01,  0.01,  0]
+        self.pid_pdot = pid.PIDn(kp=kp, ki=ki, kd=kd)
+        self.z_ref = 0
+        self.X_f = X_f
 
     def u_mpc(self, state, state_prev, X_in, X_ref, Q_base, fr):
         # mpc-based hopping
@@ -55,7 +60,7 @@ class Gait:
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
                 x_fb = np.zeros(3)
                 kr = 0.4 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
-                x_fb[0:2] = 0.5*self.t_st*pdot[0:2] + kr * (pdot[0:2] - pdot_ref[0:2])
+                x_fb[0:2] = 0.5 * self.t_st * pdot[0:2] + kr * (pdot[0:2] - pdot_ref[0:2])
                 self.x_des = x_fb + p  # world frame desired footstep position
                 self.x_des[2] = 0  # enforce footstep location is on ground plane
             if pdot[2] >= 0:  # recognize that robot is still rising
@@ -85,23 +90,31 @@ class Gait:
         pdot = X_in[3:6]
         p_ref = X_ref[0:3]
         k_wbc = self.k_wbc
-        hconst = self.hconst
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         pdot_ref = -self.pid_pdot.pid_control(inp=p, setp=p_ref)  # pdot_ref = np.array([0, 0.2, 0])
-        self.target[0] = -0.04  # -0.08  # adjustment for balance due to bad mockup design
+        # pdot_ref = X_ref[3:6]/1000
+        self.target[0] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
+        v_ref = X_ref - X_in
+        if np.linalg.norm(self.X_f[0:2]-X_in[0:2]) >= 1:
+            self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
+            hconst = self.hconst
+            kr = 0.3 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
+            kt = 0.42  # 0.4 gain representing leap period accounting for vertical jump velocity at toe-off
+        else:
+            hconst = self.hconst*0.9
+            kr = 0.2  # "speed cancellation" constant
+            kt = 0.38  # 0.4 gain representing leap period accounting for vertical jump velocity at toe-off
+ 
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
-                kr = 0.3 / (np.linalg.norm(pdot_ref) + 2)  # 0.4 "speed cancellation" constant
-                kt = 0.4  # 0.4 gain representing leap period accounting for vertical jump velocity at toe-off
-                x_fb = np.zeros(3)
-                x_fb[0:2] = raibert_x(kr, kt, pdot, pdot_ref)  # desired footstep relative to current body CoM
-                self.x_des = x_fb + p  # world frame desired footstep position
+                self.x_des = raibert_x(kr, kt, pdot, pdot_ref) + p  # world frame desired footstep position
                 self.x_des[2] = 0  # enforce footstep location is on ground plane
             if pdot[2] >= 0:  # recognize that robot is still rising
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
                 self.target[2] = -hconst * 6 / 3  # brace for impact
+            # self.controller.update_gains(k_wbc, k_wbc * 0.02)
             self.controller.update_gains(k_wbc * 0.03, k_wbc * 0.006)
         elif state == 'HeelStrike':
             self.controller.update_gains(k_wbc, k_wbc * 0.02)
@@ -113,11 +126,11 @@ class Gait:
                 force = fr
         else:
             raise NameError('INVALID STATE')
-        # Q_ref = utils.euler2quat(0, 0, 0)  # 2.5 * np.pi / 180
+
         Q_ref = utils.vec_to_quat2(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
         u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 
     def u_wbc_vert(self, state, state_prev, X_in, X_ref, Q_base, fr):
@@ -126,9 +139,10 @@ class Gait:
         force = np.zeros((3, 1))
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
         hconst = self.hconst
-        self.target[0] = 0
+        self.target[0] = -0.02
         if state == 'Return':
-            self.controller.update_gains(k_wbc * 0.03, k_wbc * 0.006)
+            # self.controller.update_gains(k_wbc * 0.03, k_wbc * 0.006)
+            self.controller.update_gains(k_wbc, k_wbc * 0.02)
             self.target[2] = -hconst * 5 / 3
         elif state == 'HeelStrike':
             self.controller.update_gains(k_wbc, k_wbc * 0.02)
@@ -141,7 +155,7 @@ class Gait:
         else:
             raise NameError('INVALID STATE')
         u[0:2] = -self.controlf(target=self.target, Q_base=Q_base, force=force)
-        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp
 
     def u_wbc_static(self, state, state_prev, X_in, X_ref, Q_base, fr):

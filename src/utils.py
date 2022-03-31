@@ -87,7 +87,7 @@ def vec_to_quat(v2):
     # conversion of line vector to quaternion rotation b/t it and a datum vector v1
     v1 = np.array([1, 0, 0])  # datum vector, chosen as aligned with x-axis (front facing)
     Q = np.zeros(4)
-    Q[0] = np.sqrt((np.linalg.norm(v1)**2)*(np.linalg.norm(v2)**2)) + np.dot(v1, v2)
+    Q[0] = np.sqrt((np.linalg.norm(v1) ** 2) * (np.linalg.norm(v2) ** 2)) + np.dot(v1, v2)
     Q[1:4] = np.cross(v1, v2)
     Q = Q / np.linalg.norm(Q)
     return Q
@@ -106,11 +106,23 @@ def vec_to_quat2(v2):
         if np.array_equal(u1, -u2):
             Q[1:4] = np.linalg.norm(np.cross(v1, v2))
         else:
-            u_half = (u1 + u2)/np.linalg.norm(u1 + u2)
+            u_half = (u1 + u2) / np.linalg.norm(u1 + u2)
             Q[0] = np.dot(u1, u_half)
             Q[1:4] = np.cross(u1, u_half)
             Q = Q / np.linalg.norm(Q)
     return Q_inv(Q)
+
+
+def wrap_to_pi(a):
+    # wrap input angle between 0 and pi
+    return (a + np.pi) % (2 * np.pi) - np.pi
+
+
+def lift(angle, last):
+    # "lift" angle beyond range of (-pi, pi)
+    angle = (angle - last + np.pi) % (2 * np.pi) - np.pi + last
+    last = angle
+    return angle, last
 
 
 # --- from Shuo's quadruped code --- #
