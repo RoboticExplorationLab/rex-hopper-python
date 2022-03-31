@@ -10,9 +10,10 @@ import cqp
 
 class Control:
 
-    def __init__(self, leg, dt=1e-3, gain=5000, null_control=False, **kwargs):
+    def __init__(self, leg, m, dt=1e-3, gain=5000, null_control=False, **kwargs):
         # self.qp = qp.Qp()
         self.cqp = cqp.Cqp(leg=leg)
+        self.m = m
         self.dt = dt
         self.null_control = null_control
         self.leg = leg
@@ -50,6 +51,7 @@ class Control:
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         Mx = leg.gen_Mx()
+        # print(Mx @ x_dd_des[0:3], force)
         fx = utils.Z(utils.Q_inv(Q_base), Mx @ x_dd_des[0:3] + force)  # rotate back into body frame for jacobian
         # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
@@ -84,7 +86,7 @@ class Control:
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         # 3D version
-        r_dd_des = np.array(x_dd_des[0:3])
+        r_dd_des = utils.Z(utils.Q_inv(Q_base), np.array(x_dd_des[0:3]) + force/self.m)  # rotate back into body frame
         # r_dd_des = np.array([[0, 0, -1]]).T
         # print("r_dd_des = ", r_dd_des)
         u = self.cqp.qpcontrol(r_dd_des)

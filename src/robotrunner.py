@@ -74,7 +74,7 @@ class Runner:
         # print("total mass = ", self.leg.m_total)
         self.hconst = model["hconst"]  # 0.3  # height constant
         self.fixed = fixed
-        self.controller = controller_class.Control(leg=self.leg, dt=dt, gain=gain)
+        self.controller = controller_class.Control(leg=self.leg, m=self.leg.m_total, dt=dt, gain=gain)
         self.mu = 0.3  # friction
         self.g = 9.81
         X_0 = np.array([0, 0, 0.7*scale, 0, 0, 0, self.g])  # initial conditions
@@ -133,11 +133,15 @@ class Runner:
         pfhist = np.zeros((total, 3))
         thetahist = np.zeros((total, 3))
         setphist = np.zeros((total, 3))
+        rfhist = np.zeros((total, 3))
         fhist = np.zeros((total, 3))
         x_des_hist = np.zeros((total, 3))
         fthist = np.zeros(total)
+        s_hist = np.zeros((total, 2))
 
         t = 0  # time
+        t0 = t  # starting time
+        s_prev = 0
         for k in range(0, total):
             t = t + self.dt
 
@@ -145,8 +149,7 @@ class Runner:
             qa, dqa, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)  # TODO: More realistic contact detect
             self.leg.update_state(q_in=qa[0:2])  # enter encoder values into leg kinematics/dynamics
             self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
-
-            s_prev = s
+            s = self.gait_scheduler(t, t0)
             c, c_s, con_c = contact_check(c, c_s, c_prev, k, con_c)  # Like using limit switches
             sh = copy.copy(c)
 
@@ -155,14 +158,11 @@ class Runner:
             # TODO: Actual state estimator... getting it straight from sim is cheating
             pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
             p = np.array(self.simulator.p)  # p = p + pdot * self.dt  # body position in world coordinates
-            X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
-            X_ref = self.path_plan(X_in=X_in)
-            # delp = pdot * self.dt
-
             go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)  # prevents stuck in stance bug
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
             # pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
-            # calculate control signal
+            X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
+            X_ref = self.path_plan(X_in=X_in)
 
             if self.ctrl_type == 'mpc':
                 if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
@@ -175,7 +175,8 @@ class Runner:
                                                Q_base=Q_base, fr=np.reshape(force_f[:, 0], (3, 1)))
 
             x_des_hist[k, :] = self.gait.x_des
-            fhist[k, :] = f[1, :]
+            rfhist[k, :] = f[1, :]
+            fhist[k, :] = force_f[:, 0]
             fthist[k] = ft_saved[i_ft]
             setphist[k, :] = setp
             thetahist[k, :] = thetar
@@ -186,16 +187,18 @@ class Runner:
             phist[k, :] = self.simulator.base_pos[0]  # base position in world coords
             # foot position in world coords
             pfhist[k, :] = self.simulator.base_pos[0] + utils.Z(Q_base, self.leg.position()).flatten()
-
+            s_hist[k, :] = [s, sh]
             state_prev = state
+            s_prev = s
             sh_prev = sh
             c_prev = c
 
         if self.plot == True:
             plots.thetaplot(total, thetahist, setphist)
-            plots.tauplot(total, n_a, tauhist)
-            plots.dqplot(total, n_a, dqhist)
-            # plots.fplot(total, phist, fhist, fthist)
+            # plots.tauplot(total, n_a, tauhist)
+            # plots.dqplot(total, n_a, dqhist)
+            plots.fplot(total, phist=phist, fhist=fhist, shist=s_hist)
+            # plots.rfplot(total, phist, rfhist, fthist)
             plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
             # plots.posplot(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
             # plots.currentplot(total, n_a, ahist)

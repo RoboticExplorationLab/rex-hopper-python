@@ -15,19 +15,19 @@ def thetaplot(total, thetahist, setphist):
     axs[0].plot(range(total), setphist[:, 0] * 180 / np.pi, color='red', label='Setpoint')
     axs[0].legend(loc="lower right")
     axs[0].set_title('Theta_1')
-    axs[0].set_ylabel('Theta_1 (deg)')
+    axs[0].set_ylabel('Angle (deg)')
 
     axs[1].plot(range(total), thetahist[:, 1]*180/np.pi, color='blue', label='Measurement')
     axs[1].plot(range(total), setphist[:, 1] * 180 / np.pi, color='red', label='Setpoint')
     axs[1].legend(loc="lower right")
     axs[1].set_title('Theta_2')
-    axs[1].set_ylabel('Theta_2 (deg)')
+    axs[1].set_ylabel('Angle (deg)')
 
     axs[2].plot(range(total), thetahist[:, 2]*180/np.pi, color='blue', label='Measurement')
     axs[2].plot(range(total), setphist[:, 2] * 180 / np.pi, color='red', label='Setpoint')
     axs[2].legend(loc="lower right")
     axs[2].set_title('Yaw')
-    axs[2].set_ylabel('Yaw (deg)')
+    axs[2].set_ylabel('Angle (deg)')
     plt.show()
 
 
@@ -42,6 +42,7 @@ def tauplot(total, n_a, tauhist):
         ax = fig.add_subplot(rows, cols, position[k])
         ax.plot(totalr, tauhist[:, k])  
         ax.set_ylabel('Torque, Nm')
+        # ax.set_title(model["aname"][k])
     plt.xlabel("Timesteps")
     plt.show()
 
@@ -61,7 +62,35 @@ def dqplot(total, n_a, dqhist):
     plt.show()
 
 
-def fplot(total, phist, fhist, fthist):
+def fplot(total, phist, fhist, shist):
+
+    fig, axs = plt.subplots(5, sharex='all')
+    plt.xlabel("Timesteps")
+
+    axs[0].plot(range(total), phist[:, 2], color='blue')
+    axs[0].set_title('base z position')
+    axs[0].set_ylabel("z position (m)")
+
+    axs[1].plot(range(total), fhist[:, 0], color='blue')
+    axs[1].set_title('Magnitude of X Output Force')
+    axs[1].set_ylabel("Force, N")
+
+    axs[2].plot(range(total), fhist[:, 1], color='blue')
+    axs[2].set_title('Magnitude of Y Output Force')
+    axs[2].set_ylabel("Force, N")
+
+    axs[3].plot(range(total), fhist[:, 2], color='blue')
+    axs[3].set_title('Magnitude of Z Output Force')  # .set_title('angular velocity q1_dot')
+    axs[3].set_ylabel("Force, N")  # .set_ylabel("angular velocity, rpm")
+
+    axs[4].plot(range(total), shist[:, 0], color='blue')
+    axs[4].set_title('Scheduled Contact')  # .set_title('angular velocity q1_dot')
+    axs[4].set_ylabel("True/False")  # .set_ylabel("angular velocity, rpm")
+
+    plt.show()
+
+
+def rfplot(total, phist, rfhist, fthist):
 
     fig, axs = plt.subplots(4, sharex='all')
     plt.xlabel("Timesteps")
@@ -70,11 +99,11 @@ def fplot(total, phist, fhist, fthist):
     axs[0].set_title('base z position')
     axs[0].set_ylabel("z position (m)")
 
-    axs[1].plot(range(total), fhist[:, 0], color='blue')
+    axs[1].plot(range(total), rfhist[:, 0], color='blue')
     axs[1].set_title('Magnitude of X Reaction Force on joint1')
     axs[1].set_ylabel("Reaction Force Fx, N")
 
-    axs[2].plot(range(total), fhist[:, 2], color='blue')
+    axs[2].plot(range(total), rfhist[:, 2], color='blue')
     axs[2].set_title('Magnitude of Z Reaction Force on joint1')  # .set_title('angular velocity q1_dot')
     axs[2].set_ylabel("Reaction Force Fz, N")  # .set_ylabel("angular velocity, rpm")
 
@@ -167,9 +196,9 @@ def posplot_3d(p_ref, phist, x_des_hist):
     ax.set_xlabel("x (m)")
     ax.set_ylabel("y (m)")
     ax.set_zlabel("z (m)")
-    ax.scatter(0, 0, 0, color='green', label='starting position')
-    ax.scatter(p_ref[0], p_ref[1], p_ref[2], color='orange', label='position setpoint')
-    ax.scatter(x_des_hist[:, 0], x_des_hist[:, 1], x_des_hist[:, 2], color='blue', label='foot position')
+    ax.scatter(0, 0, 0, color='green', marker="x", s=200, label='starting position')
+    ax.scatter(p_ref[0], p_ref[1], 0, marker="x", s=200, color='orange', label='target position')
+    ax.scatter(x_des_hist[:, 0], x_des_hist[:, 1], x_des_hist[:, 2], color='blue', label='footstep positions')
     ax.legend()
 
     plt.show()
