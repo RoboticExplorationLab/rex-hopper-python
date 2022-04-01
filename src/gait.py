@@ -73,7 +73,6 @@ class Gait:
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
                 self.target[2] = -hconst * 4.5 / 3  # brace for impact
-
         elif state == 'Stance':
             force = fr if fr is not None else None
             self.target[2] = -hconst * 4.5 / 3

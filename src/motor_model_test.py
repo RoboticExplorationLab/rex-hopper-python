@@ -4,6 +4,7 @@ Copyright (C) 2022 Benjamin Bokser
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use(['science', 'no-latex'])
 
 import actuator
 import actuator_param
@@ -43,15 +44,15 @@ def test(dt, model, verbose=False):
         plt.scatter(tau[j, :], q_dot_k, color='red', marker="o", s=2)
         # plt.scatter(tau_sat[j, :], q_dot_k, color='green', marker="o")
 
-    plt.title('Motor Model')
-    plt.ylabel("q_dot (rad/s)")
-    plt.xlabel("tau (N*m)")
+    plt.title('Motor Operating Region')
+    plt.ylabel("Angular Velocity (rad/s)")
+    plt.xlabel("Tau (N*m)")
 
     plt.show()
     return None
 
 
-model = actuator_param.actuator_mn3110kv700
+model = actuator_param.actuator_r100kv90
 print(model["name"])
 test(dt=1/1000, model=model)
 print("\n")

@@ -9,7 +9,7 @@ import plots
 import moment_ctrl
 import mpc
 import utils
-# import time
+import time
 # import sys
 import copy
 import numpy as np
@@ -194,6 +194,7 @@ class Runner:
             s_prev = s
             sh_prev = sh
             c_prev = c
+            # time.sleep(0.1)
 
         if self.plot == True:
             plots.thetaplot(total, thetahist, setphist)
@@ -205,7 +206,7 @@ class Runner:
             # plots.posplot(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
             # plots.currentplot(total, n_a, ahist)
             # plots.voltageplot(total, n_a, vhist)
-            # plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
+            plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
 
         return ft_saved
 

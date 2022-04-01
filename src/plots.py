@@ -4,6 +4,10 @@ Copyright (C) 2021 Benjamin Bokser
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use(['science', 'no-latex'])
+plt.rcParams['lines.linewidth'] = 2
+import matplotlib.ticker as plticker
+import sys
 
 
 def thetaplot(total, thetahist, setphist):
@@ -154,19 +158,19 @@ def electrtotalplot(total, ahist, vhist, dt):
     plt.xlabel("Timesteps")
 
     axs[0].plot(range(total), ainhist, color='blue', label='a_in')
-    axs[0].set_title('total current draw')
-    axs[0].set_ylabel("current (A)")
+    axs[0].set_title('Total Current Draw')
+    axs[0].set_ylabel("Current (A)")
 
     print("Mean current draw is ", np.mean(ainhist), " A")
     print("Peak current draw is ", np.amax(ainhist), " A")
 
     axs[1].plot(range(total), vmeanhist, color='blue', label='v_mean')
-    axs[1].set_title('mean voltage draw')
-    axs[1].set_ylabel("voltage (V)")
+    axs[1].set_title('Mean Voltage draw')
+    axs[1].set_ylabel("Voltage (V)")
 
     axs[2].plot(range(total), powerhist, color='blue', label='power in')
-    axs[2].set_title('total power')
-    axs[2].set_ylabel("power (W)")
+    axs[2].set_title('Total Power')
+    axs[2].set_ylabel("Power (W)")
 
     print("Mean power draw is ", np.mean(powerhist), " W")
     print("Peak power draw is ", np.amax(powerhist), " W")
@@ -191,14 +195,21 @@ def posplot(p_ref, phist, x_des_hist):
 
 def posplot_3d(p_ref, phist, x_des_hist):
     ax = plt.axes(projection='3d')
-    ax.plot(phist[:, 0], phist[:, 1], phist[:, 2], color='red', label='body position')
-    ax.set_title('Body XYZ Position')
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("y (m)")
-    ax.set_zlabel("z (m)")
-    ax.scatter(0, 0, 0, color='green', marker="x", s=200, label='starting position')
-    ax.scatter(p_ref[0], p_ref[1], 0, marker="x", s=200, color='orange', label='target position')
-    ax.scatter(x_des_hist[:, 0], x_des_hist[:, 1], x_des_hist[:, 2], color='blue', label='footstep positions')
+    ax.plot(phist[:, 0], phist[:, 1], phist[:, 2], color='red', label='Body Position')
+    ax.set_title('Body Position')
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Y (m)")
+    ax.set_zlabel("Z (m)")
+    ax.scatter(0, 0, 0, color='green', marker="x", s=200, label='Starting Position')
+    ax.scatter(p_ref[0], p_ref[1], 0, marker="x", s=200, color='orange', label='Target Position')
+    ax.scatter(x_des_hist[:, 0], x_des_hist[:, 1], x_des_hist[:, 2], color='blue', label='Footstep Setpoints')
     ax.legend()
+    intervals = 2
+    loc = plticker.MultipleLocator(base=intervals)
+    ax.xaxis.set_minor_locator(loc)
+    ax.yaxis.set_minor_locator(loc)
+    ax.zaxis.set_minor_locator(loc)
+    # Add the grid
+    ax.grid(which='minor', axis='both', linestyle='-')
 
     plt.show()
