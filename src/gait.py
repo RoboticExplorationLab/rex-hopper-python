@@ -38,8 +38,8 @@ class Gait:
         self.x_des = np.array([0, 0, 0])
         # self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
         kp = [0.02, 0.08,  0]
-        ki = [0.2,  0.2,  0]
-        kd = [0.01,  0.02,  0]
+        ki = [0.2,  0.2,   0]
+        kd = [0.01, 0.02,  0]
         self.pid_pdot = pid.PIDn(kp=kp, ki=ki, kd=kd)
         self.z_ref = 0
         self.X_f = X_f
@@ -49,47 +49,41 @@ class Gait:
         p = X_in[0:3]
         pdot = X_in[3:6]
         p_ref = X_ref[0:3]
-        pdot_ref = X_ref[3:6]
-        k_wbc = self.k_wbc
+        # pdot_ref = X_ref[3:6]
+        ks = 0.002
         u = np.zeros(self.n_a)
-        force = np.zeros((3, 1))
         z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
         pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z, p), setp=utils.Z(Q_z, p_ref))  # adjust for yaw
         pdot_ref = utils.Z(utils.Q_inv(Q_z), pdot_ref)  # rotate back into world frame
-        # pdot_ref = X_ref[3:6]/1000
         self.target[0] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
         if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
             v_ref = X_ref - X_in
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
         k_b = (np.clip(np.linalg.norm(self.X_f[0:2] - X_in[0:2]), 0.5, 1) + 2) / 3  # "Braking" gain based on dist
         hconst = self.hconst * k_b
-        kr = .15 / k_b  # "speed cancellation" constant
+        kr = 0.15 / k_b  # "speed cancellation" constant
         kt = 0.4  # gain representing leap period accounting for vertical jump velocity at toe-off
 
-        if state == 'Return':
-            if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
+        if state == 'Flight':
+            if state_prev == 'Stance':  # find new footstep position based on desired speed and current speed
                 self.x_des = raibert_x(kr, kt, pdot, pdot_ref) + p  # world frame desired footstep position
                 self.x_des[2] = 0  # enforce footstep location is on ground plane
             if pdot[2] >= 0:  # recognize that robot is still rising
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
-                self.target[2] = -hconst * 6 / 3  # brace for impact
-            self.controller.update_gains(k_wbc, k_wbc * 0.02)
-            # self.controller.update_gains(k_wbc * 0.03, k_wbc * 0.006)
-        elif state == 'HeelStrike':
-            self.controller.update_gains(k_wbc, k_wbc * 0.02)
+                self.target[2] = -hconst * 4.5 / 3  # brace for impact
+
+        elif state == 'Stance':
+            force = fr if fr is not None else None
             self.target[2] = -hconst * 4.5 / 3
-        elif state == 'Leap':
-            self.controller.update_gains(k_wbc, k_wbc * 0.02)
-            self.target[2] = -hconst * 6 / 3
-            force = fr if not None else None
+            self.target[0:3] += (force * ks).flatten()  # impedance control
         else:
             raise NameError('INVALID STATE')
-
+        # print(self.target[0:3])
         Q_ref = utils.vec_to_quat2(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
-        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
+        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=np.zeros((3, 1)))
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 

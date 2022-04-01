@@ -3,6 +3,7 @@ Copyright (C) 2020-2022 Benjamin Bokser
 """
 import simulationbridge
 import statemachine
+import statemachine_s
 import gait
 import plots
 import moment_ctrl
@@ -82,7 +83,6 @@ class Runner:
         self.simulator = simulationbridge.Sim(X_0=X_0, model=model, dt=dt, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
-        self.state = statemachine.Char()
         self.target_init = np.array([0, 0, -self.hconst, 0, 0, 0])
         self.target = self.target_init[:]
         self.t_p = 1  # gait period, seconds
@@ -93,7 +93,9 @@ class Runner:
                               use_qp=False, gain=gain, dt=dt)
         self.N = 10  # mpc horizon
         self.horz_len = self.t_p * self.phi_switch * self.N / self.dt  # horizon length (timesteps)
+        self.state = statemachine.Char()
         if self.ctrl_type == 'mpc':
+            self.state = statemachine_s.Char()
             self.mpc_t = self.t_p * self.phi_switch  # mpc sampling time (s)
             self.mpc = mpc.Mpc(t=self.mpc_t, N=self.N, m=self.leg.m_total, g=self.g, mu=self.mu)
             self.mpc_factor = self.mpc_t / self.dt  # mpc sampling time (timesteps)
@@ -172,7 +174,7 @@ class Runner:
                 mpc_counter += 1
 
             self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in, X_ref=X_ref[100, :],
-                                               Q_base=Q_base, fr=np.reshape(force_f[:, 0], (3, 1)))
+                                               Q_base=Q_base, fr=-np.reshape(force_f[:, 0], (3, 1)))
 
             x_des_hist[k, :] = self.gait.x_des
             rfhist[k, :] = f[1, :]
