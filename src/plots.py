@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 plt.style.use(['science', 'no-latex'])
 plt.rcParams['lines.linewidth'] = 2
 import matplotlib.ticker as plticker
-import sys
+plt.rcParams['font.size'] = 16
 
 
 def thetaplot(total, thetahist, setphist):
@@ -211,5 +211,8 @@ def posplot_3d(p_ref, phist, x_des_hist):
     ax.zaxis.set_minor_locator(loc)
     # Add the grid
     ax.grid(which='minor', axis='both', linestyle='-')
+    ax.xaxis.labelpad = 30
+    ax.yaxis.labelpad = 30
+    ax.zaxis.labelpad = 30
 
     plt.show()

@@ -36,7 +36,7 @@ for scale in range1:
     ftg_mean = np.zeros(len(range2)+1)
     for gain in range2:
         print("...using gain of ", gain)
-        runner = Runner(dt=dt, plot=False, model=param.design, ctrl_type='wbc_cycle', fixed=False,
+        runner = Runner(dt=dt, plot=False, model=param.design_rw, ctrl_type='wbc_vert', fixed=False,
                         spring=spring, record=False, scale=scale, direct=True, gravoff=False, total_run=4000, gain=gain)
         ft = runner.run()
         flighttimes = ft[ft != 0]
