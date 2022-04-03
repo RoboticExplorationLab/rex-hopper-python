@@ -45,7 +45,7 @@ class Gait:
         self.z_ref = 0
         self.X_f = X_f
 
-    def u_mpc(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base):
+    def u_mpc(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
         # mpc-based hopping
         p = X_in[0:3]
         pdot = X_in[3:6]
@@ -53,7 +53,7 @@ class Gait:
         # pdot_ref = X_ref[3:6]
         hconst = self.hconst
         target = self.target
-        ks = 0.002  # spring constant  # TODO: Tune this
+        ks = 0.0005  # spring constant  # TODO: Tune this
         u = np.zeros(self.n_a)
         self.target[0] = -0.02  # adjustment for balance due to bad mockup design
         if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
@@ -63,28 +63,27 @@ class Gait:
         if state == 'Flight':
             if state_prev == 'Stance':  # target new footstep position
                 # You could just count forward if the timesteps are constant
-                k_pred = argrelextrema(X_pred[:, 2], np.less)[0][0]  # index of next local minimum of body z position
-                p_pred = X_pred[k_pred, 0:3]  # next predicted body position over next footstep
-                f_pred = U_pred[k_pred, :]  # next predicted foot force vector
+                p_pred = (X_pred[2, 0:3] + (X_pred[2, 0:3] + X_pred[3, 0:3]) / 2) / 2  # next predicted body pos
+                f_pred = U_pred[2, :]  # next predicted foot force vector
                 self.x_des = utils.projection(p_pred, f_pred)
-                print(self.x_des)
                 # self.x_des[2] = 0  # enforce footstep location is on ground plane
             if pdot[2] <= 0:  # recognize that robot is falling
-                target[2] = -hconst * 4.5 / 3  # brace for impact
+                target[2] = -hconst * 6 / 3  # brace for impact
         elif state == 'Stance':
-            force = -np.reshape(U_pred[0, :], (3, 1))
-            target[2] = -hconst * 4.5 / 3
+            force = -np.reshape(U_pred[0, :], (3, 1))*s
+            target[2] = -p[2]  # height of robot from ground
             target[0:3] += (force * ks).flatten()  # impedance control
         else:
             raise NameError('INVALID STATE')
 
-        Q_ref = utils.vec_to_quat2(self.x_des - p)
+        Q_ref = utils.vec_to_quat(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)
-        u[0:2] = -self.controlf(target=target, Q_base=np.array([1, 0, 0, 0]), force=np.zeros((3, 1)))
+        Q_z = np.array([np.cos(self.z_ref / 2), 0, 0, np.sin(self.z_ref / 2)]).T
+        u[0:2] = -self.controlf(target=target, Q_base=Q_z, force=np.zeros((3, 1)))
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 
-    def u_raibert(self, state, state_prev, X_in, X_ref, Q_base, fr):
+    def u_raibert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
         # continuous raibert hopping
         p = X_in[0:3]
         pdot = X_in[3:6]
@@ -122,17 +121,17 @@ class Gait:
         elif state == 'Leap':
             self.controller.update_gains(k_wbc, k_wbc * 0.02)
             self.target[2] = -hconst * 6 / 3
-            force = fr if not None else None
+            # force = fr if not None else None
         else:
             raise NameError('INVALID STATE')
 
-        Q_ref = utils.vec_to_quat2(self.x_des - p)
+        Q_ref = utils.vec_to_quat(self.x_des - p)
         Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
         u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 
-    def u_wbc_vert(self, state, state_prev, X_in, X_ref, Q_base, fr):
+    def u_wbc_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
         k_wbc = self.k_wbc
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
@@ -149,26 +148,26 @@ class Gait:
         elif state == 'Leap':
             # self.controller.update_gains(k_wbc, k_wbc * 0.02)
             self.target[2] = -hconst * 5.5 / 3
-            force = fr if not None else None
+            # force = fr if not None else None
         else:
             raise NameError('INVALID STATE')
         u[0:2] = -self.controlf(target=self.target, Q_base=Q_base, force=force)
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp
 
-    def u_wbc_static(self, state, state_prev, X_in, X_ref, Q_base, fr):
+    def u_wbc_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
         self.target[0] = 0
         self.target[2] = -self.hconst * 5.5 / 3
         self.controller.update_gains(self.k_wbc, self.k_wbc * 0.02)
-        force = fr if not None else None
+        # force = fr if not None else None
         u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_ik_vert(self, state, state_prev, X_in, X_ref, Q_base, fr):
+    def u_ik_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
         time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
         u = np.zeros(self.n_a)
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
@@ -193,7 +192,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_ik_static(self, state, state_prev, X_in, X_ref, Q_base, fr):
+    def u_ik_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
         k = self.k_k
         kd = self.kd_k
         u = np.zeros(self.n_a)

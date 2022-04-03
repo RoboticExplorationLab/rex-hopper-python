@@ -96,9 +96,9 @@ class Runner:
         self.state = statemachine.Char()
         if self.ctrl_type == 'mpc':
             self.state = statemachine_s.Char()
-            self.mpc_t = self.t_p * self.phi_switch  # mpc sampling time (s)
-            self.mpc = mpc.Mpc(t=self.mpc_t, N=self.N, m=self.leg.m_total, g=self.g, mu=self.mu)
-            self.mpc_factor = self.mpc_t / self.dt  # mpc sampling time (timesteps)
+            self.mpc_dt = self.t_p * self.phi_switch  # mpc sampling time (s)
+            self.mpc = mpc.Mpc(t=self.mpc_dt, N=self.N, m=self.leg.m_total, g=self.g, mu=self.mu)
+            self.mpc_factor = self.mpc_dt * 2 / self.dt  # mpc sampling time (timesteps)
             self.gaitfn = self.gait.u_mpc
         elif self.ctrl_type == 'wbc_raibert':
             self.gaitfn = self.gait.u_raibert
@@ -138,12 +138,13 @@ class Runner:
         setphist = np.zeros((total, 3))
         rfhist = np.zeros((total, 3))
         fhist = np.zeros((total, 3))
-        x_des_hist = np.zeros((total, 3))
+        pfdes = np.zeros((total, 3))
         fthist = np.zeros(total)
         s_hist = np.zeros((total, 2))
 
         t = 0  # time
-        t0 = t  # starting time
+        t0 = None
+        first_contact = 0
         s_prev = 0
         for k in range(0, total):
             t = t + self.dt
@@ -152,9 +153,16 @@ class Runner:
             qa, dqa, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)  # TODO: More realistic contact detect
             self.leg.update_state(q_in=qa[0:2])  # enter encoder values into leg kinematics/dynamics
             self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
-            s = self.gait_scheduler(t, t0)
+
             c, c_s, con_c = contact_check(c, c_s, c_prev, k, con_c)  # Like using limit switches
             sh = copy.copy(c)
+            if sh == 1 and first_contact == 0:
+                t0 = t  # starting time begins when robot first makes contact
+                first_contact = 1  # ensure this doesn't trigger again
+            elif sh == 1 and first_contact == 1:
+                s = self.gait_scheduler(t, t0)
+            else:
+                s = 0
 
             t_f, ft_saved, i_ft = ft_check(sh, sh_prev, t, t_f, ft_saved, i_ft)  # flight time checker
 
@@ -167,19 +175,18 @@ class Runner:
             X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
             X_ref = self.path_plan(X_in=X_in)
 
-            if self.ctrl_type == 'mpc':
+            if self.ctrl_type == 'mpc' and first_contact == 1:
                 if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
-                    X_refN = X_ref[::int(self.mpc_factor)]
-                    U_pred, X_pred, sm = self.mpc.mpcontrol(X_in=X_in, X_ref=X_refN, s=s)
+                    X_refN = X_ref[::int(self.mpc_dt / self.dt)]
+                    U_pred, X_pred = self.mpc.mpcontrol(X_in=X_in, X_ref=X_refN)
 
                 mpc_counter += 1
 
             self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in, X_ref=X_ref[100, :],
-                                               X_pred=X_pred, U_pred=U_pred, Q_base=Q_base)
+                                               X_pred=X_pred, U_pred=U_pred, Q_base=Q_base, s=s)
 
-            x_des_hist[k, :] = self.gait.x_des
-            rfhist[k, :] = f[1, :]
+            rfhist[k, :] = f[1, :]  # reaction force
             fhist[k, :] = force_f[0, :]
             fthist[k] = ft_saved[i_ft]
             setphist[k, :] = setp
@@ -189,8 +196,8 @@ class Runner:
             ahist[k, :] = i
             vhist[k, :] = v
             phist[k, :] = self.simulator.base_pos[0]  # base position in world coords
-            # foot position in world coords
-            pfhist[k, :] = self.simulator.base_pos[0] + utils.Z(Q_base, self.leg.position()).flatten()
+            pfdes[k, :] = self.gait.x_des  # desired footstep positions
+            pfhist[k, :] = self.simulator.base_pos[0] + utils.Z(Q_base, self.leg.position()).flatten()  # foot pos
             s_hist[k, :] = [s, sh]
             state_prev = state
             s_prev = s
@@ -204,8 +211,8 @@ class Runner:
             # plots.dqplot(total, n_a, dqhist)
             plots.fplot(total, phist=phist, fhist=fhist, shist=s_hist)
             # plots.rfplot(total, phist, rfhist, fthist)
-            plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
-            # plots.posplot(p_ref=self.X_f[0:3], phist=phist, x_des_hist=x_des_hist)
+            plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
+            # plots.posplot(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
             # plots.currentplot(total, n_a, ahist)
             # plots.voltageplot(total, n_a, vhist)
             plots.electrtotalplot(total, ahist, vhist, dt=self.dt)

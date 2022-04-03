@@ -42,7 +42,7 @@ class Mpc:
         self.n_u = n_u
         self.n_x = n_x
 
-    def mpcontrol(self, X_in, X_ref, s):
+    def mpcontrol(self, X_in, X_ref):
         N = self.N
         m = self.m
         mu = self.mu
@@ -65,7 +65,7 @@ class Mpc:
             fx = U[k, 0]
             fy = U[k, 1]
             fz = U[k, 2]
-            if ((k + s) % 2) == 0:  # even
+            if ((k + 1) % 2) == 0:  # even
                 U_ref[-1] = 0
                 cost += cp.quad_form(X[k + 1, :] - X_ref[k, :], Q * kf) + cp.quad_form(U[k, :] - U_ref, R * kuf)
                 constr += [X[k + 1, :] == Ad @ X[k, :] + Bd @ U[k, :],
@@ -92,4 +92,4 @@ class Mpc:
         if u is None:
             raise Exception("\n *** QP FAILED *** \n")
         # breakpoint()
-        return u, x, (s % 2)
+        return u, x
