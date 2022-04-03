@@ -5,6 +5,7 @@ import numpy as np
 import utils
 import pid
 import time
+from scipy.signal import argrelextrema
 
 
 def raibert_x(kr, kt, pdot, pdot_ref):
@@ -44,45 +45,42 @@ class Gait:
         self.z_ref = 0
         self.X_f = X_f
 
-    def u_mpc(self, state, state_prev, X_in, X_ref, Q_base, fr):
+    def u_mpc(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base):
         # mpc-based hopping
         p = X_in[0:3]
         pdot = X_in[3:6]
-        p_ref = X_ref[0:3]
+        # p_ref = X_ref[0:3]
         # pdot_ref = X_ref[3:6]
-        ks = 0.002
+        hconst = self.hconst
+        target = self.target
+        ks = 0.002  # spring constant  # TODO: Tune this
         u = np.zeros(self.n_a)
-        z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
-        Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
-        pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z, p), setp=utils.Z(Q_z, p_ref))  # adjust for yaw
-        pdot_ref = utils.Z(utils.Q_inv(Q_z), pdot_ref)  # rotate back into world frame
-        self.target[0] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
+        self.target[0] = -0.02  # adjustment for balance due to bad mockup design
         if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
             v_ref = X_ref - X_in
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
-        k_b = (np.clip(np.linalg.norm(self.X_f[0:2] - X_in[0:2]), 0.5, 1) + 2) / 3  # "Braking" gain based on dist
-        hconst = self.hconst * k_b
-        kr = 0.15 / k_b  # "speed cancellation" constant
-        kt = 0.4  # gain representing leap period accounting for vertical jump velocity at toe-off
 
         if state == 'Flight':
-            if state_prev == 'Stance':  # find new footstep position based on desired speed and current speed
-                self.x_des = raibert_x(kr, kt, pdot, pdot_ref) + p  # world frame desired footstep position
-                self.x_des[2] = 0  # enforce footstep location is on ground plane
-            if pdot[2] >= 0:  # recognize that robot is still rising
-                self.target[2] = -hconst  # pull leg up to prevent stubbing
-            else:
-                self.target[2] = -hconst * 4.5 / 3  # brace for impact
+            if state_prev == 'Stance':  # target new footstep position
+                # You could just count forward if the timesteps are constant
+                k_pred = argrelextrema(X_pred[:, 2], np.less)[0][0]  # index of next local minimum of body z position
+                p_pred = X_pred[k_pred, 0:3]  # next predicted body position over next footstep
+                f_pred = U_pred[k_pred, :]  # next predicted foot force vector
+                self.x_des = utils.projection(p_pred, f_pred)
+                print(self.x_des)
+                # self.x_des[2] = 0  # enforce footstep location is on ground plane
+            if pdot[2] <= 0:  # recognize that robot is falling
+                target[2] = -hconst * 4.5 / 3  # brace for impact
         elif state == 'Stance':
-            force = fr if fr is not None else None
-            self.target[2] = -hconst * 4.5 / 3
-            self.target[0:3] += (force * ks).flatten()  # impedance control
+            force = -np.reshape(U_pred[0, :], (3, 1))
+            target[2] = -hconst * 4.5 / 3
+            target[0:3] += (force * ks).flatten()  # impedance control
         else:
             raise NameError('INVALID STATE')
-        # print(self.target[0:3])
+
         Q_ref = utils.vec_to_quat2(self.x_des - p)
-        Q_ref = utils.Q_inv(Q_ref)  # TODO: Shouldn't be necessary, caused by some other mistake
-        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=np.zeros((3, 1)))
+        Q_ref = utils.Q_inv(Q_ref)
+        u[0:2] = -self.controlf(target=target, Q_base=np.array([1, 0, 0, 0]), force=np.zeros((3, 1)))
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 

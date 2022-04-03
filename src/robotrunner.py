@@ -67,19 +67,19 @@ class Runner:
         self.ctrl_type = ctrl_type
         self.plot = plot
         self.spring = spring
+        self.fixed = fixed
         controller_class = model["controllerclass"]
         leg_class = model["legclass"]
         self.L = np.array(model["linklengths"])
         self.n_a = model["n_a"]
+        self.hconst = model["hconst"]  # 0.3  # height constant
         self.leg = leg_class.Leg(dt=dt, model=model, recalc=recalc)
         # print("total mass = ", self.leg.m_total)
-        self.hconst = model["hconst"]  # 0.3  # height constant
-        self.fixed = fixed
         self.controller = controller_class.Control(leg=self.leg, m=self.leg.m_total, dt=dt, gain=gain)
         self.mu = 0.3  # friction
         self.g = 9.81
         X_0 = np.array([0, 0, 0.7*scale, 0, 0, 0, self.g])  # initial conditions
-        self.X_f = np.hstack([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
+        self.X_f = np.array([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
         self.simulator = simulationbridge.Sim(X_0=X_0, model=model, dt=dt, fixed=fixed, spring=spring, record=record,
                                               scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
@@ -118,7 +118,8 @@ class Runner:
         t_f = 0
         ft_saved = np.zeros(total)
         i_ft = 0  # flight timer counter
-
+        X_pred = None
+        U_pred = None
         mpc_factor = None
         mpc_counter = None
         if self.ctrl_type == 'mpc':
@@ -170,15 +171,16 @@ class Runner:
                 if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
                     X_refN = X_ref[::int(self.mpc_factor)]
-                    force_f, sm = self.mpc.mpcontrol(X_in=X_in, X_ref=X_refN, s=s)
+                    U_pred, X_pred, sm = self.mpc.mpcontrol(X_in=X_in, X_ref=X_refN, s=s)
+
                 mpc_counter += 1
 
             self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in, X_ref=X_ref[100, :],
-                                               Q_base=Q_base, fr=-np.reshape(force_f[:, 0], (3, 1)))
+                                               X_pred=X_pred, U_pred=U_pred, Q_base=Q_base)
 
             x_des_hist[k, :] = self.gait.x_des
             rfhist[k, :] = f[1, :]
-            fhist[k, :] = force_f[:, 0]
+            fhist[k, :] = force_f[0, :]
             fthist[k] = ft_saved[i_ft]
             setphist[k, :] = setp
             thetahist[k, :] = thetar

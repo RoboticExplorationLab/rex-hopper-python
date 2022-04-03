@@ -125,6 +125,16 @@ def lift(angle, last):
     return angle, last
 
 
+def projection(p0, v):
+    # find point p projected onto ground plane from point p0 by vector v
+    z = 0
+    t = (z - p0[2])/v[2]
+    x = p0[0] + t*v[0]
+    y = p0[1] + t*v[1]
+    p = np.array([x, y, z])
+    return p
+
+
 # --- from Shuo's quadruped code --- #
 def quat2rot(Q):
     w, x, y, z = Q
