@@ -36,14 +36,13 @@ class Mpc:
         self.Ad = M[0:n_x, 0:n_x]
         self.Bd = M[0:n_x, n_x:n_x + n_u]
         self.Q = np.eye(n_x)
-        self.Q[n_u, n_u] *= 0.01
-        self.Q[n_u + 1, n_u + 1] *= 0.01
-        self.Q[n_u + 2, n_u + 2] *= 0.01
-        self.R = np.eye(n_u) * 0
+        self.R = np.eye(n_u)
+        np.fill_diagonal(self.Q, [1., 1., 1., 0.01, 0.01, 0.01, 0.])
+        np.fill_diagonal(self.R, [0., 0., 0.])
         self.n_u = n_u
         self.n_x = n_x
 
-    def mpcontrol(self, X_in, X_ref, s):
+    def mpcontrol(self, X_in, X_ref):
         N = self.N
         m = self.m
         mu = self.mu
@@ -53,37 +52,44 @@ class Mpc:
         Bd = self.Bd
         Q = self.Q
         R = self.R
-        X = cp.Variable((n_x, N + 1))
-        U = cp.Variable((n_u, N))
+        X = cp.Variable((N + 1, n_x))
+        U = cp.Variable((N, n_u))
         cost = 0
         constr = []
         U_ref = np.zeros(n_u)
-        U_ref[-1] = m * self.g
         # --- calculate cost & constraints --- #
         for k in range(0, N):
             kf = 10 if k == N - 1 else 1  # terminal cost
             kuf = 0 if k == N - 1 else 1  # terminal cost
-            cost += cp.quad_form(X[:, k+1] - X_ref[k, :], Q * kf) + cp.quad_form(U[:, k] - U_ref, R * kuf)
-            fx = U[0, k]
-            fy = U[1, k]
-            fz = U[2, k]
-            if ((k + s) % 2) == 0:  # even
-                constr += [X[:, k + 1] == Ad @ X[:, k] + Bd @ U[:, k],
-                           0 == fx,  # fx
-                           0 == fy,  # fy
-                           0 == fz]  # fz
+            z = X[k, 2]
+            fx = U[k, 0]
+            fy = U[k, 1]
+            fz = U[k, 2]
+            if ((k + 1) % 2) == 0:  # even
+                U_ref[-1] = 0
+                cost += cp.quad_form(X[k + 1, :] - X_ref[k, :], Q * kf) + cp.quad_form(U[k, :] - U_ref, R * kuf)
+                constr += [X[k + 1, :] == Ad @ X[k, :] + Bd @ U[k, :],
+                           0 == fx,
+                           0 == fy,
+                           0 == fz]
             else:  # odd
-                constr += [X[:, k + 1] == Ad @ X[:, k] + Bd @ U[:, k],
+                U_ref[-1] = m * self.g * 2
+                cost += cp.quad_form(X[k + 1, :] - X_ref[k, :], Q * kf) + cp.quad_form(U[k, :] - U_ref, R * kuf)
+                constr += [X[k + 1, :] == Ad @ X[k, :] + Bd @ U[k, :],
                            0 >= fx - mu * fz,
                            0 >= -fx - mu * fz,
                            0 >= fy - mu * fz,
                            0 >= -fy - mu * fz,
-                           0 <= fz]
-        constr += [X[:, 0] == X_in, X[:, N] == X_ref[-1, :]]  # initial and final condition
+                           fz >= 0,
+                           z <= 3,
+                           z >= 0]
+        constr += [X[0, :] == X_in, X[N, :] == X_ref[-1, :]]  # initial and final condition
         # --- set up solver --- #
         problem = cp.Problem(cp.Minimize(cost), constr)
-        problem.solve(solver=cp.OSQP)  # , verbose=True)
-        u = np.zeros((n_u, N)) if U.value is None else U.value
-        # print(X.value)
+        problem.solve(solver=cp.SCS)  # , verbose=True)
+        u = U.value
+        x = X.value
+        if u is None:
+            raise Exception("\n *** QP FAILED *** \n")
         # breakpoint()
-        return u, (s % 2)
+        return u, x

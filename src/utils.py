@@ -82,8 +82,8 @@ def z_rotate(Q_in, z):
     theta_res = 2 * np.arcsin(Q_res[1])  # x-axis of rotated body quaternion
     return theta_res
 
-
-def vec_to_quat(v2):
+'''
+def vec_to_quat_alt(v2):
     # conversion of line vector to quaternion rotation b/t it and a datum vector v1
     v1 = np.array([1, 0, 0])  # datum vector, chosen as aligned with x-axis (front facing)
     Q = np.zeros(4)
@@ -91,11 +91,11 @@ def vec_to_quat(v2):
     Q[1:4] = np.cross(v1, v2)
     Q = Q / np.linalg.norm(Q)
     return Q
+'''
 
 
-def vec_to_quat2(v2):
+def vec_to_quat(v2):
     # conversion of line vector to quaternion rotation b/t it and a datum vector v1
-    # alternative version
     v1 = np.array([0, 0, -1])  # datum vector, chosen as aligned with z-axis (representing leg direction)
     u1 = v1 / np.linalg.norm(v1)
     Q = np.zeros(4)
@@ -123,6 +123,16 @@ def lift(angle, last):
     angle = (angle - last + np.pi) % (2 * np.pi) - np.pi + last
     last = angle
     return angle, last
+
+
+def projection(p0, v):
+    # find point p projected onto ground plane from point p0 by vector v
+    z = 0
+    t = (z - p0[2])/v[2]
+    x = p0[0] + t*v[0]
+    y = p0[1] + t*v[1]
+    p = np.array([x, y, z])
+    return p
 
 
 # --- from Shuo's quadruped code --- #
