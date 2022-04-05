@@ -6,57 +6,22 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import os
-
 import actuator
 import actuator_param
 
 useRealTime = 0  # Do NOT change to real time
 
 
-def spring(q, l):
-    """
-    adds linear extension spring b/t joints 1 and 3 of parallel mechanism
-    approximated by applying torques to joints 0 and 2
-    """
-    init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
-    if q is None:
-        q0 = init_q[0]
-        q2 = init_q[2]
-    else:
-        q0 = q[0] + init_q[0]
-        q2 = q[2] + init_q[1]
-    k = 996  # spring constant, N/m
-    L0 = l[0]  # .15
-    L2 = l[2]  # .3
-    gamma = abs(q2 - q0)
-    rmin = 0.17  # np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10)) #
-    r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-    # print("r = ", r, " and rmin = ", rmin)
-    if r < rmin:
-        print("error: incorrect spring params, r = ", r, " and rmin = ", rmin)
-    T = k * (r - rmin)  # spring tension force
-    alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
-    beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
-    tau_s0 = -T * np.sin(beta) * L0
-    tau_s1 = T * np.sin(alpha) * L2
-    tau_s = np.array([tau_s0, tau_s1])
-    return tau_s
-
-
-def reaction_force(numJoints, bot):
-    # returns joint reaction force
-    reaction = np.array([j[2] for j in p.getJointStates(bot, range(numJoints))])  # j[2]=jointReactionForces
-    # 4x6 array [Fx, Fy, Fz, Mx, My, Mz]
-    f = reaction[:, 0:3]  # selected all joints Fz
-    # 4x3 array [Fx, Fy, Fz]
-    # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # selected all joints Fz
-    return f
+def reaction_force(numJoints, bot):  # returns joint reaction force
+    reaction = np.array([j[2] for j in p.getJointStates(bot, range(numJoints))])  # 4x6 array [Fx, Fy, Fz, Mx, My, Mz]
+    f = reaction[:, 0:3]  # selected all joints [Fx, Fy, Fz]
+    return f  # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # magnitude of F
 
 
 class Sim:
 
-    def __init__(self, X_0, model, dt=1e-3, fixed=False, spring=False, record=False, scale=1,
-                 gravoff=False, direct=False):
+    def __init__(self, X_0, model, dt=1e-3, fixed=False, spring=False,
+                 record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
         self.omega_xyz = None
         self.omega = None
@@ -68,6 +33,15 @@ class Sim:
         self.dir_s = model["springpolarity"]
         self.model = model["model"]
         self.n_a = model["n_a"]
+
+        # --- spring params --- #
+        self.init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
+        self.ks = 996  # spring constant, N/m
+        L0 = self.L[0]  # .15
+        L2 = self.L[2]  # .3
+        self.rmin = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10))  # 0.17
+        # --- #
+
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
 
@@ -171,7 +145,6 @@ class Sim:
             p.changeDynamics(self.bot, i, maxJointVelocity=800)  # max 3800 rpm
 
         self.p = np.zeros(3)
-        # mass_mtx = p.calculateMassMatrix(self.bot, [0, 0, 0, 0, 0, 0, 0])
 
     def sim_run(self, u):
         q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
@@ -182,16 +155,13 @@ class Sim:
         qa = (q.T @ self.S).flatten()
         dqa = (dq_.T @ self.S).flatten()
 
-        if self.spring:
-            tau_s = spring(q, self.L) * self.dir_s
-        else:
-            tau_s = np.zeros(2)
+        tau_s = self.spring_fn(q) if self.spring else np.zeros(2)
 
         self.p = np.array(p.getBasePositionAndOrientation(self.bot)[0])
         Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
         Q_base = np.roll(Q_base_p, 1)  # move last element to first place
-        # torque = np.zeros(self.numJoints)
+
         tau = np.zeros(self.n_a)
         i = np.zeros(self.n_a)
         v = np.zeros(self.n_a)
@@ -231,3 +201,35 @@ class Sim:
             p.stepSimulation()
 
         return qa, dqa, Q_base, c, tau, f, i, v
+
+    def spring_fn(self, q):
+        """
+        linear extension spring b/t joints 1 and 3 of parallel mechanism
+        approximated by applying torques to joints 0 and 2
+        """
+        init_q = self.init_q
+        k = self.ks
+        L0 = self.L[0]
+        L2 = self.L[2]
+        rmin = self.rmin
+
+        if q is None:
+            q0 = init_q[0]
+            q2 = init_q[2]
+        else:
+            q0 = q[0] + init_q[0]
+            q2 = q[2] + init_q[1]
+
+        gamma = abs(q2 - q0)
+        r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
+
+        if r < rmin:
+            print("error: incorrect spring params, r = ", r, " and rmin = ", rmin, "\n gamma = ", gamma)
+
+        T = k * (r - rmin)  # spring tension force
+        alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
+        beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
+        tau_s0 = -T * np.sin(beta) * L0
+        tau_s1 = T * np.sin(alpha) * L2
+        tau_s = np.array([tau_s0, tau_s1])
+        return tau_s * self.dir_s
