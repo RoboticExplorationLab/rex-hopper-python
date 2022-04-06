@@ -12,10 +12,11 @@ import actuator_param
 useRealTime = 0  # Do NOT change to real time
 
 
-def reaction_force(numJoints, bot):  # returns joint reaction force
+def reaction(numJoints, bot):  # returns joint reaction force
     reaction = np.array([j[2] for j in p.getJointStates(bot, range(numJoints))])  # 4x6 array [Fx, Fy, Fz, Mx, My, Mz]
-    f = reaction[:, 0:3]  # selected all joints [Fx, Fy, Fz]
-    return f  # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # magnitude of F
+    forces = reaction[:, 0:3]  # selected all joints [Fx, Fy, Fz]
+    torques = reaction[:, 5]
+    return forces, torques  # f = np.linalg.norm(reaction[:, 0:3], axis=1)  # magnitude of F
 
 
 class Sim:
@@ -39,7 +40,7 @@ class Sim:
         self.ks = 996  # spring constant, N/m
         L0 = self.L[0]  # .15
         L2 = self.L[2]  # .3
-        self.rmin = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(10))  # 0.17
+        self.rmin = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(2.5*np.pi/180))  # 0.17
         # --- #
 
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
@@ -193,14 +194,25 @@ class Sim:
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
         self.omega_xyz = velocities[1]  # base angular velocity in XYZ
         self.base_pos = p.getBasePositionAndOrientation(self.bot)
-        f = reaction_force(self.numJoints, self.bot)
+        f_sens, tau_sens = reaction(self.numJoints, self.bot)
+        grf_nrml_onB = [c[7] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        grf_nrml = [c[9] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        fric1 = [c[10] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        fric1_dir = [c[11] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        fric2 = [c[12] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        fric2_dir = [c[13] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
+        grf_z = grf_nrml * np.array(grf_nrml_onB)
+        fric_y = fric1 * np.array(fric1_dir)
+        fric_x = fric2 * np.array(fric2_dir)
+        grf = (grf_z + fric_y + fric_x).T
+        grf = np.zeros((3, 1)) if not grf.any() else grf  # prevent empty list from being passed
         # Detect contact with ground plane
         c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]))
 
         if useRealTime == 0:
             p.stepSimulation()
 
-        return qa, dqa, Q_base, c, tau, f, i, v
+        return qa, dqa, Q_base, c, tau, f_sens, tau_sens, i, v, grf
 
     def spring_fn(self, q):
         """

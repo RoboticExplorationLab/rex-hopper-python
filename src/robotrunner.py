@@ -90,7 +90,7 @@ class Runner:
         t_st = self.t_p * self.phi_switch  # time spent in stance
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
                               target=self.target, hconst=self.hconst, t_st=t_st, X_f=self.X_f,
-                              use_qp=False, gain=gain, dt=dt)
+                              use_qp=True, gain=gain, dt=dt)
         self.N = 10  # mpc horizon
         self.horz_len = self.t_p * self.phi_switch * self.N / self.dt  # horizon length (timesteps)
         self.state = statemachine.Char()
@@ -136,7 +136,7 @@ class Runner:
         pfhist = np.zeros((total, 3))
         thetahist = np.zeros((total, 3))
         setphist = np.zeros((total, 3))
-        rfhist = np.zeros((total, 3))
+        grfhist = np.zeros((total, 3))
         fhist = np.zeros((total, 3))
         pfdes = np.zeros((total, 3))
         fthist = np.zeros(total)
@@ -150,7 +150,7 @@ class Runner:
             t = t + self.dt
 
             # run simulator to get encoder and IMU feedback
-            qa, dqa, Q_base, c, tau, f, i, v = self.simulator.sim_run(u=self.u)  # TODO: More realistic contact detect
+            qa, dqa, Q_base, c, tau, f_sens, tau_sens, i, v, grf = self.simulator.sim_run(u=self.u)
             self.leg.update_state(q_in=qa[0:2])  # enter encoder values into leg kinematics/dynamics
             self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
 
@@ -184,9 +184,9 @@ class Runner:
                 mpc_counter += 1
 
             self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in, X_ref=X_ref[100, :],
-                                               X_pred=X_pred, U_pred=U_pred, Q_base=Q_base, s=s)
+                                               X_pred=X_pred, U_pred=U_pred, Q_base=Q_base, grf=grf, s=s)
 
-            rfhist[k, :] = f[1, :]  # reaction force
+            grfhist[k, :] = grf.flatten()  # ground reaction force
             fhist[k, :] = force_f[0, :]
             fthist[k] = ft_saved[i_ft]
             setphist[k, :] = setp
@@ -210,12 +210,12 @@ class Runner:
             # plots.tauplot(total, n_a, tauhist)
             # plots.dqplot(total, n_a, dqhist)
             plots.fplot(total, phist=phist, fhist=fhist, shist=s_hist)
-            # plots.rfplot(total, phist, rfhist, fthist)
+            plots.grfplot(total, phist, grfhist, fthist)
             plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
             # plots.posplot(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
             # plots.currentplot(total, n_a, ahist)
             # plots.voltageplot(total, n_a, vhist)
-            plots.electrtotalplot(total, ahist, vhist, dt=self.dt)
+            plots.etotalplot(total, ahist, vhist, dt=self.dt)
 
         return ft_saved
 

@@ -15,19 +15,19 @@ def thetaplot(total, thetahist, setphist):
     fig, axs = plt.subplots(1, 3, sharex='all')
     plt.xlabel("Timesteps")
 
-    axs[0].plot(range(total), thetahist[:, 0]*180/np.pi, color='blue', label='Measurement')
+    axs[0].plot(range(total), thetahist[:, 0] * 180/np.pi, color='blue', label='Measurement')
     axs[0].plot(range(total), setphist[:, 0] * 180 / np.pi, color='red', label='Setpoint')
     axs[0].legend(loc="lower right")
     axs[0].set_title('Theta 1')
     axs[0].set_ylabel('Angle (deg)')
 
-    axs[1].plot(range(total), thetahist[:, 1]*180/np.pi, color='blue', label='Measurement')
+    axs[1].plot(range(total), thetahist[:, 1] * 180/np.pi, color='blue', label='Measurement')
     axs[1].plot(range(total), setphist[:, 1] * 180 / np.pi, color='red', label='Setpoint')
     axs[1].legend(loc="lower right")
     axs[1].set_title('Theta 2')
     axs[1].set_ylabel('Angle (deg)')
 
-    axs[2].plot(range(total), thetahist[:, 2]*180/np.pi, color='blue', label='Measurement')
+    axs[2].plot(range(total), thetahist[:, 2] * 180/np.pi, color='blue', label='Measurement')
     axs[2].plot(range(total), setphist[:, 2] * 180 / np.pi, color='red', label='Setpoint')
     axs[2].legend(loc="lower right")
     axs[2].set_title('Yaw')
@@ -94,26 +94,30 @@ def fplot(total, phist, fhist, shist):
     plt.show()
 
 
-def rfplot(total, phist, rfhist, fthist):
+def grfplot(total, phist, grfhist, fthist):
 
-    fig, axs = plt.subplots(4, sharex='all')
+    fig, axs = plt.subplots(5, sharex='all')
     plt.xlabel("Timesteps")
 
     axs[0].plot(range(total), phist[:, 2], color='blue')
     axs[0].set_title('base z position')
     axs[0].set_ylabel("z position (m)")
 
-    axs[1].plot(range(total), rfhist[:, 0], color='blue')
-    axs[1].set_title('Magnitude of X Reaction Force on joint1')
-    axs[1].set_ylabel("Reaction Force Fx, N")
+    axs[1].plot(range(total), grfhist[:, 0], color='blue')
+    axs[1].set_title('X Ground Reaction Force')
+    axs[1].set_ylabel("Force, N")
 
-    axs[2].plot(range(total), rfhist[:, 2], color='blue')
-    axs[2].set_title('Magnitude of Z Reaction Force on joint1')
-    axs[2].set_ylabel("Reaction Force Fz, N")
+    axs[2].plot(range(total), grfhist[:, 1], color='blue')
+    axs[2].set_title('Y Ground Reaction Force')
+    axs[2].set_ylabel("Force, N")
 
-    axs[3].plot(range(total), fthist, color='blue')
-    axs[3].set_title('Flight Time')
-    axs[3].set_ylabel("Time, s")
+    axs[3].plot(range(total), grfhist[:, 2], color='blue')
+    axs[3].set_title('Z Ground Reaction Force')
+    axs[3].set_ylabel("Force, N")
+
+    axs[4].plot(range(total), fthist, color='blue')
+    axs[4].set_title('Flight Time')
+    axs[4].set_ylabel("Time, s")
 
     plt.show()
 
@@ -148,7 +152,7 @@ def voltageplot(total, n_a, vhist):
     plt.show()
 
 
-def electrtotalplot(total, ahist, vhist, dt):
+def etotalplot(total, ahist, vhist, dt):
 
     ainhist = np.sum(ahist, axis=1)
     vmeanhist = np.average(vhist, axis=1)

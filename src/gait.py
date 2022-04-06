@@ -45,7 +45,7 @@ class Gait:
         self.z_ref = 0
         self.X_f = X_f
 
-    def u_mpc(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
+    def u_mpc(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
         # mpc-based hopping
         p = X_in[0:3]
         pdot = X_in[3:6]
@@ -66,9 +66,9 @@ class Gait:
         hconst = self.hconst * k_b
         kr = .15 / k_b  # "speed cancellation" constant
         kt = 0.4  # gain representing leap period accounting for vertical jump velocity at toe-off
-        # k_wbc = self.k_wbc
-        # self.controller.update_gains(k_wbc * 0.25, k_wbc * 0.25 * 0.02)
-        ks = 500  # spring constant  # TODO: Tune this
+        k_wbc = self.k_wbc
+        self.controller.update_gains(k_wbc * 0.5, k_wbc * 0.25 * 0.02)
+        ks = 800  # spring constant  # TODO: Tune this
         if state == 'Flight':
             if state_prev == 'Stance':  # target new footstep position
                 # p_pred = raibert_x(kr, kt, pdot, pdot_ref) + p  # world frame desired footstep position
@@ -79,8 +79,11 @@ class Gait:
             if pdot[2] <= 0:  # recognize that robot is falling
                 target[2] = -hconst * 6 / 3  # brace for impact
         elif state == 'Stance':
-            force = -np.reshape(U_pred[0, :], (3, 1))*s  # p[2]
-            target[0:3] = np.array([0, 0, -p[2]]) + (force / ks).flatten()  # impedance control
+            force = grf - np.reshape(U_pred[0, :], (3, 1))  # force ref in world frame
+            # impedance control  # TODO: Think carefully about the rotations here
+            pf_dist = self.x_des - p  # distance from robot body to desired footstep in world frame
+            p_imp = pf_dist + (force / ks).flatten()  # ee target for impedance control in world frame
+            target[0:3] = utils.Z(utils.Q_inv(Q_base), p_imp)  # rotate from world frame to body frame
         else:
             raise NameError('INVALID STATE')
 
@@ -90,7 +93,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 
-    def u_raibert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
+    def u_raibert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
         # continuous raibert hopping
         p = X_in[0:3]
         pdot = X_in[3:6]
@@ -138,7 +141,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
         return u, thetar, setp
 
-    def u_wbc_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
+    def u_wbc_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
         k_wbc = self.k_wbc
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
@@ -162,7 +165,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp
 
-    def u_wbc_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
+    def u_wbc_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
@@ -174,7 +177,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_ik_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
+    def u_ik_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
         time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
         u = np.zeros(self.n_a)
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
@@ -199,7 +202,7 @@ class Gait:
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
         return u, thetar, setp
 
-    def u_ik_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, s):
+    def u_ik_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
         k = self.k_k
         kd = self.kd_k
         u = np.zeros(self.n_a)

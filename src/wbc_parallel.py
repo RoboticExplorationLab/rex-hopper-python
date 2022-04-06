@@ -51,23 +51,10 @@ class Control:
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
 
         Mx = leg.gen_Mx()
-        # print(Mx @ x_dd_des[0:3], force)
         fx = utils.Z(utils.Q_inv(Q_base), Mx @ x_dd_des[0:3] + force)  # rotate back into body frame for jacobian
-        # fx = Mx @ x_dd_des[0:3] + force
         tau = Ja.T @ fx
-        u = tau.flatten()  # + ((- G - C).T @ B).T
-        '''
-        M = leg.gen_M()
-        C = leg.gen_C()
-        G = leg.gen_G()
-        B = self.B
-        qdd_new = np.linalg.solve(M, (B @ u - C - G))
-        qdd_n = np.array([qdd_new[0], qdd_new[2]])
-        Ja = leg.gen_jacA()
-        da = leg.gen_da()
-        # print(np.shape(Ja), np.shape(qdd_n), np.shape(da))
-        print("rdd_new in task space = ", Ja @ qdd_n + da)
-        '''
+        u = tau.flatten()
+
         return u
 
     def wb_qp_control(self, target, Q_base, force=np.zeros((3, 1))):
@@ -75,7 +62,7 @@ class Control:
         target = np.array(target).reshape(-1, 1)
         Ja = leg.gen_jacA()  # 3x2
         dqa = np.array([leg.dq[0], leg.dq[2]])
-        x = utils.Z(Q_base, leg.position())
+        x = utils.Z(Q_base, leg.position())  # rotate leg position from body frame to world frame
 
         # calculate operational space velocity vector
         vel = utils.Z(Q_base, (np.transpose(np.dot(Ja, dqa)))[0:3]).reshape(-1, 1)
@@ -84,11 +71,7 @@ class Control:
         x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma]
         x_dd_des[:3] = (np.dot(self.kp, (target[0:3] - x)) + np.dot(self.kd, -vel)).flatten()
         x_dd_des = np.reshape(x_dd_des, (-1, 1))
-
-        # 3D version
         r_dd_des = utils.Z(utils.Q_inv(Q_base), np.array(x_dd_des[0:3]) + force/self.m)  # rotate back into body frame
-        # r_dd_des = np.array([[0, 0, -1]]).T
-        # print("r_dd_des = ", r_dd_des)
         u = self.cqp.qpcontrol(r_dd_des)
 
         return u
