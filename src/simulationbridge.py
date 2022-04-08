@@ -21,7 +21,7 @@ def reaction(numJoints, bot):  # returns joint reaction force
 
 class Sim:
 
-    def __init__(self, X_0, model, dt=1e-3, fixed=False, spring=False,
+    def __init__(self, X_0, model, dt=1e-3, g=9.807, fixed=False, spring=False,
                  record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
         self.omega_xyz = None
@@ -81,7 +81,7 @@ class Sim:
         if gravoff == True:
             GRAVITY = 0
         else:
-            GRAVITY = -9.807
+            GRAVITY = -g
 
         if direct is True:
             p.connect(p.DIRECT)
@@ -224,24 +224,20 @@ class Sim:
         L0 = self.L[0]
         L2 = self.L[2]
         rmin = self.rmin
-
         if q is None:
             q0 = init_q[0]
             q2 = init_q[2]
         else:
             q0 = q[0] + init_q[0]
             q2 = q[2] + init_q[1]
-
         gamma = abs(q2 - q0)
         r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-
         if r < rmin:
             print("error: incorrect spring params, r = ", r, " and rmin = ", rmin, "\n gamma = ", gamma)
-
         T = k * (r - rmin)  # spring tension force
         alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
         beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
         tau_s0 = -T * np.sin(beta) * L0
         tau_s1 = T * np.sin(alpha) * L2
-        tau_s = np.array([tau_s0, tau_s1])
-        return tau_s * self.dir_s
+        tau_s = np.array([tau_s0, tau_s1]) * self.dir_s
+        return tau_s

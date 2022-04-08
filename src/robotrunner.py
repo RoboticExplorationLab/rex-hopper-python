@@ -73,15 +73,15 @@ class Runner:
         self.L = np.array(model["linklengths"])
         self.n_a = model["n_a"]
         self.hconst = model["hconst"]  # 0.3  # height constant
-        self.leg = leg_class.Leg(dt=dt, model=model, recalc=recalc)
+        self.g = 9.807
+        self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         # print("total mass = ", self.leg.m_total)
         self.controller = controller_class.Control(leg=self.leg, m=self.leg.m_total, dt=dt, gain=gain)
         self.mu = 0.3  # friction
-        self.g = 9.81
         X_0 = np.array([0, 0, 0.7*scale, 0, 0, 0, self.g])  # initial conditions
         self.X_f = np.array([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
-        self.simulator = simulationbridge.Sim(X_0=X_0, model=model, dt=dt, fixed=fixed, spring=spring, record=record,
-                                              scale=scale, gravoff=gravoff, direct=direct)
+        self.simulator = simulationbridge.Sim(X_0=X_0, model=model, dt=dt, g=self.g, fixed=fixed, spring=spring,
+                                              record=record, scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
         self.target_init = np.array([0, 0, -self.hconst, 0, 0, 0])
         self.target = self.target_init[:]
@@ -151,7 +151,7 @@ class Runner:
 
             # run simulator to get encoder and IMU feedback
             qa, dqa, Q_base, c, tau, f_sens, tau_sens, i, v, grf = self.simulator.sim_run(u=self.u)
-            self.leg.update_state(q_in=qa[0:2])  # enter encoder values into leg kinematics/dynamics
+            self.leg.update_state(q_in=qa[0:2], Q_base=Q_base)  # enter encoder & IMU values into leg k/dynamics
             self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
 
             c, c_s, con_c = contact_check(c, c_s, c_prev, k, con_c)  # Like using limit switches

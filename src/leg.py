@@ -6,13 +6,14 @@ import numpy as np
 import csv
 import os
 import pickle
-
-import calc_parallel
+import calc
+import utils
+import copy
 
 
 class Leg:
 
-    def __init__(self, dt, model, recalc, init_q=None, init_dq=None, **kwargs):
+    def __init__(self, dt, model, g, recalc, init_q=None, init_dq=None, **kwargs):
 
         if init_dq is None:
             init_dq = [0., 0., 0., 0.]
@@ -74,26 +75,27 @@ class Leg:
         self.angles = init_q
         self.q_previous = init_q
         self.dq_previous = init_dq
-        self.d2q_previous = init_dq
+        # self.d2q_previous = init_d2q
 
         self.reset()
         self.q_calibration = np.array([init_q[0], init_q[2]])
 
-        self.g = np.array([[0, 0, 9.807]]).T
+        self.g_init = np.array([[0, 0, g]]).T
+        self.g = copy.copy(self.g_init)
         # self.g = sp.Matrix([[0, 0, 9.807]]).T  # negative or positive?
 
         if recalc == True:
             # if recalc is true then recalculate the data and rewrite the pickle
             self.M_init, self.G_init, self.C_init, self.Jf_init, self.df_init, \
-            self.D_init, self.d_init, self.cdot_init, self.pos_init, self.Ja_init, \
-            self.da_init = calc_parallel.calculate(L=self.L, mass=self.mass, I=self.I, coml=self.coml)
+                self.D_init, self.d_init, self.cdot_init, self.pos_init, self.Ja_init, \
+                self.da_init = calc.calculate(L=self.L, mass=self.mass, I=self.I, coml=self.coml)
         else:
             # if not true then just open the pickle jar
             pik = "data.pickle"
             with open(pik, "rb") as f:
                 self.M_init, self.G_init, self.C_init, self.Jf_init, self.df_init, \
-                self.D_init, self.d_init, self.cdot_init, self.pos_init, self.Ja_init, \
-                self.da_init = pickle.load(f)
+                    self.D_init, self.d_init, self.cdot_init, self.pos_init, self.Ja_init, \
+                    self.da_init = pickle.load(f)
 
     def gen_M(self, q=None):
         q = self.q if q is None else q
@@ -171,7 +173,7 @@ class Leg:
         da = np.array(da).astype(np.float64)
         return da
 
-    def gen_Mx(self, J=None, q=None, M = None, **kwargs):
+    def gen_Mx(self, J=None, q=None, M=None, **kwargs):
         # Generate the mass matrix in operational space
         if q is None:
             q = self.q
@@ -206,18 +208,18 @@ class Leg:
         x = xyz[0]
         # y = xyz[1]
         z = xyz[2]
-        zeta = np.arctan(L5/(L3 + L4))
-        rho = np.sqrt(L5**2 + (L3 + L4)**2)
-        phi = np.arccos((L2**2 + rho**2 - (x + d)**2 - z**2)/(2*L2*rho)) - zeta
-        r1 = np.sqrt((x+d)**2 + z**2)
-        ksi = np.arctan2(z, (x+d))
-        epsilon = np.arccos((r1**2 + L2**2 - rho**2)/(2*r1*L2))
+        zeta = np.arctan(L5 / (L3 + L4))
+        rho = np.sqrt(L5 ** 2 + (L3 + L4) ** 2)
+        phi = np.arccos((L2 ** 2 + rho ** 2 - (x + d) ** 2 - z ** 2) / (2 * L2 * rho)) - zeta
+        r1 = np.sqrt((x + d) ** 2 + z ** 2)
+        ksi = np.arctan2(z, (x + d))
+        epsilon = np.arccos((r1 ** 2 + L2 ** 2 - rho ** 2) / (2 * r1 * L2))
         q2 = ksi - epsilon
         # print((phi - np.pi - q2)*180/np.pi)
         xm = L2 * np.cos(q2) + L3 * np.cos(phi - np.pi - q2) - d
         zm = L2 * np.sin(q2) - L3 * np.sin(phi - np.pi - q2)
-        r2 = np.sqrt(xm**2 + zm**2)
-        sigma = np.arccos((-L1**2 + r2**2 + L0**2)/(2*r2*L0))
+        r2 = np.sqrt(xm ** 2 + zm ** 2)
+        sigma = np.arccos((-L1 ** 2 + r2 ** 2 + L0 ** 2) / (2 * r2 * L0))
         q0 = np.arctan2(zm, xm) + sigma
         # print(np.array([q0, q2])*180/np.pi)
         return np.array([q0, q2], dtype=float)
@@ -248,21 +250,20 @@ class Leg:
         if dq:
             assert len(dq) == self.DOF
 
-    def update_state(self, q_in):
+    def update_state(self, q_in, Q_base):
         # Pull values in from simulator and calibrate encoders
+        # Make sure this only happens once per time step
         q_in = np.add(q_in, self.q_calibration)
         q0 = q_in[0]
         q2 = q_in[1]
         q1 = q2 - q0  # basic geometry
         q3 = -q1
         self.q = np.array([q0, q1, q2, q3])
-        # self.dq = np.reshape([j[1] for j in p.getJointStates(1, range(0, 4))], (-1, 1))
-        # self.dq = [i * self.kv for i in self.dq_previous] + (self.q - self.q_previous) / self.dt
         self.dq = (self.q - self.q_previous) / self.dt  # TODO: upgrade from Euler?
-        # Make sure this only happens once per time step
-        # self.d2q = [i * self.kv for i in self.d2q_previous] + (self.dq - self.dq_previous) / self.dt
-        self.d2q = (self.dq - self.dq_previous) / self.dt
-
+        # self.d2q = (self.dq - self.dq_previous) / self.dt
         self.q_previous = self.q
         self.dq_previous = self.dq
-        self.d2q_previous = self.d2q
+        # self.d2q_previous = self.d2q
+
+        # Rotate gravity vector to match body orientation
+        self.g = utils.Z(Q_base, self.g_init)  # TODO: Check

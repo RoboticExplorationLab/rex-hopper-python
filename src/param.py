@@ -1,14 +1,14 @@
 """
 Copyright (C) 2021 Benjamin Bokser
 """
-import leg_parallel
-import wbc_parallel
-import gait
+import leg
+import wbc
+# import gait
 
 design_cmg = {
     "model": "design_cmg",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
+    "controllerclass": wbc,
+    "legclass": leg,
     "csvpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.csv",
     "urdfpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
@@ -21,8 +21,8 @@ design_cmg = {
 
 design_rw = {
     "model": "design_rw",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
+    "controllerclass": wbc,
+    "legclass": leg,
     "csvpath": "res/hopper_rev06/urdf/hopper_rev06.csv",
     "urdfpath": "res/hopper_rev06/urdf/hopper_rev06.urdf",
     "linklengths": [.1, .27, .27, .1, .17, .0205],
