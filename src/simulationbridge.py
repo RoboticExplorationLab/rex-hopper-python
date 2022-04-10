@@ -21,7 +21,7 @@ def reaction(numJoints, bot):  # returns joint reaction force
 
 class Sim:
 
-    def __init__(self, X_0, model, dt=1e-3, g=9.807, fixed=False, spring=False,
+    def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False, spr=False,
                  record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
         self.omega_xyz = None
@@ -29,20 +29,11 @@ class Sim:
         self.v = None
         self.record_rt = record  # record video in real time
         self.base_pos = None
-        self.spring = spring
+        self.spr = spr
         self.L = model["linklengths"]
         self.model = model["model"]
         self.n_a = model["n_a"]
-        # --- spring params --- #
-        self.ks = model["ks"]  # spring constant, N/m
-        init_q = model["init_q"]
-        self.dir_s = model["springpolarity"]
-        self.init_q = [init_q[0], init_q[2]]
-        L0 = self.L[0]  # .15
-        L2 = self.L[2]  # .3
-        self.r0 = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(2.5*np.pi/180))  # 0.17
-        # --- #
-
+        self.spring_fn = spring.spring_fn
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
 
@@ -156,7 +147,7 @@ class Sim:
         qa = (q.T @ self.S).flatten()
         dqa = (dq_.T @ self.S).flatten()
 
-        tau_s = self.spring_fn(q) if self.spring else np.zeros(2)
+        tau_s = self.spring_fn(q) if self.spr else np.zeros(2)
 
         self.p = np.array(p.getBasePositionAndOrientation(self.bot)[0])
         Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
@@ -217,30 +208,3 @@ class Sim:
 
         return qa, dqa, Q_base, c, tau, f_sens, tau_sens, i, v, grf
 
-    def spring_fn(self, q):
-        """
-        linear extension spring b/t joints 1 and 3 of parallel mechanism
-        approximated by applying torques to joints 0 and 2
-        """
-        init_q = self.init_q
-        k = self.ks
-        L0 = self.L[0]
-        L2 = self.L[2]
-        r0 = self.r0
-        if q is None:
-            q0 = init_q[0]
-            q2 = init_q[2]
-        else:
-            q0 = q[0] + init_q[0]
-            q2 = q[2] + init_q[1]
-        gamma = abs(q2 - q0)
-        r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-        # if r < r0:
-        #     print("error: incorrect spring params, r = ", r, " and r0 = ", r0, "\n gamma = ", gamma)
-        T = k * (r - r0)  # spring tension force
-        alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
-        beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
-        tau_s0 = -T * np.sin(beta) * L0
-        tau_s1 = T * np.sin(alpha) * L2
-        tau_s = np.array([tau_s0, tau_s1]) * self.dir_s
-        return tau_s

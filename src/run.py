@@ -68,6 +68,6 @@ elif args.model == "design_cmg":
 else:
     raise NameError('INVALID MODEL')
 
-runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed, spring=spring, record=record,
+runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed, spr=spring, record=record,
                 scale=args.scale, recalc=recalc, gravoff=gravoff, total_run=args.runtime, gain=model["k"])
 runner.run()

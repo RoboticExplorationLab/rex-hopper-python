@@ -9,6 +9,7 @@ import plots
 import moment_ctrl
 import mpc
 import utils
+import spring
 import time
 # import sys
 import copy
@@ -57,7 +58,7 @@ def gait_check(s, s_prev, ct, t):
 
 class Runner:
 
-    def __init__(self, model, dt=1e-3, ctrl_type='ik_vert', plot=False, fixed=False, spring=False,
+    def __init__(self, model, dt=1e-3, ctrl_type='ik_vert', plot=False, fixed=False, spr=False,
                  record=False, scale=1, gravoff=False, direct=False, recalc=False, total_run=10000, gain=5000):
 
         self.dt = dt
@@ -66,7 +67,7 @@ class Runner:
         self.model = model
         self.ctrl_type = ctrl_type
         self.plot = plot
-        self.spring = spring
+        self.spr = spr
         self.fixed = fixed
         controller_class = model["controllerclass"]
         leg_class = model["legclass"]
@@ -74,14 +75,15 @@ class Runner:
         self.n_a = model["n_a"]
         self.hconst = model["hconst"]  # 0.3  # height constant
         self.g = 9.807
+        self.spring = spring.Spring(model)
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
-        self.controller = controller_class.Control(leg=self.leg, model=model, m=self.leg.m_total,
-                                                   spring=spring, dt=dt, gain=gain)
+        self.controller = controller_class.Control(leg=self.leg, spring=self.spring, m=self.leg.m_total,
+                                                    spr=spr, dt=dt, gain=gain)
         self.mu = 0.3  # friction
         X_0 = np.array([0, 0, 0.7*scale, 0, 0, 0, self.g])  # initial conditions
         self.X_f = np.array([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame
-        self.simulator = simulationbridge.Sim(X_0=X_0, model=model, dt=dt, g=self.g, fixed=fixed, spring=spring,
-                                              record=record, scale=scale, gravoff=gravoff, direct=direct)
+        self.simulator = simulationbridge.Sim(X_0=X_0, model=model, spring=self.spring, dt=dt, g=self.g, fixed=fixed,
+                                              spr=spr, record=record, scale=scale, gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
         self.target_init = np.array([0, 0, -self.hconst, 0, 0, 0])
         self.target = self.target_init[:]
