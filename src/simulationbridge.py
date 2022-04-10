@@ -31,16 +31,16 @@ class Sim:
         self.base_pos = None
         self.spring = spring
         self.L = model["linklengths"]
-        self.dir_s = model["springpolarity"]
         self.model = model["model"]
         self.n_a = model["n_a"]
-
         # --- spring params --- #
-        self.init_q = [-30 * np.pi / 180, -150 * np.pi / 180]
-        self.ks = 996  # spring constant, N/m
+        self.ks = model["ks"]  # spring constant, N/m
+        init_q = model["init_q"]
+        self.dir_s = model["springpolarity"]
+        self.init_q = [init_q[0], init_q[2]]
         L0 = self.L[0]  # .15
         L2 = self.L[2]  # .3
-        self.rmin = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(2.5*np.pi/180))  # 0.17
+        self.r0 = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(2.5*np.pi/180))  # 0.17
         # --- #
 
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
@@ -108,7 +108,7 @@ class Sim:
 
         p.setRealTimeSimulation(useRealTime)
 
-        self.c_link = 1
+        self.c_link = 1  # contact link
 
         if self.model == 'design_cmg':
             # gimbal scissor constraints
@@ -195,19 +195,22 @@ class Sim:
         self.omega_xyz = velocities[1]  # base angular velocity in XYZ
         self.base_pos = p.getBasePositionAndOrientation(self.bot)
         f_sens, tau_sens = reaction(self.numJoints, self.bot)
-        grf_nrml_onB = [c[7] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
-        grf_nrml = [c[9] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
-        fric1 = [c[10] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
-        fric1_dir = [c[11] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
-        fric2 = [c[12] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
-        fric2_dir = [c[13] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]
-        grf_z = grf_nrml * np.array(grf_nrml_onB)
-        fric_y = fric1 * np.array(fric1_dir)
-        fric_x = fric2 * np.array(fric2_dir)
-        grf = (grf_z + fric_y + fric_x).T
-        grf = np.zeros((3, 1)) if not grf.any() else grf  # prevent empty list from being passed
-        # Detect contact with ground plane
-        c = bool(len([c[8] for c in p.getContactPoints(self.bot, self.plane, self.c_link)]))
+        contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
+        if np.shape(contact)[0] == 0:  # prevent empty list from being passed
+            grf = np.zeros((3, 1))
+            c = False
+        else:
+            grf_nrml_onB = np.array(contact[0, 7])
+            grf_nrml = contact[0, 9]
+            fric1 = contact[0, 10]
+            fric1_dir = np.array(contact[0, 11])
+            fric2 = contact[0, 12]
+            fric2_dir = np.array(contact[0, 13])
+            grf_z = grf_nrml * grf_nrml_onB
+            fric_y = fric1 * fric1_dir
+            fric_x = fric2 * fric2_dir
+            grf = (grf_z + fric_y + fric_x).T
+            c = True  # Detect contact with ground plane
 
         if useRealTime == 0:
             p.stepSimulation()
@@ -223,7 +226,7 @@ class Sim:
         k = self.ks
         L0 = self.L[0]
         L2 = self.L[2]
-        rmin = self.rmin
+        r0 = self.r0
         if q is None:
             q0 = init_q[0]
             q2 = init_q[2]
@@ -232,9 +235,9 @@ class Sim:
             q2 = q[2] + init_q[1]
         gamma = abs(q2 - q0)
         r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-        if r < rmin:
-            print("error: incorrect spring params, r = ", r, " and rmin = ", rmin, "\n gamma = ", gamma)
-        T = k * (r - rmin)  # spring tension force
+        # if r < r0:
+        #     print("error: incorrect spring params, r = ", r, " and r0 = ", r0, "\n gamma = ", gamma)
+        T = k * (r - r0)  # spring tension force
         alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
         beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))
         tau_s0 = -T * np.sin(beta) * L0

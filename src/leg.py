@@ -19,7 +19,7 @@ class Leg:
             init_dq = [0., 0., 0., 0.]
 
         if init_q is None:
-            init_q = [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180]
+            init_q = model["init_q"]
 
         self.q = init_q
         self.dq = init_dq
@@ -83,12 +83,12 @@ class Leg:
         self.g_init = np.array([[0, 0, g]]).T
         self.g = copy.copy(self.g_init)
         # self.g = sp.Matrix([[0, 0, 9.807]]).T  # negative or positive?
-
+        ks = model["ks"]  # spring constant, N/m
         if recalc == True:
             # if recalc is true then recalculate the data and rewrite the pickle
             self.M_init, self.G_init, self.C_init, self.Jf_init, self.df_init, \
                 self.D_init, self.d_init, self.cdot_init, self.pos_init, self.Ja_init, \
-                self.da_init = calc.calculate(L=self.L, mass=self.mass, I=self.I, coml=self.coml)
+                self.da_init = calc.calculate(L=self.L, mass=self.mass, I=self.I, coml=self.coml, k=ks)
         else:
             # if not true then just open the pickle jar
             pik = "data.pickle"

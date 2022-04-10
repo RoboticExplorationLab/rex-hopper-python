@@ -105,8 +105,8 @@ class Gait:
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
         pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z, p), setp=utils.Z(Q_z, p_ref))  # adjust for yaw
         pdot_ref = utils.Z(utils.Q_inv(Q_z), pdot_ref)  # rotate back into world frame
-        self.target[0] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
-        self.target[1] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
+        # self.target[0] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
+        # self.target[1] = -0.02  # -0.08  # adjustment for balance due to bad mockup design
         if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
             v_ref = X_ref - X_in
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
@@ -123,13 +123,9 @@ class Gait:
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
                 self.target[2] = -hconst * 6 / 3  # brace for impact
-            # self.controller.update_gains(k_wbc, k_wbc * 0.02)
-            self.controller.update_gains(k_wbc * 0.03, k_wbc * 0.006)
         elif state == 'HeelStrike':
-            self.controller.update_gains(k_wbc, k_wbc * 0.02)
             self.target[2] = -hconst * 4.5 / 3
         elif state == 'Leap':
-            self.controller.update_gains(k_wbc, k_wbc * 0.02)
             self.target[2] = -hconst * 6 / 3
             # force = fr if not None else None
         else:
@@ -174,7 +170,7 @@ class Gait:
         self.controller.update_gains(self.k_wbc, self.k_wbc * 0.02)
         # force = fr if not None else None
         u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
-        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp
 
     def u_ik_vert(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
@@ -199,7 +195,7 @@ class Gait:
         dqa = np.array([self.leg.dq[0], self.leg.dq[2]])
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         u[0:2] = (qa - self.leg.inv_kinematics(xyz=self.target[0:3])) * k + dqa * kd
-        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp
 
     def u_ik_static(self, state, state_prev, X_in, X_ref, X_pred, U_pred, Q_base, grf, s):
@@ -213,5 +209,5 @@ class Gait:
         qa = np.array([self.leg.q[0], self.leg.q[2]])
         # u = (self.leg.q - self.leg.inv_kinematics(xyz=self.target[0:3])) * k_kin + self.leg.dq * k_d
         u[0:2] = (qa - self.leg.inv_kinematics(xyz=target[0:3])) * k + dqa * kd
-        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base)
+        u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp

@@ -75,8 +75,8 @@ class Runner:
         self.hconst = model["hconst"]  # 0.3  # height constant
         self.g = 9.807
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
-        # print("total mass = ", self.leg.m_total)
-        self.controller = controller_class.Control(leg=self.leg, m=self.leg.m_total, dt=dt, gain=gain)
+        self.controller = controller_class.Control(leg=self.leg, model=model, m=self.leg.m_total,
+                                                   spring=spring, dt=dt, gain=gain)
         self.mu = 0.3  # friction
         X_0 = np.array([0, 0, 0.7*scale, 0, 0, 0, self.g])  # initial conditions
         self.X_f = np.array([2, 2, 0.5, 0, 0, 0, self.g]).T  # desired final state in world frame

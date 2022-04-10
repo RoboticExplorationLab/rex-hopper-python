@@ -5,7 +5,7 @@ import numpy as np
 from sympy.physics.vector import dynamicsymbols
 
 
-def calculate(L, mass, I, coml):
+def calculate(L, mass, I, coml, k):
     # --- Forward Kinematics --- #
     l0 = L[0]
     l1 = L[1]
@@ -13,7 +13,7 @@ def calculate(L, mass, I, coml):
     l3 = L[3]
     l4 = L[4]
     l5 = L[5]
-    lee = [l3 + l4, l5, 0]
+    # lee = [l3 + l4, l5, 0]
 
     m0 = mass[0]
     m1 = mass[1]
@@ -69,13 +69,16 @@ def calculate(L, mass, I, coml):
     r3 = sp.Matrix([x3, y3, z3])
     
     sp.var('gx gy gz')  # gravity vector
-    # gx, gy, gz = sp.symbols('gx gy gz')
     g = sp.Matrix([gx, gy, gz])  # allows gravity vector to be updated
     U0 = m0 * g.dot(r0)
     U1 = m1 * g.dot(r1)
     U2 = m2 * g.dot(r2)
     U3 = m3 * g.dot(r3)
-    U = U0 + U1 + U2 + U3
+    # gamma = sp.sqrt((q2 - q0)**2)  # abs value
+    # ds = sp.sqrt(l0 ** 2 + l2 ** 2 - 2 * l0 * l2 * sp.cos(gamma))  # spring dist
+    # ds0 = np.sqrt(l0 ** 2 + l2 ** 2 - 2 * l0 * l2 * np.cos(2.5 * np.pi / 180))
+    # Uk = 0.5 * k * (ds - ds0) ** 2
+    U = U0 + U1 + U2 + U3  # + Uk
     
     # Kinetic energy
     x0d = sp.diff(x0, t)
