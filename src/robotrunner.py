@@ -173,7 +173,11 @@ class Runner:
             p = np.array(self.simulator.p)  # p = p + pdot * self.dt  # body position in world coordinates
             go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)  # prevents stuck in stance bug
             state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
-            # pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
+            pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
+
+            # x_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
+            # x_ref = np.hstack([np.zeros(3), np.zeros(3), self.omega_d, self.pdot_des]).T  # reference pose (desired)
+
             X_in = np.hstack([p, pdot, self.g]).T  # array of the states for MPC
             X_ref = self.path_plan(X_in=X_in)
 

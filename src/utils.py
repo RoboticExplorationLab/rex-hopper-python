@@ -1,5 +1,11 @@
 import numpy as np
 
+H = np.zeros((4, 3))
+H[1:4, 0:4] = np.eye(3)
+
+T = np.zeros((4, 4))
+np.fill_diagonal(T, [1.0, -1.0, -1.0, -1.0])
+
 
 def hat(w):
     # skew-symmetric
@@ -24,13 +30,6 @@ def R(Q):
     RQ[1:4, 0] = Q[1:4]
     RQ[1:4, 1:4] = Q[0] * np.eye(3) - hat(Q[1:4])
     return RQ
-
-
-H = np.zeros((4, 3))
-H[1:4, 0:4] = np.eye(3)
-
-T = np.zeros((4, 4))
-np.fill_diagonal(T, [1.0, -1.0, -1.0, -1.0])
 
 
 def Q_inv(Q):
@@ -82,17 +81,6 @@ def z_rotate(Q_in, z):
     theta_res = 2 * np.arcsin(Q_res[1])  # x-axis of rotated body quaternion
     return theta_res
 
-'''
-def vec_to_quat_alt(v2):
-    # conversion of line vector to quaternion rotation b/t it and a datum vector v1
-    v1 = np.array([1, 0, 0])  # datum vector, chosen as aligned with x-axis (front facing)
-    Q = np.zeros(4)
-    Q[0] = np.sqrt((np.linalg.norm(v1) ** 2) * (np.linalg.norm(v2) ** 2)) + np.dot(v1, v2)
-    Q[1:4] = np.cross(v1, v2)
-    Q = Q / np.linalg.norm(Q)
-    return Q
-'''
-
 
 def vec_to_quat(v2):
     # conversion of line vector to quaternion rotation b/t it and a datum vector v1
@@ -111,6 +99,17 @@ def vec_to_quat(v2):
             Q[1:4] = np.cross(u1, u_half)
             Q = Q / np.linalg.norm(Q)
     return Q_inv(Q)
+
+
+def rz_phi(Q_in):
+    # linearized rotation matrix Rz(phi) using commanded yaw
+    phi_s = 2 * np.arcsin(Q_in[3])
+    phi = quat2euler(Q_in)[2]  # extract z-axis euler angle
+    print(phi, phi_s)  # TODO: Check if same. If so, use simpler
+    Rz = np.array([[np.cos(phi), np.sin(phi),  0.0],
+                   [-np.sin(phi), np.cos(phi), 0.0],
+                   [0.0,         0.0,          1.0]])
+    return Rz
 
 
 def wrap_to_pi(a):
