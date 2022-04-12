@@ -24,7 +24,6 @@ class Sim:
     def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False, spr=False,
                  record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
-        self.omega_xyz = None
         self.omega = None
         self.v = None
         self.record_rt = record  # record video in real time
@@ -183,7 +182,7 @@ class Sim:
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
         velocities = p.getBaseVelocity(self.bot)
         self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
-        self.omega_xyz = velocities[1]  # base angular velocity in XYZ
+        self.omega = velocities[1]  # base angular velocity in global Cartesian coordinates
         self.base_pos = p.getBasePositionAndOrientation(self.bot)
         f_sens, tau_sens = reaction(self.numJoints, self.bot)
         contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
