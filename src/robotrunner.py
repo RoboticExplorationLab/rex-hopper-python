@@ -92,7 +92,7 @@ class Runner:
         t_st = self.t_p * self.phi_switch  # time spent in stance
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
                               target=self.target, hconst=self.hconst, t_st=t_st, X_f=self.X_f,
-                              use_qp=True, gain=gain, dt=dt)
+                              use_qp=False, gain=gain, dt=dt)
         self.N = 10  # mpc horizon
         self.horz_len = self.t_p * self.phi_switch * self.N / self.dt  # horizon length (timesteps)
         self.state = statemachine.Char()
@@ -213,8 +213,8 @@ class Runner:
 
         if self.plot == True:
             plots.thetaplot(total, thetahist, setphist)
-            # plots.tauplot(total, n_a, tauhist)
-            # plots.dqplot(total, n_a, dqhist)
+            plots.tauplot(self.model, total, n_a, tauhist)
+            plots.dqplot(self.model, total, n_a, dqhist)
             plots.fplot(total, phist=phist, fhist=fhist, shist=s_hist)
             plots.grfplot(total, phist, grfhist, fthist)
             plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)

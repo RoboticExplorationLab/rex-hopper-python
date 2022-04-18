@@ -98,10 +98,11 @@ class Gait:
         p = X_in[0:3]
         pdot = X_in[3:6]
         p_ref = X_ref[0:3]
-        k_wbc = self.k_wbc
+        # k_wbc = self.k_wbc
         u = np.zeros(self.n_a)
         force = np.zeros((3, 1))
         z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
+        # z = utils.quat2euler(Q_base)[2]
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
         pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z, p), setp=utils.Z(Q_z, p_ref))  # adjust for yaw
         pdot_ref = utils.Z(utils.Q_inv(Q_z), pdot_ref)  # rotate back into world frame
@@ -112,7 +113,7 @@ class Gait:
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
         k_b = (np.clip(np.linalg.norm(self.X_f[0:2] - X_in[0:2]), 0.5, 1) + 2)/3  # "Braking" gain based on dist
         hconst = self.hconst * k_b
-        kr = .15 / k_b  # "speed cancellation" constant
+        kr = .15 / k_b  # .15 / k_b "speed cancellation" constant
         kt = 0.4  # gain representing leap period accounting for vertical jump velocity at toe-off
 
         if state == 'Return':
@@ -122,11 +123,11 @@ class Gait:
             if pdot[2] >= 0:  # recognize that robot is still rising
                 self.target[2] = -hconst  # pull leg up to prevent stubbing
             else:
-                self.target[2] = -hconst * 6 / 3  # brace for impact
+                self.target[2] = -hconst * 5.5 / 3  # brace for impact
         elif state == 'HeelStrike':
             self.target[2] = -hconst * 4.5 / 3
         elif state == 'Leap':
-            self.target[2] = -hconst * 6 / 3
+            self.target[2] = -hconst * 5.5 / 3
             # force = fr if not None else None
         else:
             raise NameError('INVALID STATE')
@@ -143,7 +144,7 @@ class Gait:
         force = np.zeros((3, 1))
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
         hconst = self.hconst
-        self.target[0] = -0.02
+        self.target[0] = 0  # -0.02
         if state == 'Return':
             # self.controller.update_gains(k_wbc * 0.03, k_wbc * 0.006)
             # self.controller.update_gains(k_wbc, k_wbc * 0.02)
@@ -157,7 +158,7 @@ class Gait:
             # force = fr if not None else None
         else:
             raise NameError('INVALID STATE')
-        u[0:2] = -self.controlf(target=self.target, Q_base=Q_base, force=force)
+        u[0:2] = -self.controlf(target=self.target, Q_base=np.array([1, 0, 0, 0]), force=force)
         u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return u, thetar, setp
 

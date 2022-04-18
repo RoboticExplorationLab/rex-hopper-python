@@ -14,11 +14,12 @@ design_rw = {
     "urdfpath": "res/hopper_rev08/urdf/hopper_rev08.urdf",
     "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
     "linklengths": [.1, .27, .27, .1, .17, .0205],
+    "aname": ["q0", "q2", "rw1", "rw2", "rw3"],
     "hconst": 0.27,
     "n_a": 5,
     "ks": 996,
     "springpolarity": 1,
-    "k": 10000,  # wbc gain
+    "k": 5000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain
 }
 
