@@ -39,6 +39,17 @@ actuator_mn1005kv90 = {
     "gr": 1
 }
 
+actuator_r80kv110 = {
+    "name": "r80",
+    "v_max": 48,
+    "kt": 0.0868,
+    "omega_max": 4600 * (2 * np.pi / 60),
+    "tau_max": 4,
+    "r": 0.125,
+    "i_max": 46,
+    "gr": 1
+}
+
 actuator_8318 = {
     "name": "8318",
     "v_max": 48,

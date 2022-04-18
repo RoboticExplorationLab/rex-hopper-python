@@ -52,7 +52,7 @@ def test(dt, model, verbose=False):
     return None
 
 
-model = actuator_param.actuator_r100kv90
+model = actuator_param.actuator_r80kv110
 print(model["name"])
 test(dt=1/1000, model=model)
 print("\n")

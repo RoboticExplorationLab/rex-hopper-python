@@ -47,7 +47,7 @@ class Sim:
             self.S = S
             self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
             self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # mn1005kv90
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_r80kv110)  # mn1005kv90
 
         elif self.model == 'design_cmg':
             S = np.zeros((13, 9))
