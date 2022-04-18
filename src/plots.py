@@ -35,7 +35,7 @@ def thetaplot(total, thetahist, setphist):
     plt.show()
 
 
-def tauplot(total, n_a, tauhist):
+def tauplot(model, total, n_a, tauhist):
     cols = 3
     rows = n_a // cols
     rows += n_a % cols
@@ -46,12 +46,12 @@ def tauplot(total, n_a, tauhist):
         ax = fig.add_subplot(rows, cols, position[k])
         ax.plot(totalr, tauhist[:, k])  
         ax.set_ylabel('Torque, Nm')
-        # ax.set_title(model["aname"][k])
+        ax.set_title(model["aname"][k])
     plt.xlabel("Timesteps")
     plt.show()
 
 
-def dqplot(total, n_a, dqhist):
+def dqplot(model, total, n_a, dqhist):
     cols = 3
     rows = n_a // cols
     rows += n_a % cols
@@ -62,6 +62,7 @@ def dqplot(total, n_a, dqhist):
         ax = fig.add_subplot(rows, cols, position[k])
         ax.plot(totalr, dqhist[:, k]*60/(2*np.pi))  
         ax.set_ylabel('Angular Velocity, RPM')
+        ax.set_title(model["aname"][k])
     plt.xlabel("Timesteps")
     plt.show()
 
