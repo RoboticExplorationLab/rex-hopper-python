@@ -1,0 +1,81 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\makeatletter
+\renewcommand*\env@matrix[1][*\c@MaxMatrixCols c]{%
+  \hskip -\arraycolsep
+  \let\@ifnextchar\new@ifnextchar
+  \array{#1}}
+\makeatother
+\begin{document}
+
+\begin{equation}
+	\dot{X} = \begin{bmatrix}
+	\Delta \dot{x}\\
+	\Delta \dot{y}\\
+	\Delta \dot{z}\\
+	\Delta \ddot{x}\\
+	\Delta \ddot{y}\\
+	\Delta \ddot{z}
+	\end{bmatrix} = 
+	\begin{bmatrix}
+	\begin{array}{ccc|ccc}
+	  &   &   &   &   &   \\
+	  & 0_{3\times 3} &   &   & I_3 &   \\
+	  &   &   &   &   &   \\\hline
+	  &   &   &   &   &   \\
+	  & 0_{3\times 3} &   &   & 0_{3\times 3} &   \\
+	  &   &   &   &   &  
+	\end{array}
+	\end{bmatrix}
+	\begin{bmatrix}
+	\Delta x\\
+	\Delta y\\
+	\Delta z\\
+	\Delta \dot{x}\\
+	\Delta \dot{y}\\
+	\Delta \dot{z}
+	\end{bmatrix} + 
+	\begin{bmatrix}
+	\begin{array}{ccc}
+	  &   &   \\
+	  & 0_{3\times 3} &   \\
+	  &   &   \\\hline
+	\frac{1}{m} &   &   \\
+	  & \frac{1}{m} &   \\
+	  &   & \frac{1}{m}
+	\end{array}
+	\end{bmatrix}
+	\begin{bmatrix}
+	f_x\\
+	f_y\\
+	f_z\\
+	\end{bmatrix} + 
+	\begin{bmatrix}
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	-g
+	\end{bmatrix}
+\end{equation}
+
+%\begin{equation}
+\begin{align}
+\min_{X,U} \quad & \sum^{N}_{k=0} \lVert X_k - X_{REF, k} \lVert_Q + \lVert U_k - U_{REF,  k} \lVert_R \\
+\textrm{s.t.} \quad & X_{k+1} = A_d X_k + B_d U_k + G_k && \forall k \\
+  & z_{min} \leq {z_k} \leq z_{max} && \forall k \\  
+  & 0 \leq {f_{z, k}} \leq f_{z, max} && \forall k \in \mathcal{C}  \\
+  & -\mu {f_{z, k}} \leq f_{x, k} \leq \mu {f_{z, k}} && \forall k \in \mathcal{C}  \\
+  & -\mu {f_{z, k}} \leq f_{y, k} \leq \mu {f_{z, k}} && \forall k \in \mathcal{C}  \\   
+  & f_{x, k} = 0 && \forall k \notin \mathcal{C}  \\   
+  & f_{y, k} = 0 && \forall k \notin \mathcal{C}  \\    
+  & f_{z, k} = 0 && \forall k \notin \mathcal{C}    
+\end{align}
+%\end{equation}
+
+    
+\end{document}

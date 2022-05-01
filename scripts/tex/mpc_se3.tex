@@ -1,0 +1,56 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{array}
+
+\begin{document}
+
+Quaternion-based nonlinear SE(3) dynamics:
+
+\begin{equation}
+x = 
+\begin{bmatrix}
+	p_{3 \times 1}\\
+	q_{4 \times 1}\\
+	{}^Bv_{3 \times 1}\\
+	{}^B\omega_{3 \times 1}
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+\dot x = 
+\begin{bmatrix}
+	H^{\top} L(q)R(q)^{\top}H {}^Bv\\
+	\frac{1}{2} L(q)H\omega\\
+	\frac{1}{m} {}^BF - {}^B\omega \times {}^Bv \\
+	J^{-1}({}^B\tau - {}^B\omega \times J {}^B\omega + \overrightarrow{r} \times {}^BF)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+\dot x \approx 
+\begin{bmatrix}
+	H^{\top} L(q)R(q)^{\top}H {}^Bv\\
+	\frac{1}{2} L(q)H\omega\\
+	\frac{1}{m} {}^BF \\
+	J^{-1}({}^B\tau + \overrightarrow{r} \times {}^BF)
+\end{bmatrix}
+\end{equation}
+
+where $\overrightarrow{r}$ is the offset from the hip to the CoM in the body frame.
+
+%\begin{equation}
+\begin{align}
+\min_{X_k,U_k} \quad & \lVert X_k - X_{REF, k} \lVert_Q + \lVert U_k - U_{REF} \lVert_R \\
+\textrm{s.t.} \quad & X_{k+1} = A_d X_k + B_d U_k \\
+  & 0 \leq {F_{z, k}} \\
+  & \lvert{F_{x, k}}\rvert \leq \mu {F_{z, k}} \\
+  & \lvert{F_{y, k}}\rvert \leq \mu {F_{z, k}} \\   
+  & \lVert{U_k}\rVert \leq U_{max} \\   
+\end{align}
+%\end{equation}
+
+    
+\end{document}

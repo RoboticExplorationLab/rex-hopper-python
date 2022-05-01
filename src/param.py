@@ -15,8 +15,8 @@ design_rw = {
     "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "hconst": 0.27,
-    "n_a": 5,
-    "ks": 996,
+    "n_a": 5,  # number of actuators
+    "ks": 996,  # spring constant
     "springpolarity": 1,
     "k": 10000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain

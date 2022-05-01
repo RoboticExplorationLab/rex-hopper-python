@@ -65,3 +65,4 @@ class Control:
         tau_s = self.spring_fn(leg.q) if self.spr else np.zeros(2)
         u -= tau_s  # spring counter-torque
         return u
+    

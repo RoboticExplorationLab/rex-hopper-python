@@ -1,0 +1,177 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{array}
+\makeatletter
+\renewcommand*\env@matrix[1][*\c@MaxMatrixCols c]{%
+  \hskip -\arraycolsep
+  \let\@ifnextchar\new@ifnextchar
+  \array{#1}}
+\makeatother
+
+\newcolumntype{M}[1]{>{\hbox to #1\bgroup\hss$}l<{$\egroup}}
+
+\makeatletter
+\newcommand\@brcolwidth{0.67em}
+\newenvironment{brmatrix}{%
+    \left[%
+    \hskip-\arraycolsep
+    \new@ifnextchar[\@brarray{\@brarray[\@brcolwidth]}%
+}{%
+    \endarray
+    \hskip -\arraycolsep
+    \right]%
+}
+\def\@brarray[#1]{\array{r*\c@MaxMatrixCols {M{#1}}}}
+\makeatother
+
+\begin{document}
+
+
+\begin{equation}
+	x = \begin{bmatrix}
+	{}^W P_{3 \times 1}\\
+	{}^W\Theta_{3 \times 1}\\
+	{}^W\dot{P}_{3 \times 1}\\
+	{}^W\omega_{3 \times 1}\\
+	\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+	u = \begin{bmatrix}
+	{}^W F_{3 \times 1} \\
+	{}^W\tau_{3 \times 1}
+	\end{bmatrix}
+\end{equation}
+
+
+Euler angle-based linearized dynamics:
+\begin{equation}
+	\begin{bmatrix}
+	{}^W\dot{P}_{3 \times 1}\\
+	{}^W\dot{\Theta}_{3 \times 1}\\
+	{}^W\ddot{P}_{3 \times 1}\\
+	{}^W\dot{\omega}_{3 \times 1}\\
+	\end{bmatrix} = 
+	\begin{bmatrix}
+	\begin{array}{cccccccccccc}
+		0 & . & . & . & . & . & 1 & . & . & . & . & .  \\
+		. & . & . & . & . & . & . & 1 & . & . & . & .  \\
+		. & . & . & . & . & . & . & . & 1 & . & . & .  \\
+		. & . & . & . & . & . & . & . & . &   &   &    \\
+		. & . & . & . & . & . & . & . & . &   & R_z(\phi) &    \\
+		. & . & . & . & . & . & . & . & . &   &   &    \\
+		. & . & . & . & . & . & . & . & . & . & . & .  \\
+		. & . & . & . & . & . & . & . & . & . & . & .  \\
+		. & . & . & . & . & . & . & . & . & . & . & .  \\
+		. & . & . & . & . & . & . & . & . & . & . & .  \\
+		. & . & . & . & . & . & . & . & . & . & . & .  \\
+		0 & . & . & . & . & . & . & . & . & . & . & 0  \\
+	\end{array}
+	\end{bmatrix}
+	\begin{bmatrix}
+	{}^WP_{3 \times 1}\\
+	{}^W\Theta_{3 \times 1}\\
+	{}^W\dot{P}_{3 \times 1}\\
+	{}^W{\omega}_{3 \times 1}\\
+	\end{bmatrix} + 
+	\begin{bmatrix}
+	\begin{array}{cccccc}
+		0 & . & . & . & . & 0 \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		\frac{1}{m} & . & . & . & . & . \\
+		. & \frac{1}{m} & . & . & . & . \\
+		. & . & \frac{1}{m} & . & . & . \\
+		  &   &   &   &   &   \\
+		  & {}^WJ^{-1} [r]^\times &   &   &  {}^WJ^{-1} &   \\
+		  &   &   &   &   &   \\
+	\end{array}
+	\end{bmatrix}
+	\begin{bmatrix}
+	F_x\\
+	F_y\\
+	F_z\\
+	\tau_x \\
+	\tau_y \\
+	\tau_z
+	\end{bmatrix}
+\end{equation}
+
+where $ {}^WJ^{-1} = R_z(\phi){}^BJ^{-1}R_z(\phi)^\top $. \\
+\linebreak
+
+
+Shitty Euler DT version:
+\setcounter{MaxMatrixCols}{12}
+\begin{equation*}
+	\begin{bmatrix}
+	P_{k+1}\\
+	\Theta_{k+1}\\
+	\dot{P}_{k+1}\\
+	\omega_{k+1}\\
+	\end{bmatrix} = 
+	\begin{brmatrix}
+		1 & . & . & . & . & . &   &   &   & . & . & 0  \\
+		. & 1 & . & . & . & . &   &   &  I_3\Delta t & . & . & .  \\
+		. & . & 1 & . & . & . &   &   &   & . & . & .  \\
+		. & . & . & 1 & . & . & . & . & . &   &   &    \\
+		. & . & . & . & 1 & . & . & . & . &   &   & R_z(\phi)\Delta t    \\
+		. & . & . & . & . & 1 & . & . & . &   &   &    \\
+		. & . & . & . & . & . & 1 & . & . & . & . & .  \\
+		. & . & . & . & . & . & . & 1 & . & . & . & .  \\
+		. & . & . & . & . & . & . & . & 1 & . & . & .  \\
+		. & . & . & . & . & . & . & . & . & 1 & . & .  \\
+		. & . & . & . & . & . & . & . & . & . & 1 & .  \\
+		0 & . & . & . & . & . & . & . & . & . & . & 1  \\
+	\end{brmatrix}
+	\begin{bmatrix}
+	P_k\\
+	\Theta_k\\
+	\dot{P}_k\\
+	\omega_k\\
+	\end{bmatrix} + 
+	\begin{bmatrix}
+		0 & . & . & . & . & 0 \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		. & . & . & . & . & . \\
+		  &   &   &   & . & . \\
+		  & I_3\frac{\Delta t}{m}  &   & . & . & . \\
+		  &   &   &   & . & . \\
+		  &   &   &   &   &   \\
+		  & {}^WJ^{-1} [r]^\times \Delta t &   &   &  {}^WJ^{-1} \Delta t &   \\
+		  &   &   &   &   &   \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	F_k\\
+	\tau_k
+	\end{bmatrix} +
+	\begin{bmatrix}
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	-9.81\\
+	0\\
+	0\\
+	0\\
+	\end{bmatrix}
+\end{equation*}
+where $ {}^WJ^{-1} = R_z(\phi){}^BJ^{-1}R_z(\phi)^\top $. \\
+\linebreak
+
+    
+\end{document}
