@@ -19,7 +19,7 @@ class Spring:
         L2 = self.L[2]  # .3
         self.r0 = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(2.5 * np.pi / 180))  # 0.17
 
-    def spring_fn(self, q):
+    def fn_spring(self, q):
         """
         effect of spring tension approximated by applying torques to joints 0 and 2
         """
@@ -45,3 +45,7 @@ class Spring:
         tau_s1 = T * np.sin(alpha) * L2
         tau_s = np.array([tau_s0, tau_s1]) * self.dir_s
         return tau_s
+
+    def fn_no_spring(self, q):
+        # use this if no spring
+        return np.zeros(2)

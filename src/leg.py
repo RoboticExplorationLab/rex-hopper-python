@@ -228,13 +228,14 @@ class Leg:
         # forward kinematics
         q = self.q if q is None else q
         pos = self.pos_init(q[0], q[2])
-        return pos
+        return pos.flatten()
 
     def velocity(self, q=None):  # dq=None
         # Calculate operational space linear velocity vector
         q = self.q if q is None else q
         Ja = self.gen_jacA(q=q)
-        return np.dot(Ja, self.dq).flatten()
+        dqa = np.array([self.dq[0], self.dq[2]])
+        return np.dot(Ja, dqa)
 
     def reset(self, q=None, dq=None):
         if q is None:

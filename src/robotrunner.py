@@ -10,97 +10,76 @@ import moment_ctrl
 import mpc
 import utils
 import spring
-# import sys
-import copy
+
+from copy import copy
 import numpy as np
-import itertools
+from scipy.signal import find_peaks
+from scipy.interpolate import CubicSpline
 np.set_printoptions(suppress=True, linewidth=np.nan)
-
-
-def ft_check(sh, sh_prev, t, t_f, ft_saved, i_ft):
-    # flight time checker
-    if sh == 0 and sh_prev == 1:
-        t_f = t  # time of flight
-    if sh == 1 and sh_prev == 0:
-        t_l = t  # time of landing
-        t_ft = t_l - t_f  # last flight time
-        if t_ft > 0.1:  # ignore flight times of less than 0.1 second (these are foot bounces)
-            print("flight time = ", t_ft)
-            ft_saved[i_ft] = t_ft  # save flight time to vector
-            i_ft += 1
-    return t_f, ft_saved, i_ft
-
-
-def contact_check(c, c_s, c_prev, k, con_c):
-    # if contact has just been made, freeze contact detection to True for 300 timesteps
-    # protects against vibration/bouncing-related bugs
-    if c_prev != c:
-        con_c = k  # timestep at contact change
-        c_s = c  # saved contact value
-    if c_prev != c and con_c - k <= 10:  # TODO: reset con_c
-        c = c_s
-    return c, c_s, con_c
-
-
-def gait_check(s, s_prev, ct, t):
-    # To ensure that after state has been changed, it cannot change to again immediately...
-    # Generates "go" variable as True only when criteria for time passed since gait change is met
-    if s_prev != s:
-        ct = t  # record time of state change
-    if ct - t >= 0.25:
-        go = True
-    else:
-        go = False
-
-    return go, ct
 
 
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='ik_vert', plot=False, fixed=False, spr=False,
-                 record=False, scale=1, gravoff=False, direct=False, recalc=False, total_run=10000, gain=5000):
+                 record=False, scale=1, gravoff=False, direct=False, recalc=False, t_run=10000, gain=5000):
 
+        self.g = 9.807  # gravitational acceleration, m/s2
         self.dt = dt
-        self.u = np.zeros(model["n_a"])
-        self.total_run = total_run
-        self.model = model
+        self.t_run = t_run
         self.ctrl_type = ctrl_type
         self.plot = plot
         self.spr = spr
         self.fixed = fixed
+
+        # model parameters
+        self.model = model
+        self.u = np.zeros(model["n_a"])
         self.L = np.array(model["linklengths"])
         self.n_a = model["n_a"]
-        self.hconst = model["hconst"]  # 0.3  # height constant
-        self.g = 9.807
-        self.mu = 0.3  # friction
-
-        # [theta, p, omega, pdot]
-        self.X_0 = np.array([0, 0, 0, 0, 0, 0.7 * scale, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([0, 0, 0, 2, 2, 0.5 * scale, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
-
-        self.spring = spring.Spring(model)
-        leg_class = model["legclass"]
-        self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
+        self.hconst = model["hconst"]  # height constant
         controller_class = model["controllerclass"]
-        self.controller = controller_class.Control(leg=self.leg, spring=self.spring, m=self.leg.m_total,
+        leg_class = model["legclass"]
+        self.J = model["inertia"]
+        self.rh = model["rh"]
+        self.Jinv = np.linalg.inv(self.J)
+        self.mu = model["mu"]  # friction
+
+        self.spline = True
+
+        # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
+        self.n_X = 13
+        self.n_U = 6
+        self.X_0 = np.array([0, 0, 0.7 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
+        self.X_f = np.array([2, 0, 0.7 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+
+        self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
+        self.m = self.leg.m_total
+
+        self.target_init = np.array([0, 0, -self.hconst])
+        self.target = self.target_init[:]
+
+        self.t_p = 0.8  # 0.8 gait period, seconds
+        self.phi_switch = 0.5  # 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
+        self.N = 40  # mpc prediction horizon length (mpc steps)
+        self.mpc_dt = 0.02  # mpc sampling time (s), needs to be a factor of N
+        self.mpc_factor = int(self.mpc_dt / self.dt)  # mpc sampling time (timesteps), repeat mpc every x timesteps
+        self.N_time = self.N * self.mpc_dt  # mpc horizon time
+        self.N_k = int(self.N * self.mpc_factor)  # total mpc prediction horizon length (low-level timesteps)
+        self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
+        self.t_st = self.t_p * self.phi_switch  # time spent stance
+
+        # class initializations
+        self.spring = spring.Spring(model)
+        self.controller = controller_class.Control(leg=self.leg, spring=self.spring, m=self.m,
                                                    spr=spr, dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(X_0=self.X_0, model=model, spring=self.spring, dt=dt, g=self.g,
                                               fixed=fixed, spr=spr, record=record, scale=scale,
                                               gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
-        self.target_init = np.array([0, 0, -self.hconst, 0, 0, 0])
-        self.target = self.target_init[:]
-        self.t_p = 0.8  # gait period, seconds  # TODO: Modify
-        self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-        t_st = self.t_p * self.phi_switch  # time spent in stance
+        self.mpc = mpc.Mpc(t=self.mpc_dt, N=self.N, m=self.m, g=self.g, mu=self.mu, Jinv=self.Jinv, rh=self.rh)
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
-                              target=self.target, hconst=self.hconst, t_st=t_st, X_f=self.X_f,
+                              target=self.target, hconst=self.hconst, t_st=self.t_st, X_f=self.X_f,
                               use_qp=False, gain=gain, dt=dt)
-        self.N = 20  # mpc prediction horizon length (mpc steps)  # TODO: Modify
-        self.mpc_dt = 0.05  # mpc sampling time (s)
-        self.mpc_factor = int(self.mpc_dt / self.dt)  # mpc sampling time (timesteps), repeat mpc every x timesteps
-        self.N_k = self.N * self.mpc_factor  # mpc prediction horizon length (timesteps)
-        self.mpc = mpc.Mpc(model=model, t=self.mpc_dt, N=self.N, m=self.leg.m_total, g=self.g, mu=self.mu)
 
         if self.ctrl_type == 'mpc':
             self.state = statemachine_s.Char()
@@ -121,48 +100,59 @@ class Runner:
             self.gaitfn = self.gait.u_ik_static
             self.state = statemachine.Char()
 
+        self.t_f = 0
+        self.ft_saved = 0
+        self.k_c = 0
+        self.c_s = 0
+        self.go = True
+
     def run(self):
-        total = self.total_run + 1  # number of timesteps to plot
-        state_prev = str("init")
-        ct, s, c_prev, con_c, c_s, sh_prev = 0, 0, 0, 0, 0, 0
-        t_f = 0
-        ft_saved = np.zeros(total)
-        i_ft = 0  # flight timer counter
-        X_pred = None
-        U_pred = None
-        mpc_factor = self.mpc_factor  # repeat mpc every x seconds
-        mpc_counter = copy.copy(mpc_factor)
-
-        force_f = np.zeros((3, 1))
         n_a = self.n_a
-        tauhist = np.zeros((total, n_a))
-        dqhist = np.zeros((total, n_a))
-        ahist = np.zeros((total, n_a))
-        vhist = np.zeros((total, n_a))
-        phist = np.zeros((total, 3))
-        pfhist = np.zeros((total, 3))
-        thetahist = np.zeros((total, 3))
-        setphist = np.zeros((total, 3))
-        grfhist = np.zeros((total, 3))
-        fhist = np.zeros((total, 3))
-        pfdes = np.zeros((total, 3))
-        fthist = np.zeros(total)
-        s_hist = np.zeros((total, 2))
+        mpc_factor = self.mpc_factor  # repeat mpc every x seconds
+        mpc_counter = copy(mpc_factor)
+        t_run = self.t_run + 1  # number of timesteps to plot
+        t = self.t_start  # time
+        t0 = 0
 
-        t = 0  # time
-        t0 = None
+        X_traj = np.tile(self.X_0, (t_run, 1))  # initial conditions
+        U = np.zeros(self.n_U)
+        U_hist = np.tile(U, (t_run, 1))  # initial conditions
+
+        x_ref, pf_ref = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
+
+        plots.posplot_animate(p_ref=self.X_f[0:3], p_hist=X_traj[::mpc_factor, 0:3],
+                              ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
+        init = True
         first_contact = 0
-        s_prev = 0
-        for k in range(0, total):
-            t = t + self.dt
+        state_prev = str("init")
+        s, c_prev, sh_prev = 0, 0, 0
 
-            # run simulator to get encoder and IMU feedback
-            qa, dqa, Q_base, c, tau, f_sens, tau_sens, i, v, grf = self.simulator.sim_run(u=self.u)
+        tauhist = np.zeros((t_run, n_a))
+        dqhist = np.zeros((t_run, n_a))
+        ahist = np.zeros((t_run, n_a))
+        vhist = np.zeros((t_run, n_a))
+        pfhist = np.zeros((t_run, 3))
+        thetahist = np.zeros((t_run, 3))
+        setphist = np.zeros((t_run, 3))
+        grfhist = np.zeros((t_run, 3))
+        pfdes = np.zeros((t_run, 3))
+        fthist = np.zeros(t_run)
+        s_hist = np.zeros((t_run, 2))
+
+        for k in range(0, t_run):
+            t += self.dt
+
+            X, qa, dqa, c, tau, f_sens, tau_sens, i, v, grf = self.simulator.sim_run(u=self.u)  # run sim
+            Q_base = X[3:7]
+            pdot = X[7:10]
+            X_traj[k, :] = X  # update state from simulator
+
             self.leg.update_state(q_in=qa[0:2], Q_base=Q_base)  # enter encoder & IMU values into leg k/dynamics
             self.moment.update_state(q_in=qa[2:], dq_in=dqa[2:])
 
-            c, c_s, con_c = contact_check(c, c_s, c_prev, k, con_c)  # Like using limit switches
-            sh = copy.copy(c)
+            sh = self.contact_check(c, c_prev, k)  # run contact check to make sure vibration doesn't affect sh
+            self.ft_check(sh, sh_prev, t)  # flight time recorder
+
             if sh == 1 and first_contact == 0:
                 t0 = t  # starting time begins when robot first makes contact
                 first_contact = 1  # ensure this doesn't trigger again
@@ -171,97 +161,139 @@ class Runner:
             else:
                 s = 0
 
-            t_f, ft_saved, i_ft = ft_check(sh, sh_prev, t, t_f, ft_saved, i_ft)  # flight time checker
+            state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=self.leg.position())
 
-            # TODO: Actual state estimator... getting it straight from sim is cheating
-            theta = np.array(utils.quat2euler(Q_base))
-            p = np.array(self.simulator.p)  # p = p + pdot * self.dt  # body position in world coordinates
-            omega = np.array(self.simulator.omega)
-            pdot = np.array(self.simulator.v)  # base linear velocity in global Cartesian coordinates
-
-            go, ct = gait_check(s, s_prev=s_prev, ct=ct, t=t)  # prevents stuck in stance bug
-            state = self.state.FSM.execute(s=s, sh=sh, go=go, pdot=pdot, leg_pos=self.leg.position())
-            # pf = utils.Z(Q_base, self.leg.position()[:, -1])  # position of the foot in world frame
-
-            X_in = np.hstack([theta, p, omega, pdot]).T  # array of the states for MPC
-            X_ref = self.path_plan(X_in=X_in)
+            pf = X_traj[k, 0:3] + utils.Z(Q_base, self.leg.position())  # position of the foot in world frame
 
             if self.ctrl_type == 'mpc' and first_contact == 1:
                 if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
-                    C = self.gait_map(t, t0)
-                    X_refN = X_ref[::int(mpc_factor)]
-                    U_pred, X_pred = self.mpc.mpcontrol(X_in=X_in, X_ref=X_refN, Q_base=Q_base, C=C)
+                    C = self.gait_map(self.N, self.mpc_dt, t, t0)
+                    x_refk = self.ref_traj_grab(x_ref=x_ref, k=k)
+                    pf_refk = self.ref_traj_grab(x_ref=pf_ref, k=k)
+                    x_in = utils.convert(X_traj[k, :])  # convert to mpc states
+                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf=pf_refk, C=C, init=init)
+                    init = False  # after the first mpc run, change init to false
 
                 mpc_counter += 1
+                U_hist[k, :] = U[0, :]  # * s  # take first timestep
 
-            self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev, X_in=X_in, X_ref=X_ref[100, :],
-                                               X_pred=X_pred, U_pred=U_pred, Q_base=Q_base, grf=grf, s=s)
+            self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev,
+                                               X_in=X_traj[k, :], p_ref=x_ref[100, 0:3], U_in=U, grf=grf, s=s)
 
             grfhist[k, :] = grf.flatten()  # ground reaction force
-            fhist[k, :] = force_f[0, :]
-            fthist[k] = ft_saved[i_ft]
+            fthist[k] = self.ft_saved
             setphist[k, :] = setp
             thetahist[k, :] = thetar
             tauhist[k, :] = tau
             dqhist[k, :] = dqa
             ahist[k, :] = i
             vhist[k, :] = v
-            phist[k, :] = self.simulator.base_pos[0]  # base position in world coords
             pfdes[k, :] = self.gait.x_des  # desired footstep positions
-            pfhist[k, :] = self.simulator.base_pos[0] + utils.Z(Q_base, self.leg.position()).flatten()  # foot pos
+            pfhist[k, :] = pf  # foot pos in world frame
             s_hist[k, :] = [s, sh]
             state_prev = state
-            s_prev = s
             sh_prev = sh
             c_prev = c
-            # time.sleep(0.1)
 
         if self.plot == True:
-            plots.thetaplot(total, thetahist, setphist)
-            plots.tauplot(self.model, total, n_a, tauhist)
-            plots.dqplot(self.model, total, n_a, dqhist)
-            plots.fplot(total, phist=phist, fhist=fhist, shist=s_hist)
-            plots.grfplot(total, phist, grfhist, fthist)
-            plots.posplot_3d(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
+            plots.thetaplot(t_run, thetahist, setphist)
+            plots.tauplot(self.model, t_run, n_a, tauhist)
+            plots.dqplot(self.model, t_run, n_a, dqhist)
+            plots.fplot(t_run, phist=X_traj[:, 0:3], fhist=U_hist[:, 0:3], shist=s_hist)
+            plots.grfplot(t_run, X_traj[:, 0:3], grfhist, fthist)
+            plots.posplot_3d(p_ref=self.X_f[0:3], phist=X_traj[:, 0:3], pfdes=pfdes)
             # plots.posplot(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
-            # plots.currentplot(total, n_a, ahist)
-            # plots.voltageplot(total, n_a, vhist)
-            plots.etotalplot(total, ahist, vhist, dt=self.dt)
+            # plots.currentplot(t_run, n_a, ahist)
+            # plots.voltageplot(t_run, n_a, vhist)
+            plots.etotalplot(t_run, ahist, vhist, dt=self.dt)
 
-        return ft_saved
+        return fthist
 
     def gait_scheduler(self, t, t0):
         phi = np.mod((t - t0) / self.t_p, 1)
         return phi < self.phi_switch  # TODO: make sure this works
 
-    def gait_map(self, ts, t0):
+    def gait_map(self, N, dt, ts, t0):
         # generate vector of scheduled contact states over the mpc's prediction horizon
-        C = np.zeros(self.N + 1)
-        for k in range(0, (self.N + 1)):
+        C = np.zeros(N)
+        for k in range(0, N):
             C[k] = self.gait_scheduler(t=ts, t0=t0)
-            ts += self.mpc_dt
+            ts += dt
         return C
 
-    def path_plan(self, X_in):
-        # Path planner--generate reference trajectory
+    def ref_traj_init(self, x_in, xf):
+        # Path planner--generate low-level reference trajectory for the entire run
+        N_k = self.N_k  # total MPC horizon in low-level timesteps
+        t_run = self.t_run
         dt = self.dt
-        size_mpc = int(self.N_k)  # length of MPC horizon in timesteps TODO: Perhaps N should vary wrt time?
-        # timesteps given to get to target, either mpc length or based on distance (whichever is smaller)
-        t_ref = int(np.minimum(size_mpc, np.linalg.norm(self.X_f[3:5] - X_in[3:5]) * 1000))
-        X_ref = np.linspace(start=X_in, stop=self.X_f, num=t_ref)  # interpolate positions
-        # interpolate linear velocities
-        X_ref[:-1, 9] = [(X_ref[i + 1, 3] - X_ref[i, 3]) / dt for i in range(0, np.shape(X_ref)[0] - 1)]
-        X_ref[:-1, 10] = [(X_ref[i + 1, 4] - X_ref[i, 4]) / dt for i in range(0, np.shape(X_ref)[0] - 1)]
-        X_ref[:-1, 11] = [(X_ref[i + 1, 5] - X_ref[i, 5]) / dt for i in range(0, np.shape(X_ref)[0] - 1)]
+        t_sit = 0  # timesteps spent "sitting" at goal
+        t_traj = int(t_run - t_sit)  # timesteps for trajectory not including sit time
+        t_ref = t_run + N_k  # timesteps for reference (extra for MPC)
+        x_ref = np.linspace(start=x_in, stop=xf, num=t_traj)  # interpolate positions
 
-        if (size_mpc - t_ref) == 0:
-            pass
-        elif t_ref == 0:
-            X_ref = np.array(list(itertools.repeat(self.X_f, int(size_mpc))))
+        if self.spline is True:
+            spline_t = np.array([0, t_traj * 0.3, t_traj])
+            spline_y = np.array([x_in[1], xf[1] * 0.7, xf[1]])
+            csy = CubicSpline(spline_t, spline_y)
+            spline_psi = np.array([0, np.sin(45 * np.pi / 180) * 0.7, np.sin(45 * np.pi / 180)])
+            cspsi = CubicSpline(spline_t, spline_psi)
+            for k in range(t_traj):
+                x_ref[k, 1] = csy(k)  # create evenly spaced sample points of desired trajectory
+                x_ref[k, 5] = cspsi(k)  # create evenly spaced sample points of desired trajectory
+                # interpolate angular velocity
+            x_ref[:-1, 11] = [(x_ref[i + 1, 11] - x_ref[i, 11]) / dt for i in range(t_run - 1)]
+
+        x_ref = np.vstack((x_ref, np.tile(xf, (N_k + t_sit, 1))))  # sit at the goal
+        period = self.t_p  # *1.2  # * self.mpc_dt / 2
+        amp = self.t_p / 4  # amplitude
+        phi = np.pi * 3 / 2  # np.pi*3/2  # phase offset
+        # make height sine wave
+        x_ref[:, 2] = [x_in[2] + amp + amp * np.sin(2 * np.pi / period * (i * dt) + phi) for i in range(t_ref)]
+        x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(t_ref - 1)]  # interpolate linear vel
+
+        C = self.gait_map(t_ref, dt, self.t_start, 0)  # low-level contact map for the entire run
+        idx_pf = find_peaks(-x_ref[:, 2])[0]  # indexes of footstep positions
+        idx_pf = np.hstack((0, idx_pf))  # add initial footstep idx based on first timestep
+        idx_pf = np.hstack((idx_pf, t_ref - 1))  # add final footstep idx based on last timestep
+        n_idx = np.shape(idx_pf)[0]
+
+        pf_ref = np.zeros((t_ref, 3))
+        kf = 0
+        for k in range(1, t_ref):
+            if C[k - 1] == 0 and C[k] == 1 and kf < n_idx:
+                kf += 1
+            pf_ref[k, 0:2] = x_ref[idx_pf[kf], 0:2]
+        # np.set_printoptions(threshold=sys.maxsize)
+        return x_ref, pf_ref
+
+    def ref_traj_grab(self, x_ref, k):
+        # Grab appropriate timesteps of pre-planned trajectory for mpc
+        return x_ref[k:(k + self.N_k):self.mpc_factor, :]  # change to mpc-level timesteps
+
+    def ft_check(self, sh, sh_prev, t):
+        # flight time recorder
+        if sh == 0 and sh_prev == 1:
+            self.t_f = t  # time of flight
+        if sh == 1 and sh_prev == 0:
+            t_ft = t - self.t_f  # last flight time
+            if t_ft > 0.1:  # ignore flight times of less than 0.1 second (these are foot bounces)
+                print("flight time = ", t_ft)
+                self.ft_saved = t_ft  # save flight time
+        return None
+
+    def contact_check(self, c, c_prev, k):
+        # if contact has just been made, freeze contact detection to True for x timesteps
+        # or if contact has just been lost, freeze contact detection to False for x timesteps
+        # protects against vibration/bouncing-related bugs
+        if c_prev != c:
+            self.k_c = k  # timestep at contact change
+            self.c_s = c  # saved contact value
+
+        if self.k_c - k <= 10:  # freeze contact value
+            c = self.c_s
+            self.go = False
         else:
-            X_ref = np.vstack((X_ref, list(itertools.repeat(self.X_f, int(size_mpc - t_ref)))))
+            self.go = True
 
-        return X_ref
-
-
+        return c

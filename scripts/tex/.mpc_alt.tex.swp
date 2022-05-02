@@ -1,0 +1,131 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{array}
+
+\begin{document}
+
+
+\begin{equation}
+	x = \begin{bmatrix}
+	{}^W P_{3 \times 1}\\
+	{}^W\Theta_{3 \times 1}\\
+	{}^W\dot{P}_{3 \times 1}\\
+	{}^W\omega_{3 \times 1}\\
+	{}^W \rho_{3 \times 1}
+	\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+	u = \begin{bmatrix}
+	{}^B f_{3 \times 1} \\
+	{}^B\tau_{3 \times 1}
+	\end{bmatrix}
+\end{equation}
+
+Euler angle-based linearized dynamics:
+Assume fx = fy = 0 : r becomes redundant?
+\begin{equation}
+	\begin{bmatrix}
+	{}^W \dot{P}_{3 \times 1}\\
+	{}^W \dot{\Theta}_{3 \times 1}\\
+	{}^W \ddot{P}_{3 \times 1}\\
+	{}^W \dot{\omega}_{3 \times 1}
+	\end{bmatrix} = 
+	\begin{bmatrix}
+		0_3 & 0_3 & 1_3 & 0_3  \\
+		0_3 & 0_3 & 0_3 & R_z(\psi)  \\
+		0_3 & 0_3 & 0_3 & 0_3 \\
+		0_3 & 0_3 & 0_3 & 0_3 \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	{}^W P_{3 \times 1}\\
+	{}^W \Theta_{3 \times 1}\\
+	{}^W \dot{P}_{3 \times 1}\\
+	{}^W {\omega}_{3 \times 1}
+	\end{bmatrix} + 
+	\begin{bmatrix}
+		0_3 & 0_3 \\
+		0_3 & 0_3 \\
+		R_z(\psi)^\top\frac{1}{m} & 0_3 \\
+		0_3 & {}^WJ^{-1} R_z(\psi)^\top \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	{}^B f_{3 \times 1} \\
+	{}^B\tau_{3 \times 1}
+	\end{bmatrix} +
+	\begin{bmatrix}
+	0_{3\times 1} \\
+	0_{3\times 1} \\
+	g_{3\times 1} \\
+	0_{3\times 1} \\
+	\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+{}^WJ^{-1} = (R_z(\psi){}^BJR_z(\psi)^\top)^{-1} \\
+\end{equation}
+
+%\begin{equation}
+\begin{align}
+\min_{X,U} \quad & \sum^{N}_{k=0} \lVert X_k - X_{REF, k} \lVert_Q + \lVert U_k - U_{REF,  k} \lVert_R \\
+\textrm{s.t.} \quad & X_{k+1} = A_d X_k + B_d U_k + G_k  && \forall k  \\
+  & z_{min} \leq {z_k} \leq z_{max} && \forall k  \\ 
+  & 0 \leq {f_{z, k}} \leq f_{z, max} && \forall k \in \mathcal{C}  \\
+  & f_{z, k} = 0 && \forall k \notin \mathcal{C}  \\
+  & -\mu {f_{z, k}} \leq f_{x, k} \leq \mu {f_{z, k}} && \forall k  \\
+  & -\mu {f_{z, k}} \leq f_{y, k} \leq \mu {f_{z, k}} && \forall k  \\   
+  & -\tau_{max} \leq {\tau_k} \leq \tau_{max} && \forall k  \\
+  & \begin{bmatrix} 0 & 1 & 0\end{bmatrix} R_z(\psi) \begin{bmatrix} f_x & f_y & f_z \end{bmatrix}^\top  = 0 && \forall k
+\end{align}
+%\end{equation}
+
+\begin{equation}
+	\begin{bmatrix}
+	{}^W \dot{P}_{3 \times 1}\\
+	{}^W \dot{\Theta}_{3 \times 1}\\
+	{}^W \ddot{P}_{3 \times 1}\\
+	{}^W \dot{\omega}_{3 \times 1}\\
+	{}^W \dot{\rho}_{3 \times 1}
+	\end{bmatrix} = 
+	\begin{bmatrix}
+		0_3 & 0_3 & 1_3 & 0_3 & 0_3  \\
+		0_3 & 0_3 & 0_3 & R_z(\psi) & 0_3  \\
+		0_3 & 0_3 & 0_3 & 0_3 & 0_3 \\
+		0_3 & 0_3 & 0_3 & 0_3 & 0_3 \\
+		0_3 & 0_3 & 0_3 & 0_3 & 0_3 \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	{}^W P_{3 \times 1}\\
+	{}^W \Theta_{3 \times 1}\\
+	{}^W \dot{P}_{3 \times 1}\\
+	{}^W {\omega}_{3 \times 1}\\
+	{}^W \rho_{3 \times 1}
+	\end{bmatrix} + 
+	\begin{bmatrix}
+		0_3 & 0_3 \\
+		0_3 & 0_3 \\
+		1_3\frac{1}{m} & 0_3 \\
+		{}^WJ^{-1} [r]^\times & {}^WJ^{-1} R_z(\phi)^\top \\
+		0_3 & 1_3 \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	{}^Wf_x\\
+	{}^Wf_y\\
+	{}^Wf_z\\
+	{}^B\tau_x \\
+	{}^B\tau_y \\
+	{}^B\tau_z
+	\end{bmatrix} +
+	\begin{bmatrix}
+	0_{3\times 1} \\
+	0_{3\times 1} \\
+	g_{3\times 1} \\
+	0_{3\times 1} \\
+	0_{3\times 1} \\
+	\end{bmatrix}
+\end{equation}
+
+\end{document}

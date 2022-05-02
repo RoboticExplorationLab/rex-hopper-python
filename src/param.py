@@ -15,28 +15,23 @@ design_rw = {
     "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "aname": ["q0", "q2", "rw1", "rw2", "rw3"],
-    "hconst": 0.27,
+    "inertia": np.array([[76148072.89, 70089.52,    2067970.36],
+                         [70089.52,    45477183.53, -87045.58],
+                         [2067970.36,  -87045.58,   76287220.47]]) * (10 ** (-9)),
+    "rh": np.array([0., 0., 0.]),  # np.array([0.02201854, 6.80044366, 0.97499173]) / 1000,  # mm to m
+    "S": np.array([[1, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 1, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 1, 0, 0],
+                   [0, 0, 0, 1, 0],
+                   [0, 0, 0, 0, 1]]),
+    "hconst": 0.27,  # height constant
     "n_a": 5,  # number of actuators
     "ks": 996,  # spring constant
-    "springpolarity": 1,
+    "springpolarity": 1,  # spring polarity
     "k": 5000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain
-}
-
-
-design_cmg = {
-    "model": "design_cmg",
-    "controllerclass": wbc,
-    "legclass": leg,
-    "csvpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.csv",
-    "urdfpath": "res/hopper_cmg_01/urdf/hopper_cmg_01.urdf",
-    "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
-    "linklengths": [.1, .27, .27, .1, .17, .0205],
-    "hconst": 0.27,
-    "n_a": 9,
-    "ks": 996,
-    "springpolarity": 1,
-    "k": 5000,  # wbc gain
-    "k_k": [45, 45*0.02],  # inv kin gain  1
+    "mu": 0.5  # friction coeff at foot
 }
 

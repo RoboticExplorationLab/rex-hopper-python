@@ -8,21 +8,24 @@ import cqp
 
 class Control:
 
-    def __init__(self, leg, spring, m, spr, dt=1e-3, gain=5000, null_control=False, **kwargs):
+    def __init__(self, leg, spring, m, spr, dt=1e-3, gain=5000, **kwargs):
         self.cqp = cqp.Cqp(leg=leg)
         self.m = m
         self.dt = dt
-        self.null_control = null_control
         self.leg = leg
-        self.kp = np.zeros((3, 3))
-        self.kd = np.zeros((3, 3))
-        self.update_gains(gain, gain*0.02)
-
+        self.Q = utils.Q_inv(np.array([1, 0, 0, 0]))  # base quaternion
         self.B = np.zeros((4, 2))  # actuator selection matrix
         self.B[0, 0] = 1  # q0
         self.B[2, 1] = 1  # q2
-        self.spr = spr
-        self.spring_fn = spring.spring_fn
+
+        if spr is True:
+            self.spring_fn = spring.fn_spring
+        else:
+            self.spring_fn = spring.fn_no_spring
+
+        self.kp = np.zeros((3, 3))
+        self.kd = np.zeros((3, 3))
+        self.update_gains(gain, gain * 0.02)
 
     def update_gains(self, kp, kd):
         # Use this to update wbc PD gains in real time
@@ -32,37 +35,46 @@ class Control:
         self.kd = np.zeros((3, 3))
         np.fill_diagonal(self.kd, [kd*m, kd*m, kd])
 
-    def wb_control(self, target, Q_base, force=np.zeros((3, 1))):
+    def wb_pos_control(self, target):
         leg = self.leg
-        target = utils.Z(utils.Q_inv(Q_base), target[0:3]).reshape(-1, 1)  # rotate the target from world to body frame
-        Ja = leg.gen_jacA()  # 3x2
-        dqa = np.array([leg.dq[0], leg.dq[2]])
+        target = utils.Z(self.Q, target)  # rotate the target from world to body frame
         x = leg.position()
-        vel = np.dot(Ja, dqa).T[0:3].reshape(-1, 1)  # calculate operational space velocity vector
-        x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma] # calculate linear acceleration term based on PD control
-        x_dd_des[:3] = (np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)).flatten()
-        x_dd_des = np.reshape(x_dd_des, (-1, 1))
+        Ja = leg.gen_jacA()  # 3x2
+        vel = leg.velocity()
+        x_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)  # .reshape((-1, 1))
         Mx = leg.gen_Mx()
-        fx = Mx @ x_dd_des[0:3] + force
+        fx = Mx @ x_dd_des
         tau = Ja.T @ fx
         u = tau.flatten()
-        tau_s = self.spring_fn(leg.q) if self.spr else np.zeros(2)
-        u -= tau_s  # spring counter-torque
+        u -= self.spring_fn(leg.q)  # spring counter-torque
         return u
 
-    def wb_qp_control(self, target, Q_base, force=np.zeros((3, 1))):
+    def wb_f_control(self, force):
         leg = self.leg
-        target = utils.Z(utils.Q_inv(Q_base), target[0:3]).reshape(-1, 1)  # rotate the target from world to body frame
         Ja = leg.gen_jacA()  # 3x2
-        dqa = np.array([leg.dq[0], leg.dq[2]])
+        force = utils.Z(self.Q, force)  # rotate the force from world to body frame
+        r_dd_des = force / self.m
+        Mx = leg.gen_Mx()
+        fx = Mx @ r_dd_des
+        u = (Ja.T @ fx).flatten()
+        u -= self.spring_fn(leg.q)  # spring counter-torque
+        return u
+
+    def qp_pos_control(self, target):
+        leg = self.leg
+        target = utils.Z(self.Q, target)  # rotate the target from world to body frame
         x = leg.position()
-        vel = np.dot(Ja, dqa).T[0:3].reshape(-1, 1)  # calculate operational space velocity vector
-        x_dd_des = np.zeros(6)  # [x, y, z, alpha, beta, gamma] # calculate linear acceleration term based on PD control
-        x_dd_des[:3] = (np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)).flatten()
-        x_dd_des = np.reshape(x_dd_des, (-1, 1))
-        r_dd_des = np.array(x_dd_des[0:3]) + force / self.m
+        vel = leg.velocity()
+        r_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)
         u = self.cqp.qpcontrol(r_dd_des)
-        tau_s = self.spring_fn(leg.q) if self.spr else np.zeros(2)
-        u -= tau_s  # spring counter-torque
+        u -= self.spring_fn(leg.q)  # spring counter-torque
+        return u
+
+    def qp_f_control(self, force):
+        leg = self.leg
+        force = utils.Z(self.Q, force)  # rotate the force from world to body frame
+        r_dd_des = force / self.m
+        u = self.cqp.qpcontrol(r_dd_des)
+        u -= self.spring_fn(leg.q)  # spring counter-torque
         return u
     

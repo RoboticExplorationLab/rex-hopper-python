@@ -1,4 +1,5 @@
 import numpy as np
+import transforms3d
 
 H = np.zeros((4, 3))
 H[1:4, 0:4] = np.eye(3)
@@ -30,6 +31,18 @@ def R(Q):
     RQ[1:4, 0] = Q[1:4]
     RQ[1:4, 1:4] = Q[0] * np.eye(3) - hat(Q[1:4])
     return RQ
+
+
+def convert(X_in):
+    # convert from simulator states to mpc states (SE3 to euler)
+    x0 = np.zeros(12)
+    x0[0:3] = X_in[0:3]
+    q = X_in[3:7]
+    x0[3:6] = quat2euler(q)  # q -> euler
+    Q = L(q) @ R(q).T
+    x0[6:9] = H.T @ Q @ H @ X_in[7:10]  # body frame v -> world frame pdot
+    x0[9:] = H.T @ Q @ H @ X_in[10:13]  # body frame w -> world frame w
+    return x0
 
 
 def Q_inv(Q):
@@ -101,15 +114,22 @@ def vec_to_quat(v2):
     return Q_inv(Q)
 
 
-def rz_phi(Q_in):
+def rz(phi):
     # linearized rotation matrix Rz(phi) using commanded yaw
-    phi_s = 2 * np.arcsin(Q_in[3])
-    phi = quat2euler(Q_in)[2]  # extract z-axis euler angle
-    print(phi, phi_s)  # TODO: Check if same. If so, use simpler
-    Rz = np.array([[np.cos(phi), np.sin(phi),  0.0],
+    Rz = np.array([[np.cos(phi), np.sin(phi), 0.0],
                    [-np.sin(phi), np.cos(phi), 0.0],
-                   [0.0,         0.0,          1.0]])
+                   [0.0, 0.0, 1.0]])
     return Rz
+
+
+def quat2euler(Q):
+    # ZYX Euler angles. Output roll-pitch-yaw order # this is why euler angles suck ass
+    zyx = transforms3d.euler.quat2euler(Q, axes='rzyx')  # Intro to Robotics, Mechanics and Control 3rd ed. p. 44
+    xyz = np.zeros(3)
+    xyz[0] = zyx[2]
+    xyz[1] = zyx[1]
+    xyz[2] = zyx[0]
+    return xyz
 
 
 def wrap_to_pi(a):
@@ -158,7 +178,7 @@ def euler2rot(euler):
     return R
 
 
-def quat2euler(quat):
+def quat2euler_xyz(quat):
     w, x, y, z = quat
     y_sqr = y * y
 

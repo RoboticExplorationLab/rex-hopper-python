@@ -8,7 +8,7 @@ import pybullet_data
 import os
 import actuator
 import actuator_param
-
+from utils import Z, Q_inv
 useRealTime = 0  # Do NOT change to real time
 
 
@@ -24,49 +24,18 @@ class Sim:
     def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False, spr=False,
                  record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
-        self.omega = None
-        self.v = None
         self.record_rt = record  # record video in real time
-        self.base_pos = None
         self.spr = spr
         self.L = model["linklengths"]
         self.model = model["model"]
         self.n_a = model["n_a"]
-        self.spring_fn = spring.spring_fn
+        self.S = model["S"]
+        self.spring_fn = spring.fn_spring if spr is True else spring.fn_no_spring
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
-
-        if self.model == 'design_rw':
-            S = np.zeros((7, 5))
-            S[0, 0] = 1
-            S[2, 1] = 1
-            S[4, 2] = 1
-            S[5, 3] = 1
-            S[6, 4] = 1
-            self.S = S
-            self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
-            self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # r80kv110
-
-        elif self.model == 'design_cmg':
-            S = np.zeros((13, 9))
-            S[0, 0] = 1
-            S[2, 1] = 1
-            S[4, 2] = 1
-            S[5, 3] = 1
-            S[7, 4] = 1
-            S[8, 5] = 1
-            S[9, 6] = 1
-            S[10, 7] = 1
-            S[12, 8] = 1
-            self.S = S
-            self.actuator_g01 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)  # mn1005kv90
-            self.actuator_g23 = actuator.Actuator(dt=dt, model=actuator_param.actuator_ea110)
-            self.actuator_rw0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
-            self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
-            self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
-            self.actuator_rw3 = actuator.Actuator(dt=dt, model=actuator_param.actuator_mn3110kv700)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # 8318
+        self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
+        self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
+        self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # r80kv110
 
         if gravoff == True:
             GRAVITY = 0
@@ -100,23 +69,15 @@ class Sim:
 
         self.c_link = 1  # contact link
 
-        if self.model == 'design_cmg':
-            # gimbal scissor constraints
-            g1 = p.createConstraint(self.bot, 4, self.bot, 6, p.JOINT_GEAR, [0, 0, 1], [0, 0, 0], [0, 0, 0])
-            g2 = p.createConstraint(self.bot, 9, self.bot, 11, p.JOINT_GEAR, [0, 0, 1], [0, 0, 0], [0, 0, 0])
-            p.changeConstraint(g1, gearRatio=1, maxForce=10000, erp=0.2)
-            p.changeConstraint(g2, gearRatio=1, maxForce=10000, erp=0.2)
-
         # if self.model != 'design_rw' and self.model != 'design_cmg':
         #     vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
-        if self.model == 'design_rw' or self.model == 'design_cmg':
-            # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
-            jconn_1 = [x * scale for x in [0.135, 0, 0]]
-            jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
-            linkjoint = p.createConstraint(self.bot, 1, self.bot, 3, p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
-            p.changeConstraint(linkjoint, maxForce=1000)
-            self.c_link = 3
+        # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
+        jconn_1 = [x * scale for x in [0.135, 0, 0]]
+        jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
+        linkjoint = p.createConstraint(self.bot, 1, self.bot, 3, p.JOINT_POINT2POINT, [0, 0, 0], jconn_1, jconn_2)
+        p.changeConstraint(linkjoint, maxForce=1000)
+        self.c_link = 3
 
         # increase friction of toe to ideal
         # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
@@ -135,7 +96,7 @@ class Sim:
             # increase max joint velocity (default = 100 rad/s)
             p.changeDynamics(self.bot, i, maxJointVelocity=800)  # max 3800 rpm
 
-        self.p = np.zeros(3)
+        self.X = np.zeros(13)  # initialize state
 
     def sim_run(self, u):
         q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
@@ -146,44 +107,32 @@ class Sim:
         qa = (q.T @ self.S).flatten()
         dqa = (dq_.T @ self.S).flatten()
 
-        tau_s = self.spring_fn(q) if self.spr else np.zeros(2)
-
-        self.p = np.array(p.getBasePositionAndOrientation(self.bot)[0])
-        Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
-        # pybullet gives quaternions in xyzw format instead of wxyz, so you need to shift values
-        Q_base = np.roll(Q_base_p, 1)  # move last element to first place
+        tau_s = self.spring_fn(q)
 
         tau = np.zeros(self.n_a)
         i = np.zeros(self.n_a)
         v = np.zeros(self.n_a)
 
-        if self.model == "design_rw":
-            u *= -1
-            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=dqa[0]) + tau_s[0]
-            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=dqa[1]) + tau_s[1]
-            tau[2], i[2], v[2] = self.actuator_rw1.actuate(i=u[2], q_dot=dqa[2])
-            tau[3], i[3], v[3] = self.actuator_rw2.actuate(i=u[3], q_dot=dqa[3])
-            tau[4], i[4], v[4] = self.actuator_rwz.actuate(i=u[4], q_dot=dqa[4])
+        u *= -1
+        tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=dqa[0]) + tau_s[0]
+        tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=dqa[1]) + tau_s[1]
+        tau[2], i[2], v[2] = self.actuator_rw1.actuate(i=u[2], q_dot=dqa[2])
+        tau[3], i[3], v[3] = self.actuator_rw2.actuate(i=u[3], q_dot=dqa[3])
+        tau[4], i[4], v[4] = self.actuator_rwz.actuate(i=u[4], q_dot=dqa[4])
 
-        elif self.model == "design_cmg":
-            u *= -1
-            tau[0], i[0], v[0] = self.actuator_q0.actuate(i=u[0], q_dot=dqa[0]) + tau_s[0]
-            tau[1], i[1], v[1] = self.actuator_q2.actuate(i=u[1], q_dot=dqa[1]) + tau_s[1]
-            tau[2], i[2], v[2] = self.actuator_g01.actuate(i=u[2], q_dot=dqa[2])
-            tau[3], i[3], v[3] = self.actuator_rw0.actuate(i=u[3], q_dot=dqa[3])
-            tau[4], i[4], v[4] = self.actuator_rw1.actuate(i=u[4], q_dot=dqa[4])
-            tau[5], i[5], v[5] = self.actuator_rwz.actuate(i=u[5], q_dot=dqa[5])
-            tau[6], i[6], v[6] = self.actuator_g23.actuate(i=u[6], q_dot=dqa[6])
-            tau[7], i[7], v[7] = self.actuator_rw2.actuate(i=u[7], q_dot=dqa[7])
-            tau[8], i[8], v[8] = self.actuator_rw3.actuate(i=u[8], q_dot=dqa[8])
         # tau[4] *= 0
         torque = self.S @ tau
 
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
+
+        Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
+        Q_base = np.roll(Q_base_p, 1)  # pybullet gives quaternions in xyzw format instead of wxyz, shift values.
         velocities = p.getBaseVelocity(self.bot)
-        self.v = velocities[0]  # base linear velocity in global Cartesian coordinates
-        self.omega = velocities[1]  # base angular velocity in global Cartesian coordinates
-        self.base_pos = p.getBasePositionAndOrientation(self.bot)
+        self.X[0:3] = np.array(p.getBasePositionAndOrientation(self.bot)[0])
+        self.X[3:7] = Q_base
+        self.X[7:10] = Z(Q_inv(Q_base), velocities[0])  # linear vel world -> body frame
+        self.X[10:] = Z(Q_inv(Q_base), velocities[1])  # angular vel world -> body frame
+
         f_sens, tau_sens = reaction(self.numJoints, self.bot)
         contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
         if np.shape(contact)[0] == 0:  # prevent empty list from being passed
@@ -205,5 +154,5 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return qa, dqa, Q_base, c, tau, f_sens, tau_sens, i, v, grf
+        return self.X, qa, dqa, c, tau, f_sens, tau_sens, i, v, grf
 
