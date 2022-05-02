@@ -72,9 +72,9 @@ class MomentCtrl:
         b = self.b
         ref_1 = utils.z_rotate(Q_ref, a)
         ref_2 = utils.z_rotate(Q_ref, b)
-        # setp = np.array([ref_1 - 0 * np.pi / 180, ref_2 + 0 * np.pi / 180, 0])
-        setp = np.array([ref_1 - 2 * np.pi / 180,
-                         ref_2 + 2 * np.pi / 180,
+        # setp = np.array([ref_1 - 2 * np.pi / 180, ref_2 + 2 * np.pi / 180, 0])
+        setp = np.array([ref_1 + 16 * np.pi / 180,
+                         ref_2 - 16 * np.pi / 180,
                          z_ref])
         theta_1 = utils.z_rotate(Q_base, a)
         theta_2 = utils.z_rotate(Q_base, b)

@@ -46,7 +46,7 @@ class Sim:
             self.S = S
             self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
             self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
-            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # mn1005kv90
+            self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # r80kv110
 
         elif self.model == 'design_cmg':
             S = np.zeros((13, 9))
@@ -176,7 +176,7 @@ class Sim:
             tau[6], i[6], v[6] = self.actuator_g23.actuate(i=u[6], q_dot=dqa[6])
             tau[7], i[7], v[7] = self.actuator_rw2.actuate(i=u[7], q_dot=dqa[7])
             tau[8], i[8], v[8] = self.actuator_rw3.actuate(i=u[8], q_dot=dqa[8])
-
+        # tau[4] *= 0
         torque = self.S @ tau
 
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
