@@ -107,7 +107,7 @@ class Leg:
         q = self.q if q is None else q
         dq = self.dq if dq is None else dq
         C = self.C_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
-        C = np.array(C).astype(np.float64)
+        C = np.array(C).astype(np.float64).flatten()
         return C
 
     def gen_G(self, q=None, g=None):
@@ -117,7 +117,7 @@ class Leg:
         gy = g[1]
         gz = g[2]
         G = self.G_init(q[0], q[1], q[2], q[3], gx, gy, gz)
-        G = np.array(G).astype(np.float64).reshape(-1, 1)
+        G = np.array(G).astype(np.float64).flatten()
         return G
 
     def gen_jacF(self, q=None):
@@ -147,7 +147,7 @@ class Leg:
         q = self.q if q is None else q
         dq = self.dq if dq is None else dq
         d = self.d_init(q[0], q[1], q[2], q[3], dq[0], dq[1], dq[2], dq[3])
-        d = np.array(d).astype(np.float64)
+        d = np.array(d).astype(np.float64).flatten()
         return d
 
     def gen_cdot(self, q=None, dq=None):
@@ -170,7 +170,7 @@ class Leg:
         q = self.q if q is None else q
         dq = self.dq if dq is None else dq
         da = self.da_init(q[0], q[2], dq[0], dq[2])
-        da = np.array(da).astype(np.float64)
+        da = np.array(da).astype(np.float64).flatten()
         return da
 
     def gen_Mx(self, J=None, q=None, M=None, **kwargs):

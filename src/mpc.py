@@ -64,7 +64,7 @@ class Mpc:
         cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
         self.solve_qp(cost, constr)
         u = self.u.value
-        return u
+        return u[0, :]
 
     def gen_dt_dynamics(self, x, pf):
         # for every MPC horizon timestep, build CT A and B matrices and discretize them

@@ -8,7 +8,7 @@ import pybullet_data
 import os
 import actuator
 import actuator_param
-from utils import Z, Q_inv
+from utils import L, Z, Q_inv
 useRealTime = 0  # Do NOT change to real time
 
 
@@ -97,6 +97,8 @@ class Sim:
             p.changeDynamics(self.bot, i, maxJointVelocity=800)  # max 3800 rpm
 
         self.X = np.zeros(13)  # initialize state
+        self.init = True
+        self.Q_calib = np.array([1, 0, 0, 0])
 
     def sim_run(self, u):
         q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
@@ -127,6 +129,16 @@ class Sim:
 
         Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
         Q_base = np.roll(Q_base_p, 1)  # pybullet gives quaternions in xyzw format instead of wxyz, shift values.
+        if self.init is True:
+            """
+            For some unknown reason, PyBullet doesn't always start the sim with Q = [1, 0, 0, 0] even though the body
+            is loaded in with that attitude.
+            Set the starting Q as the "calibration" quaternion on first timestep to rotate Q back to the measurement
+            it SHOULD be returning.
+            """
+            self.Q_calib = Q_base
+            self.init = False
+        Q_base = L(self.Q_calib).T @ Q_base  # correct Q_base by rotating it by Q_calib
         velocities = p.getBaseVelocity(self.bot)
         self.X[0:3] = np.array(p.getBasePositionAndOrientation(self.bot)[0])
         self.X[3:7] = Q_base
@@ -136,7 +148,7 @@ class Sim:
         f_sens, tau_sens = reaction(self.numJoints, self.bot)
         contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
         if np.shape(contact)[0] == 0:  # prevent empty list from being passed
-            grf = np.zeros((3, 1))
+            grf = np.zeros(3)
             c = False
         else:
             grf_nrml_onB = np.array(contact[0, 7])
@@ -148,7 +160,7 @@ class Sim:
             grf_z = grf_nrml * grf_nrml_onB
             fric_y = fric1 * fric1_dir
             fric_x = fric2 * fric2_dir
-            grf = (grf_z + fric_y + fric_x).T
+            grf = (grf_z + fric_y + fric_x).flatten()
             c = True  # Detect contact with ground plane
 
         if useRealTime == 0:

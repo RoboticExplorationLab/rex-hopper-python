@@ -5,34 +5,52 @@ Copyright (C) 2021 Benjamin Bokser
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
 plt.style.use(['science', 'no-latex'])
 plt.rcParams['lines.linewidth'] = 2
 import matplotlib.ticker as plticker
+
 plt.rcParams['font.size'] = 16
 
 
-def thetaplot(total, thetahist, setphist):
-
-    fig, axs = plt.subplots(1, 3, sharex='all')
+def thetaplot(total, thetahist, setphist, tauhist, dqhist):
+    fig, axs = plt.subplots(3, 3, sharex='all', sharey='row')
     plt.xlabel("Timesteps")
 
-    axs[0].plot(range(total), thetahist[:, 0] * 180/np.pi, color='blue', label='Measurement')
-    axs[0].plot(range(total), setphist[:, 0] * 180 / np.pi, color='red', label='Setpoint')
-    axs[0].legend(loc="lower right")
-    axs[0].set_title('Theta 1')
-    axs[0].set_ylabel('Angle (deg)')
+    axs[0, 0].plot(range(total), thetahist[:, 0] * 180 / np.pi, color='blue', label='Measurement')
+    axs[0, 0].plot(range(total), setphist[:, 0] * 180 / np.pi, color='red', label='Setpoint')
+    axs[0, 0].legend(loc="upper left")
+    axs[0, 0].set_title('Theta 1')
+    axs[0, 0].set_ylabel('Angle (deg)')
 
-    axs[1].plot(range(total), thetahist[:, 1] * 180/np.pi, color='blue', label='Measurement')
-    axs[1].plot(range(total), setphist[:, 1] * 180 / np.pi, color='red', label='Setpoint')
-    axs[1].legend(loc="lower right")
-    axs[1].set_title('Theta 2')
-    axs[1].set_ylabel('Angle (deg)')
+    axs[0, 1].plot(range(total), thetahist[:, 1] * 180 / np.pi, color='blue', label='Measurement')
+    axs[0, 1].plot(range(total), setphist[:, 1] * 180 / np.pi, color='red', label='Setpoint')
+    axs[0, 1].set_title('Theta 2')
 
-    axs[2].plot(range(total), thetahist[:, 2] * 180/np.pi, color='blue', label='Measurement')
-    axs[2].plot(range(total), setphist[:, 2] * 180 / np.pi, color='red', label='Setpoint')
-    axs[2].legend(loc="lower right")
-    axs[2].set_title('Yaw')
-    axs[2].set_ylabel('Angle (deg)')
+    axs[0, 2].plot(range(total), thetahist[:, 2] * 180 / np.pi, color='blue', label='Measurement')
+    axs[0, 2].plot(range(total), setphist[:, 2] * 180 / np.pi, color='red', label='Setpoint')
+    axs[0, 2].set_title('Yaw')
+
+    axs[1, 0].plot(range(total), tauhist[:, 2], color='orange')
+    axs[1, 0].set_title('rw0')
+    axs[1, 0].set_ylabel('Torque (Nm)')
+
+    axs[1, 1].plot(range(total), tauhist[:, 3], color='orange')
+    axs[1, 1].set_title('rw1')
+
+    axs[1, 2].plot(range(total), tauhist[:, 4], color='orange')
+    axs[1, 2].set_title('rwz')
+
+    axs[2, 0].plot(range(total), dqhist[:, 2] * 60 / (2 * np.pi), color='g')
+    axs[2, 0].set_title('rw0')
+    axs[2, 0].set_ylabel('Angular Vel (RPM')
+
+    axs[2, 1].plot(range(total), dqhist[:, 3] * 60 / (2 * np.pi), color='g')
+    axs[2, 1].set_title('rw0')
+
+    axs[2, 2].plot(range(total), dqhist[:, 4] * 60 / (2 * np.pi), color='g')
+    axs[2, 2].set_title('rw0')
+
     plt.show()
 
 
@@ -45,9 +63,10 @@ def tauplot(model, total, n_a, tauhist):
     totalr = range(total)
     for k in range(n_a):
         ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, tauhist[:, k])  
+        ax.plot(totalr, tauhist[:, k])
         ax.set_ylabel('Torque, Nm')
         ax.set_title(model["aname"][k])
+
     plt.xlabel("Timesteps")
     plt.show()
 
@@ -61,7 +80,7 @@ def dqplot(model, total, n_a, dqhist):
     totalr = range(total)
     for k in range(n_a):
         ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, dqhist[:, k]*60/(2*np.pi))  
+        ax.plot(totalr, dqhist[:, k] * 60 / (2 * np.pi))
         ax.set_ylabel('Angular Velocity, RPM')
         ax.set_title(model["aname"][k])
     plt.xlabel("Timesteps")
@@ -69,7 +88,6 @@ def dqplot(model, total, n_a, dqhist):
 
 
 def fplot(total, phist, fhist, shist):
-
     fig, axs = plt.subplots(5, sharex='all')
     plt.xlabel("Timesteps")
 
@@ -97,7 +115,6 @@ def fplot(total, phist, fhist, shist):
 
 
 def grfplot(total, phist, grfhist, fthist):
-
     fig, axs = plt.subplots(5, sharex='all')
     plt.xlabel("Timesteps")
 
@@ -155,7 +172,6 @@ def voltageplot(total, n_a, vhist):
 
 
 def etotalplot(total, ahist, vhist, dt):
-
     ainhist = np.sum(ahist, axis=1)
     vmeanhist = np.average(vhist, axis=1)
     power_array = ahist @ vhist.T
@@ -181,12 +197,12 @@ def etotalplot(total, ahist, vhist, dt):
     print("Mean power draw is ", np.mean(powerhist), " W")
     print("Peak power draw is ", np.amax(powerhist), " W")
     energy = np.trapz(powerhist, dx=dt)
-    print("Total energy used is ", energy, " Joules, or ", energy/(48*3600), " Ah in ", np.shape(powerhist)[0]*dt, " s")
+    print("Total energy used is ", energy, " Joules, or ", energy / (48 * 3600), " Ah in ", np.shape(powerhist)[0] * dt,
+          " s")
     plt.show()
 
 
 def posplot(p_ref, phist, pfdes):
-
     plt.plot(phist[:, 0], phist[:, 1], color='blue', label='body position')
     plt.title('Body XY Position')
     plt.ylabel("y (m)")

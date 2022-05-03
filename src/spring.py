@@ -36,8 +36,8 @@ class Spring:
             q2 = q[2] + init_q[1]
         gamma = abs(q2 - q0)
         r = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(gamma))  # length of spring
-        # if r < r0:
-        #     print("error: incorrect spring params, r = ", r, " and r0 = ", r0, "\n gamma = ", gamma)
+        if r < r0:
+            print("error: incorrect spring params, r = ", r, " and r0 = ", r0, "\n gamma = ", gamma)
         T = k * (r - r0)  # spring tension force
         alpha = np.arccos((-L0 ** 2 + L2 ** 2 + r ** 2) / (2 * L2 * r))
         beta = np.arccos((-L2 ** 2 + L0 ** 2 + r ** 2) / (2 * L0 * r))

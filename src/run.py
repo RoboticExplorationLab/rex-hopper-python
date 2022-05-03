@@ -12,7 +12,7 @@ dt = 1e-3
 parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
-                    choices=['design_rw'], type=str)
+                    choices=['design_rw', 'design_rw_alt'], type=str)
 parser.add_argument("ctrl", help="'mpc, wbc_raibert, wbc_vert, wbc_static, ik_vert, or ik_static",
                     choices=['mpc', 'wbc_raibert', 'wbc_vert', 'wbc_static', 'ik_vert', 'ik_static'],
                     type=str)
@@ -63,6 +63,8 @@ print("\n")
 
 if args.model == "design_rw":
     model = param.design_rw
+elif args.model == "design_rw_alt":
+    model = param.design_rw_alt
 else:
     raise NameError('INVALID MODEL')
 

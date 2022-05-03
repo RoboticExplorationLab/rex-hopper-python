@@ -45,13 +45,13 @@ class Runner:
         self.Jinv = np.linalg.inv(self.J)
         self.mu = model["mu"]  # friction
 
-        self.spline = True
+        self.spline = False
 
         # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
         self.n_X = 13
         self.n_U = 6
-        self.X_0 = np.array([0, 0, 0.6 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([2, 0, 0.6 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.X_0 = np.array([0, 0, 0.4 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
+        self.X_f = np.array([2, 0, 0.4 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -71,20 +71,17 @@ class Runner:
 
         # class initializations
         self.spring = spring.Spring(model)
-        self.controller = controller_class.Control(leg=self.leg, spring=self.spring, m=self.m,
-                                                   spr=spr, dt=dt, gain=gain)
+        self.controller = controller_class.Control(leg=self.leg, m=self.m, dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(X_0=self.X_0, model=model, spring=self.spring, dt=dt, g=self.g,
                                               fixed=fixed, spr=spr, record=record, scale=scale,
                                               gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
         self.mpc = mpc.Mpc(t=self.mpc_dt, N=self.N, m=self.m, g=self.g, mu=self.mu, Jinv=self.Jinv, rh=self.rh)
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
-                              target=self.target, hconst=self.hconst, t_st=self.t_st, X_f=self.X_f,
-                              use_qp=False, gain=gain, dt=dt)
+                              target=self.target, hconst=self.hconst, t_st=self.t_st, X_f=self.X_f, gain=gain, dt=dt)
 
         if self.ctrl_type == 'mpc':
             self.state = statemachine_s.Char()
-            self.gaitfn = self.gait.u_mpc
         elif self.ctrl_type == 'wbc_raibert':
             self.gaitfn = self.gait.u_raibert
             self.state = statemachine.Char()
@@ -120,10 +117,10 @@ class Runner:
         U_hist = np.tile(U, (t_run, 1))  # initial conditions
 
         x_ref, pf_ref = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
-        '''
+
         if self.plot == True:
             plots.posplot_animate(p_ref=self.X_f[0:3], p_hist=X_traj[::mpc_factor, 0:3],
-                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])'''
+                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
         init = True
         first_contact = 0
         state_prev = str("init")
@@ -156,7 +153,10 @@ class Runner:
             sh = self.contact_check(c, c_prev, k)  # run contact check to make sure vibration doesn't affect sh
             self.ft_check(sh, sh_prev, t)  # flight time recorder
 
-            if sh == 1 and first_contact == 0:
+            pfb = self.leg.position()  # position of the foot in body frame
+            pf = X_traj[k, 0:3] + utils.Z(Q_base, pfb)  # position of the foot in world frame
+
+            if sh == 1 and first_contact == 0 and pfb[2] >= -0.4:
                 t0 = t  # starting time begins when robot first makes contact
                 first_contact = 1  # ensure this doesn't trigger again
             elif sh == 1 and first_contact == 1:
@@ -164,12 +164,10 @@ class Runner:
             else:
                 s = 0
 
-            state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=self.leg.position())
-
-            pf = X_traj[k, 0:3] + utils.Z(Q_base, self.leg.position())  # position of the foot in world frame
+            state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
 
             if self.ctrl_type == 'mpc' and first_contact == 1:
-                if mpc_counter == mpc_factor:  # check if it's time to restart the mpc
+                if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
                     C = self.gait_map(self.N, self.mpc_dt, t, t0)
                     x_refk = self.ref_traj_grab(x_ref=x_ref, k=k)
@@ -177,17 +175,17 @@ class Runner:
                     x_in = utils.convert(X_traj[k, :])  # convert to mpc states
                     U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf=pf_refk, C=C, init=init)
                     init = False  # after the first mpc run, change init to false
-
                 mpc_counter += 1
-                U_hist[k, :] = U[0, :]  # * s  # take first timestep
+                U_hist[k, :] = U  # take first timestep
+                self.u = self.gait.u_mpc(state=state, X_in=X_traj[k, :], U_in=U)
 
-            self.u, thetar, setp = self.gaitfn(state=state, state_prev=state_prev,
-                                               X_in=X_traj[k, :], p_ref=x_ref[100, 0:3], U_in=U, grf=grf, s=s)
+            elif self.ctrl_type != 'mpc':
+                self.u, thetahist[k, :], setphist[k, :] = \
+                    self.gaitfn(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :],
+                                U_in=U, grf=grf, s=s)
 
             grfhist[k, :] = grf.flatten()  # ground reaction force
             fthist[k] = self.ft_saved
-            setphist[k, :] = setp
-            thetahist[k, :] = thetar
             tauhist[k, :] = tau
             dqhist[k, :] = dqa
             ahist[k, :] = i
@@ -200,7 +198,7 @@ class Runner:
             c_prev = c
 
         if self.plot == True:
-            plots.thetaplot(t_run, thetahist, setphist)
+            plots.thetaplot(t_run, thetahist, setphist, tauhist, dqhist)
             plots.tauplot(self.model, t_run, n_a, tauhist)
             plots.dqplot(self.model, t_run, n_a, dqhist)
             plots.fplot(t_run, phist=X_traj[:, 0:3], fhist=U_hist[:, 0:3], shist=s_hist)
