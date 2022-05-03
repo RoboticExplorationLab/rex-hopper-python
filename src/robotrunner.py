@@ -15,6 +15,7 @@ from copy import copy
 import numpy as np
 from scipy.signal import find_peaks
 from scipy.interpolate import CubicSpline
+
 np.set_printoptions(suppress=True, linewidth=np.nan)
 
 
@@ -49,8 +50,8 @@ class Runner:
         # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
         self.n_X = 13
         self.n_U = 6
-        self.X_0 = np.array([0, 0, 0.7 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([2, 0, 0.7 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.X_0 = np.array([0, 0, 0.6 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
+        self.X_f = np.array([2, 0, 0.6 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -102,7 +103,7 @@ class Runner:
 
         self.t_f = 0
         self.ft_saved = 0
-        self.k_c = 0
+        self.k_c = -100
         self.c_s = 0
         self.go = True
 
@@ -119,13 +120,15 @@ class Runner:
         U_hist = np.tile(U, (t_run, 1))  # initial conditions
 
         x_ref, pf_ref = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
-
-        plots.posplot_animate(p_ref=self.X_f[0:3], p_hist=X_traj[::mpc_factor, 0:3],
-                              ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
+        '''
+        if self.plot == True:
+            plots.posplot_animate(p_ref=self.X_f[0:3], p_hist=X_traj[::mpc_factor, 0:3],
+                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])'''
         init = True
         first_contact = 0
         state_prev = str("init")
-        s, c_prev, sh_prev = 0, 0, 0
+        s, sh_prev = 0, 0
+        c_prev = False
 
         tauhist = np.zeros((t_run, n_a))
         dqhist = np.zeros((t_run, n_a))
@@ -286,11 +289,12 @@ class Runner:
         # if contact has just been made, freeze contact detection to True for x timesteps
         # or if contact has just been lost, freeze contact detection to False for x timesteps
         # protects against vibration/bouncing-related bugs
-        if c_prev != c:
+
+        if c_prev != c and self.go == True:
             self.k_c = k  # timestep at contact change
             self.c_s = c  # saved contact value
 
-        if self.k_c - k <= 10:  # freeze contact value
+        if k - self.k_c <= 10:  # freeze contact value
             c = self.c_s
             self.go = False
         else:

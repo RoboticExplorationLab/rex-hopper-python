@@ -46,7 +46,7 @@ class Control:
         fx = Mx @ x_dd_des
         tau = Ja.T @ fx
         u = tau.flatten()
-        u -= self.spring_fn(leg.q)  # spring counter-torque
+
         return u
 
     def wb_f_control(self, force):
@@ -67,7 +67,7 @@ class Control:
         vel = leg.velocity()
         r_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)
         u = self.cqp.qpcontrol(r_dd_des)
-        u -= self.spring_fn(leg.q)  # spring counter-torque
+
         return u
 
     def qp_f_control(self, force):

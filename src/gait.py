@@ -145,7 +145,7 @@ class Gait:
         elif state == 'HeelStrike':
             self.target[2] = -hconst
         elif state == 'Leap':
-            self.target[2] = -hconst * 5.5 / 3
+            self.target[2] = -hconst * 6.5 / 3
             # force = fr if not None else None
         else:
             raise NameError('INVALID STATE')
@@ -158,7 +158,6 @@ class Gait:
         Q_ref = utils.euler2quat([0, 0, 0])  # 2.5 * np.pi / 180
         self.target[0] = 0
         self.target[2] = -self.hconst * 5.5 / 3
-        self.controller.update_gains(self.k_wbc, self.k_wbc * 0.02)
         self.u[0:2] = -self.control_pos(target=self.target)
         self.u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
