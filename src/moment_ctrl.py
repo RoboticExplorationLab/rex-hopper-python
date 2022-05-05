@@ -10,12 +10,13 @@ import utils
 class MomentCtrl:
     def __init__(self, model, dt=1e-3, **kwargs):
         self.model = model
+        self.sin45 = np.sin(-45 * np.pi / 180)
         self.a = -45 * np.pi / 180
         self.b = 45 * np.pi / 180
         self.v_des = 8000 * (2 * np.pi / 60)
         self.q = np.zeros(3)
         self.dq = np.zeros(3)
-        self.ctrl = self.rw_control
+        # self.ctrl = self.rw_control
         # torque PID gains
         ku = 1600
         kp_tau = [ku,        ku,        ku*0.5]
@@ -42,8 +43,8 @@ class MomentCtrl:
         b = self.b
         ref_1 = utils.z_rotate(Q_ref, a)
         ref_2 = utils.z_rotate(Q_ref, b)
-        a = 0 * np.pi / 180  # -0.2
-        setp = np.array([ref_1 + a, ref_2 - a, z_ref])
+        # d = 0 * np.pi / 180  # -0.2
+        setp = np.array([ref_1, ref_2, z_ref])
         theta_1 = utils.z_rotate(Q_base, a)
         theta_2 = utils.z_rotate(Q_base, b)
         theta_3 = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
@@ -60,6 +61,18 @@ class MomentCtrl:
         u_vel = self.pid_vel.pid_control(inp=dq.flatten(), setp=np.zeros(3))
         setp_cascaded = setp - u_vel
         u_tau = self.pid_tau.pid_control_wrap(inp=theta, setp=setp_cascaded)  # Cascaded PID Loop
-
         return u_tau, theta, setp_cascaded
+
+    def rw_torque_ctrl(self, U_in):
+        """
+        simple reaction wheel torque control
+        rotate the torque commands in z-axis by 45 degrees
+        """
+        sin45 = self.sin45
+        tau1 = U_in[0]
+        tau2 = U_in[1]
+        u1 = (tau1 - tau2) / (2 * sin45)
+        u2 = (tau1 + tau2) / (2 * sin45)
+        return np.array([u1, u2, -U_in[2]])
+
 

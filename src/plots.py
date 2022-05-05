@@ -87,56 +87,38 @@ def dqplot(model, total, n_a, dqhist):
     plt.show()
 
 
-def fplot(total, phist, fhist, shist):
+def u_plot(total, u_hist, grfhist, p_hist, s_hist):
     fig, axs = plt.subplots(5, sharex='all')
     plt.xlabel("Timesteps")
 
-    axs[0].plot(range(total), phist[:, 2], color='blue')
+    axs[0].plot(range(total), p_hist[:, 2], color='blue')
     axs[0].set_title('base z position')
     axs[0].set_ylabel("z position (m)")
 
-    axs[1].plot(range(total), fhist[:, 0], color='blue')
-    axs[1].set_title('Magnitude of X Output Force')
-    axs[1].set_ylabel("Force, N")
-
-    axs[2].plot(range(total), fhist[:, 1], color='blue')
-    axs[2].set_title('Magnitude of Y Output Force')
-    axs[2].set_ylabel("Force, N")
-
-    axs[3].plot(range(total), fhist[:, 2], color='blue')
-    axs[3].set_title('Magnitude of Z Output Force')
-    axs[3].set_ylabel("Force, N")
-
-    axs[4].plot(range(total), shist[:, 0], color='blue')
-    axs[4].set_title('Scheduled Contact')
-    axs[4].set_ylabel("True/False")
-
-    plt.show()
-
-
-def grfplot(total, phist, grfhist, fthist):
-    fig, axs = plt.subplots(5, sharex='all')
-    plt.xlabel("Timesteps")
-
-    axs[0].plot(range(total), phist[:, 2], color='blue')
-    axs[0].set_title('base z position')
-    axs[0].set_ylabel("z position (m)")
-
-    axs[1].plot(range(total), grfhist[:, 0], color='blue')
+    axs[1].plot(range(total), grfhist[:, 0], color='b', label="Actual GRF")
+    axs[1].plot(range(total), u_hist[:, 0], color='r', label="Force Ref")
     axs[1].set_title('X Ground Reaction Force')
     axs[1].set_ylabel("Force, N")
 
-    axs[2].plot(range(total), grfhist[:, 1], color='blue')
+    axs[2].plot(range(total), grfhist[:, 1], color='b')
+    axs[2].plot(range(total), u_hist[:, 1], color='r')
     axs[2].set_title('Y Ground Reaction Force')
     axs[2].set_ylabel("Force, N")
 
-    axs[3].plot(range(total), grfhist[:, 2], color='blue')
+    axs[3].plot(range(total), grfhist[:, 2], color='b')
+    axs[3].plot(range(total), u_hist[:, 2], color='r')
     axs[3].set_title('Z Ground Reaction Force')
     axs[3].set_ylabel("Force, N")
 
-    axs[4].plot(range(total), fthist, color='blue')
-    axs[4].set_title('Flight Time')
-    axs[4].set_ylabel("Time, s")
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    fig.legend(lines, labels, loc='upper center')
+
+    axs[4].plot(range(total), s_hist[:, 0], color='b', lw='2', ls="--", label='Scheduled')
+    axs[4].plot(range(total), s_hist[:, 1], color='r', lw='1', ls="-", label='Actual')
+    axs[4].set_title('Scheduled Contact')
+    axs[4].set_ylabel("True/False")
+    axs[4].legend(loc="upper left")
 
     plt.show()
 
@@ -202,29 +184,38 @@ def etotalplot(total, ahist, vhist, dt):
     plt.show()
 
 
-def posplot(p_ref, phist, pfdes):
-    plt.plot(phist[:, 0], phist[:, 1], color='blue', label='body position')
-    plt.title('Body XY Position')
-    plt.ylabel("y (m)")
-    plt.xlabel("x (m)")
-    plt.scatter(pfdes[:, 0], pfdes[:, 1], color='red', marker="o", label='footstep setpoints')
-    plt.scatter(0, 0, color='green', marker="x", s=100, label='starting position')
-    plt.scatter(p_ref[0], p_ref[1], color='orange', marker="x", s=100, label='position setpoint')
-    plt.legend(loc="upper left")
+def set_axes_equal(ax: plt.Axes):
+    """
+    https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
+    """
+    limits = np.array([
+        ax.get_xlim3d(),
+        ax.get_ylim3d(),
+        ax.get_zlim3d(),
+    ])
+    origin = np.mean(limits, axis=1)
+    radius = 0.5 * np.max(np.abs(limits[:, 1] - limits[:, 0]))
+    _set_axes_radius(ax, origin, radius)
 
-    plt.show()
+
+def _set_axes_radius(ax, origin, radius):
+    x, y, z = origin
+    ax.set_xlim3d([x - radius, x + radius])
+    ax.set_ylim3d([y - radius, y + radius])
+    ax.set_zlim3d([z - radius, z + radius])
 
 
-def posplot_3d(p_ref, phist, pfdes):
+def posplot_3d(p_hist, ref_traj, pf_ref):
     ax = plt.axes(projection='3d')
-    ax.plot(phist[:, 0], phist[:, 1], phist[:, 2], color='red', label='Body Position')
     ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
-    ax.scatter(0, 0, 0, color='green', marker="x", s=200, label='Starting Position')
-    ax.scatter(p_ref[0], p_ref[1], 0, marker="x", s=200, color='orange', label='Target Position')
-    ax.scatter(pfdes[:, 0], pfdes[:, 1], pfdes[:, 2], color='blue', label='Footstep Setpoints')
+    ax.scatter(*p_hist[0, :], color='green', marker="x", s=200, label='Starting Position')
+    ax.scatter(*ref_traj[-1, 0:3], marker="x", s=200, color='orange', label='Target Position')
+    ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', label='Reference Trajectory')
+    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='blue', label='Planned Footsteps')
+    ax.scatter(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
     ax.legend()
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
@@ -237,6 +228,10 @@ def posplot_3d(p_ref, phist, pfdes):
     ax.yaxis.labelpad = 30
     ax.zaxis.labelpad = 30
 
+    ax.set_box_aspect([1, 1, 1])  # make aspect ratio equal for all axes
+    # ax.set_proj_type('ortho') # OPTIONAL - default is perspective (shown in image above)
+    set_axes_equal(ax)  # IMPORTANT - this is also required
+
     plt.show()
 
 
@@ -247,7 +242,7 @@ def animate_line(N, dataSet1, dataSet2, dataSet3, line, ref, pf, ax):
     ax.view_init(elev=10., azim=N)
 
 
-def posplot_animate(p_ref, p_hist, ref_traj, pf_ref):
+def posplot_animate(p_hist, ref_traj, pf_ref):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
@@ -259,7 +254,7 @@ def posplot_animate(p_ref, p_hist, ref_traj, pf_ref):
     ax.set_zlim3d(0, 2)
 
     ax.scatter(*p_hist[0, :], color='green', marker="x", s=200, label='Starting Position')
-    ax.scatter(*p_ref, marker="x", s=200, color='orange', label='Target Position')
+    ax.scatter(*ref_traj[-1, 0:3], marker="x", s=200, color='orange', label='Target Position')
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
     ax.xaxis.set_minor_locator(loc)

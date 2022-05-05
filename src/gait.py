@@ -29,6 +29,7 @@ class Gait:
         self.k_wbc = gain  # wbc gain
         self.k_k = model["k_k"][0]
         self.kd_k = model["k_k"][1]
+        self.a_kt = model["a_kt"]
         self.x_des = np.array([0, 0, 0])
         # self.pid_pdot = pid.PID1(kp=0.025, ki=0.05, kd=0.02)  # kp=0.6, ki=0.15, kd=0.02
         kp = [0.02, 0.08,  0]
@@ -44,7 +45,6 @@ class Gait:
         Q_base = X_in[3:7]
         target = self.target
         hconst = self.hconst
-
         z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
         # rz_psi = utils.rz(utils.quat2euler(Q_base)[2])
@@ -53,13 +53,11 @@ class Gait:
             self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_z, target))  # rotate to body frame
         elif state == 'Stance':
             force = utils.Z(Q_z, -U_in[0:3])  # rotate from world frame to body frame
-            self.u[0:2] = self.controller.qp_f_control(force=force)*10  #
+            self.u[0:2] = self.controller.qp_f_control(force=force)*7
         else:
             raise NameError('INVALID STATE')
-
-        self.u[2:] = -U_in[3:6]*10  # mpc flywheel commands are already in terms of torque
-
-        return self.u
+        self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
+        return self.u / self.a_kt  # convert from torques to current
 
     def u_raibert(self, state, state_prev, X_in, x_ref, U_in, grf, s):
         # continuous raibert hopping
@@ -97,7 +95,7 @@ class Gait:
 
         Q_ref = utils.Q_inv(utils.vec_to_quat(self.x_des - p))
         self.u[0:2] = self.controller.wb_pos_control(target=self.target)
-        self.u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, self.z_ref)
+        self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, self.z_ref)
         return self.u, thetar, setp
 
     def u_wbc_vert(self, state, state_prev, X_in, x_ref, U_in, grf, s):
@@ -115,7 +113,7 @@ class Gait:
         else:
             raise NameError('INVALID STATE')
         self.u[0:2] = self.controller.wb_pos_control(target=self.target)
-        self.u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
+        self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
 
     def u_wbc_static(self, state, state_prev, X_in, x_ref, U_in, grf, s):
@@ -123,10 +121,9 @@ class Gait:
         Q_ref = np.array([1, 0, 0, 0])
         self.target[0] = 0
         self.target[2] = -self.hconst * 5.5 / 3
-        # self.u[0:2] = self.controller.wb_pos_control(target=self.target)
+        self.u[0:2] = self.controller.wb_pos_control(target=self.target)
         # self.u[0:2] = self.controller.qp_pos_control(target=self.target)
-        self.u[0:2] = self.controller.qp_f_control(force=np.array([-37.14499154, -53.685388, -175.92099046]))
-        self.u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
+        self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
 
     def u_ik_vert(self, state, state_prev, X_in, x_ref, U_in, grf, s):
@@ -150,7 +147,7 @@ class Gait:
             kd = self.kd_k
 
         self.u[0:2] = self.controller.invkin_pos_control(self.target, k, kd)
-        self.u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
+        self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
 
     def u_ik_static(self, state, state_prev, X_in, x_ref, U_in, grf, s):
@@ -161,5 +158,5 @@ class Gait:
         target[2] = -self.hconst * 5 / 3
         Q_ref = np.array([1, 0, 0, 0])
         self.u[0:2] = self.controller.invkin_pos_control(self.target, k, kd)
-        self.u[2:], thetar, setp = self.moment.ctrl(Q_ref, Q_base, z_ref=0)
+        self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp

@@ -8,30 +8,11 @@ class Actuator:
         """
         self.v_max = model["v_max"]  # omega_max * self.kt  # absolute maximum
         self.gr = model["gr"]
-        basis = "ele"
-
-        if basis == "ele":
-            self.i_max = model["i_max"]
-            self.r = model["r"]
-            self.kt = model["kt"]
-            self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
-            self.omega_max = self.v_max / self.kt
-
-        elif basis == "tau":
-            self.i_max = model["i_max"]
-            self.tau_max = model["tau_max"]
-            self.omega_max = model["omega_max"]
-            self.kt = self.tau_max / self.i_max  # self.v_max/self.omega_max
-            self.r = self.kt * self.v_max / self.tau_max  # (v_max ** 2) / (omega_max * tau_max)
-            # self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
-
-        elif basis == "vel":
-            self.i_max = model["i_max"]
-            tau_max = model["tau_max"]
-            self.omega_max = model["omega_max"]
-            self.r = (self.v_max ** 2) / (self.omega_max * tau_max)
-            self.kt = self.v_max/self.omega_max
-            self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
+        self.i_max = model["i_max"]
+        self.r = model["r"]
+        self.kt = model["kt"]
+        self.tau_max = self.i_max * self.kt  # absolute max backdriving motor torque
+        self.omega_max = self.v_max / self.kt
 
         # smoothing bandwidth
         self.i_smoothed = 0

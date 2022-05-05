@@ -50,8 +50,9 @@ class Runner:
         # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
         self.n_X = 13
         self.n_U = 6
-        self.X_0 = np.array([0, 0, 0.4 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([2, 0, 0.4 * scale, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.h = 0.35 * scale  # default extended height
+        self.X_0 = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
+        self.X_f = np.array([2, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -117,10 +118,10 @@ class Runner:
         U_hist = np.tile(U, (t_run, 1))  # initial conditions
 
         x_ref, pf_ref = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
-
+        '''
         if self.plot == True:
-            plots.posplot_animate(p_ref=self.X_f[0:3], p_hist=X_traj[::mpc_factor, 0:3],
-                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
+            plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
+                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])'''
         init = True
         first_contact = 0
         state_prev = str("init")
@@ -156,17 +157,20 @@ class Runner:
             pfb = self.leg.position()  # position of the foot in body frame
             pf = X_traj[k, 0:3] + utils.Z(Q_base, pfb)  # position of the foot in world frame
 
-            if sh == 1 and first_contact == 0 and pfb[2] >= -0.4:
+            if sh == 1 and first_contact == 0 and pfb[2] >= -self.h:
                 t0 = t  # starting time begins when robot first makes contact
                 first_contact = 1  # ensure this doesn't trigger again
-            elif sh == 1 and first_contact == 1:
-                s = self.gait_scheduler(t, t0)
-            else:
-                s = 0
+            # TODO: Some way to pause gait scheduler in time to wait for contact to catch up?
+            s = self.gait_scheduler(t, t0)
 
             state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
 
-            if self.ctrl_type == 'mpc' and first_contact == 1:
+            if self.ctrl_type == 'mpc' and first_contact == 0:
+                self.u, thetahist[k, :], setphist[k, :] = \
+                    self.gait.u_wbc_static(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :],
+                                           U_in=U, grf=grf, s=s)
+
+            elif self.ctrl_type == 'mpc' and first_contact == 1:
                 if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
                     C = self.gait_map(self.N, self.mpc_dt, t, t0)
@@ -197,17 +201,21 @@ class Runner:
             sh_prev = sh
             c_prev = c
 
+            # if k >= 1000:
+            #    break
+
         if self.plot == True:
             plots.thetaplot(t_run, thetahist, setphist, tauhist, dqhist)
-            plots.tauplot(self.model, t_run, n_a, tauhist)
-            plots.dqplot(self.model, t_run, n_a, dqhist)
-            plots.fplot(t_run, phist=X_traj[:, 0:3], fhist=U_hist[:, 0:3], shist=s_hist)
-            plots.grfplot(t_run, X_traj[:, 0:3], grfhist, fthist)
-            plots.posplot_3d(p_ref=self.X_f[0:3], phist=X_traj[:, 0:3], pfdes=pfdes)
-            # plots.posplot(p_ref=self.X_f[0:3], phist=phist, pfdes=pfdes)
+            # plots.tauplot(self.model, t_run, n_a, tauhist)
+            # plots.dqplot(self.model, t_run, n_a, dqhist)
+            plots.u_plot(t_run, u_hist=U_hist, grfhist=grfhist, p_hist=X_traj[:, 0:3], s_hist=s_hist)
+            plots.posplot_3d(p_hist=X_traj[::mpc_factor, 0:3],
+                             ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
+            plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
+                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
             # plots.currentplot(t_run, n_a, ahist)
             # plots.voltageplot(t_run, n_a, vhist)
-            plots.etotalplot(t_run, ahist, vhist, dt=self.dt)
+            # plots.etotalplot(t_run, ahist, vhist, dt=self.dt)
 
         return fthist
 
