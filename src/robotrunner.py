@@ -44,13 +44,14 @@ class Runner:
         self.rh = model["rh"]
         self.Jinv = np.linalg.inv(self.J)
         self.mu = model["mu"]  # friction
+        self.a_kt = model["a_kt"]
 
         self.spline = False
 
         # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
         self.n_X = 13
         self.n_U = 6
-        self.h = 0.35 * scale  # default extended height
+        self.h = 0.3 * scale  # default extended height
         self.X_0 = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
         self.X_f = np.array([2, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
@@ -123,12 +124,11 @@ class Runner:
             plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
                                   ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])'''
         init = True
-        first_contact = 0
         state_prev = str("init")
         s, sh_prev = 0, 0
         c_prev = False
-
-        tau_hist = np.zeros((t_run, n_a))
+        u_hist = np.zeros((t_run, n_a))  # gait torque command output
+        tau_hist = np.zeros((t_run, n_a))  # torque commands after actuator
         dq_hist = np.zeros((t_run, n_a))
         a_hist = np.zeros((t_run, n_a))
         v_hist = np.zeros((t_run, n_a))
@@ -158,19 +158,12 @@ class Runner:
             pfb = self.leg.position()  # position of the foot in body frame
             pf = X_traj[k, 0:3] + utils.Z(Q_base, pfb)  # position of the foot in world frame
 
-            if sh == 1 and first_contact == 0 and pfb[2] >= -self.h:
-                t0 = t  # starting time begins when robot first makes contact
-                first_contact = 1  # ensure this doesn't trigger again
             # TODO: Some way to pause gait scheduler in time to wait for contact to catch up?
             s = self.gait_scheduler(t, t0)
 
             state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
 
-            if self.ctrl_type == 'mpc' and first_contact == 0:
-                self.u, theta_hist[k, :], setp_hist[k, :] = \
-                    self.gait.u_wbc_static(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :])
-
-            elif self.ctrl_type == 'mpc' and first_contact == 1:
+            if self.ctrl_type == 'mpc':
                 if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
                     C = self.gait_map(self.N, self.mpc_dt, t, t0)
@@ -183,13 +176,14 @@ class Runner:
                 U_hist[k, :] = U  # take first timestep
                 self.u = self.gait.u_mpc(state=state, X_in=X_traj[k, :], U_in=U)
 
-            elif self.ctrl_type != 'mpc':
+            else:
                 self.u, theta_hist[k, :], setp_hist[k, :] = \
                     self.gaitfn(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :])
 
             ft_hist[k] = self.ft_saved
             grf_hist[k, :] = grf  # ground reaction force
-            f_hist[k, :] = utils.Z(Q_base, U[0, 0:3])  # world frame output force
+            f_hist[k, :] = utils.Z(Q_base, U[0:3])  # world frame output force
+            u_hist[k, :] = -self.u * self.a_kt
             tau_hist[k, :] = tau
             dq_hist[k, :] = dqa
             a_hist[k, :] = i
@@ -200,17 +194,17 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            # if k >= 1000:
-            #    break
+            if k >= 1000:
+               break
 
         if self.plot == True:
             # plots.thetaplot(t_run, theta_hist, setp_hist, tau_hist, dq_hist)
-            # plots.tauplot(self.model, t_run, n_a, tau_hist)
+            plots.tauplot(self.model, t_run, n_a, tau_hist, u_hist)
             # plots.dqplot(self.model, t_run, n_a, dq_hist)
             plots.f_plot(t_run, f_hist=f_hist, grf_hist=grf_hist, s_hist=s_hist)
             plots.posplot_3d(p_hist=X_traj[::mpc_factor, 0:3], pf_hist=pf_hist[::mpc_factor, :],
                              ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
-            plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
+            plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3], pf_hist=pf_hist[::mpc_factor, :],
                                   ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
             # plots.currentplot(t_run, n_a, a_hist)
             # plots.voltageplot(t_run, n_a, v_hist)

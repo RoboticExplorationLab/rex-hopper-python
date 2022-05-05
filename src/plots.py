@@ -54,7 +54,7 @@ def thetaplot(total, theta_hist, setp_hist, tau_hist, dq_hist):
     plt.show()
 
 
-def tauplot(model, total, n_a, tau_hist):
+def tauplot(model, total, n_a, tau_hist, u_hist):
     cols = 3
     rows = n_a // cols
     rows += n_a % cols
@@ -63,11 +63,14 @@ def tauplot(model, total, n_a, tau_hist):
     totalr = range(total)
     for k in range(n_a):
         ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, tau_hist[:, k])
+        ax.plot(totalr, tau_hist[:, k], c='r', label="actual")
+        ax.plot(totalr, u_hist[:, k], c='g', label="control")
         ax.set_ylabel('Torque, Nm')
         ax.set_title(model["aname"][k])
+        ax.legend()
 
     plt.xlabel("Timesteps")
+
     plt.show()
 
 
@@ -211,9 +214,9 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref):
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
-    ax.scatter(*p_hist[0, :], color='green', marker="x", s=200, label='Starting Position')
-    ax.scatter(*ref_traj[-1, 0:3], marker="x", s=200, color='orange', label='Target Position')
-    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="*", s=200, color='purple', label='Planned Footsteps')
+    ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
+    ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
+    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="x", s=200, color='purple', label='Planned Footsteps')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Reference Trajectory')
     ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
@@ -236,14 +239,15 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref):
     plt.show()
 
 
-def animate_line(N, dataSet1, dataSet2, dataSet3, line, ref, pf, ax):
+def animate_line(N, dataSet1, dataSet2, dataSet3, dataSet4, line, ref, pf, pfr, ax):
     line._offsets3d = (dataSet1[0:3, :N])
     ref._offsets3d = (dataSet2[0:3, :N])
     pf._offsets3d = (dataSet3[0:3, :N])
+    pfr._offsets3d = (dataSet4[0:3, :N])
     ax.view_init(elev=10., azim=N)
 
 
-def posplot_animate(p_hist, ref_traj, pf_ref):
+def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
@@ -254,8 +258,8 @@ def posplot_animate(p_hist, ref_traj, pf_ref):
     ax.set_ylim3d(0, 2)
     ax.set_zlim3d(0, 2)
 
-    ax.scatter(*p_hist[0, :], color='green', marker="x", s=200, label='Starting Position')
-    ax.scatter(*ref_traj[-1, 0:3], marker="x", s=200, color='orange', label='Target Position')
+    ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
+    ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
     ax.xaxis.set_minor_locator(loc)
@@ -270,10 +274,11 @@ def posplot_animate(p_hist, ref_traj, pf_ref):
     N = len(p_hist)
     line = ax.scatter(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], lw=2, c='r', label='CoM Position')  # For line plot
     ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], lw=2, c='g', label='Reference Trajectory')
-    pf = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='blue', label='Planned Footsteps')
+    pf = ax.scatter(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
+    pfr = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='blue', marker='x', s=200, label='Planned Footsteps')
     ax.legend()
     line_ani = animation.FuncAnimation(fig, animate_line, frames=N,
-                                       fargs=(p_hist.T, ref_traj.T, pf_ref.T, line, ref, pf, ax),
+                                       fargs=(p_hist.T, ref_traj.T, pf_hist.T, pf_ref.T, line, ref, pf, pfr, ax),
                                        interval=2, blit=False)
     # line_ani.save('basic_animation.mp4', fps=30, bitrate=4000, extra_args=['-vcodec', 'libx264'])
 

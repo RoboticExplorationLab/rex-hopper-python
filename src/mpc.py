@@ -117,10 +117,10 @@ class Mpc:
             tauy = u[k, 4]
             tauz = u[k, 5]
 
-            constr += [taux <= 20,
-                       taux >= -20,
-                       tauy <= 20,
-                       tauy >= -20,
+            constr += [taux <= 7.78,
+                       taux >= -7.78,
+                       tauy <= 7.78,
+                       tauy >= -7.78,
                        tauz <= 4,
                        tauz >= -4]
 

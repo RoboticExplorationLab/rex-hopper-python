@@ -15,7 +15,7 @@ design_rw = {
     "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
     "linklengths": [.1, .27, .27, .1, .17, .0205],
     "aname": ["q0", "q2", "rw1", "rw2", "rw3"],  # actuator names
-    "a_kt": np.array([0.247, 0.247, 0.106, 0.106, 0.0868]),  # actuator kt
+    "a_kt": np.array([1.73, 1.73, 0.106, 0.106, 0.0868]),  # actuator kt, including gear ratio
     "inertia": np.array([[0.07542817, 0.00016327,  0.00222099],
                          [0.00016327, 0.04599064,  -0.00008321],
                          [0.00222099, -0.00008321, 0.07709692]]),
