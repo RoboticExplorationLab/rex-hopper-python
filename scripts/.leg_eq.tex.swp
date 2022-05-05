@@ -1,0 +1,61 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+
+\begin{document}
+
+\begin{equation}
+	c_x = x_1 - x_c
+\end{equation}
+
+\begin{equation}
+	c_y = y_1 - y_c
+\end{equation}
+
+\begin{equation}
+	c = \begin{bmatrix}
+	c_x\\
+	c_y
+	\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+	D(q) = jacobian(c) = \frac{\partial c}{\partial q}
+\end{equation}
+
+\begin{equation}
+	\dot{c} = \frac{\partial c}{\partial q} \dot{q} = D(q)\dot{q}
+\end{equation}
+
+\begin{equation}
+	\ddot{c} = \frac{d}{dt}(D(q)\dot{q}) = D(q)\ddot{q} +  \frac{\partial }{\partial q}(D(q)\dot{q})\dot{q} = 0
+\end{equation}
+
+\begin{equation}
+	d = \frac{\partial }{\partial q}(D(q)\dot{q})\dot{q}
+\end{equation}
+
+\begin{equation}
+	e = D(q)*(M(q)\backslash(D(q)^\top *(\alpha*c + \beta*\dot{c})))
+\end{equation}
+
+\begin{equation}
+	\begin{bmatrix}
+	M(q)_{4x4} & -D(q)^\top_{4x2}\\
+	D(q)_{2x4} & 0_{2x2}
+	\end{bmatrix}
+	\begin{bmatrix}
+	\ddot{q}_{4x1}\\
+	\lambda_{2x1}
+	\end{bmatrix} = 
+	\begin{bmatrix}
+	(- C(q, \dot{q}) - G(q))_{4x1}\\
+	-(d + e)_{2x1}
+	\end{bmatrix}
+\end{equation}
+
+
+
+\end{document}

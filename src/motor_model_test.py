@@ -4,6 +4,7 @@ Copyright (C) 2022 Benjamin Bokser
 
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use(['science', 'no-latex'])
 
 import actuator
 import actuator_param
@@ -13,7 +14,7 @@ def test(dt, model, verbose=False):
 
     motor_test = actuator.Actuator(dt=dt, model=model)
     
-    print("omega_max = ", motor_test.omega_max)
+    print("omega_max = ", motor_test.omega_max / (2 * np.pi / 60), " RPM")
     print("kt = ", motor_test.kt)
     print("r = ", motor_test.r)
     print("tau_max (before gearing) = ", motor_test.tau_max)
@@ -37,21 +38,21 @@ def test(dt, model, verbose=False):
         for q_dot in np.linspace(-q_dot_max, q_dot_max, n):
             k += 1
             # tau[j, k] = motor_test.actuate_sat(i=i, q_dot=q_dot)
-            tau[j, k] = motor_test.actuate(i=i, q_dot=q_dot)
+            tau[j, k], current, voltage = motor_test.actuate(i=i, q_dot=q_dot)
             q_dot_k[k] = q_dot
 
         plt.scatter(tau[j, :], q_dot_k, color='red', marker="o", s=2)
         # plt.scatter(tau_sat[j, :], q_dot_k, color='green', marker="o")
 
-    plt.title('Motor Model')
-    plt.ylabel("q_dot (rad/s)")
-    plt.xlabel("tau (N*m)")
+    plt.title('Motor Operating Region')
+    plt.ylabel("Angular Velocity (rad/s)")
+    plt.xlabel("Tau (N*m)")
 
     plt.show()
     return None
 
 
-model = actuator_param.actuator_u8
+model = actuator_param.actuator_r80kv110
 print(model["name"])
 test(dt=1/1000, model=model)
 print("\n")

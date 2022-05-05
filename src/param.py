@@ -1,90 +1,68 @@
 """
-Copyright (C) 2021 Benjamin Bokser
+Copyright (C) 2021-2022 Benjamin Bokser
 """
-import leg_parallel
-import wbc_parallel
-import leg_serial
-import wbc_serial
-import leg_belt
+import numpy as np
+import leg
+import wbc
 
 
 design_rw = {
     "model": "design_rw",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/hopper_rev05/urdf/hopper_rev05.csv",
-    "urdfpath": "res/hopper_rev05/urdf/hopper_rev05.urdf",
-    #"csvpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.csv",
-    #"urdfpath": "res/flyhopper_rwz/urdf/flyhopper_rwz.urdf",
+    "controllerclass": wbc,
+    "legclass": leg,
+    "csvpath": "res/hopper_rev08/urdf/hopper_rev08.csv",
+    "urdfpath": "res/hopper_rev08/urdf/hopper_rev08.urdf",
+    "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
     "linklengths": [.1, .27, .27, .1, .17, .0205],
+    "aname": ["q0", "q2", "rw1", "rw2", "rw3"],  # actuator names
+    "a_kt": np.array([0.247, 0.247, 0.106, 0.106, 0.0868]),  # actuator kt
+    "inertia": np.array([[0.07542817, 0.00016327,  0.00222099],
+                         [0.00016327, 0.04599064,  -0.00008321],
+                         [0.00222099, -0.00008321, 0.07709692]]),
+    "rh": -np.array([0.02663114, 0.04435752, 6.61082088]) / 1000,  # mm to m
+    "S": np.array([[1, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 1, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 1, 0, 0],
+                   [0, 0, 0, 1, 0],
+                   [0, 0, 0, 0, 1]]),  # actuator selection matrix
+    "hconst": 0.27,  # default height
+    "n_a": 5,  # number of actuators
+    "ks": 996,  # spring constant
+    "springpolarity": 1,  # spring polarity
     "k": 5000,  # wbc gain
-    "k_g": 45,  # inv kin gain
-    "k_gd": 45*0.02,
-    "k_a": 1,
-    "k_ad": 1*0.08,
-    "springpolarity": 1,
-    "hconst": 0.27
+    "k_k": [45, 45*0.02],  # inv kin gain
+    "mu": 0.5  # friction coeff at foot
 }
 
-design = {
-    "model": "design",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_robot/urdf/flyhopper_robot.csv",
-    "urdfpath": "res/flyhopper_robot/urdf/flyhopper_robot.urdf",
-    "linklengths": [.1, .3, .3, .1, .2, .0205],
-    "k": 4000,
-    "k_g": 37.5,
-    "k_gd": 37.5*0.02,
-    "k_a": 1,
-    "k_ad": 1*0.08,
-    "springpolarity": 1,
-    "hconst": 0.3
+design_rw_alt = {
+    "model": "design_rw_alt",
+    "controllerclass": wbc,
+    "legclass": leg,
+    "csvpath": "res/hopper_rev08/urdf/hopper_rev08_old.csv",
+    "urdfpath": "res/hopper_rev08/urdf/hopper_rev08_old.urdf",
+    "init_q": [-30 * np.pi / 180, -120 * np.pi / 180, -150 * np.pi / 180, 120 * np.pi / 180],
+    "linklengths": [.1, .27, .27, .1, .17, .0205],
+    "aname": ["q0", "q2", "rw1", "rw2", "rw3"],  # actuator names
+    "a_kt": [0.247, 0.247, 0.106, 0.106, 0.0868],  # actuator kt
+    "inertia": np.array([[0.07542817, 0.00016327,  0.00222099],
+                         [0.00016327, 0.04599064,  -0.00008321],
+                         [0.00222099, -0.00008321, 0.07709692]]),
+    "rh": -np.array([0.02663114, 0.04435752, 6.61082088]) / 1000,  # mm to m
+    "S": np.array([[1, 0, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 1, 0, 0, 0],
+                   [0, 0, 0, 0, 0],
+                   [0, 0, 1, 0, 0],
+                   [0, 0, 0, 1, 0],
+                   [0, 0, 0, 0, 1]]),  # actuator selection matrix
+    "hconst": 0.27,  # default height
+    "n_a": 5,  # number of actuators
+    "ks": 996,  # spring constant
+    "springpolarity": 1,  # spring polarity
+    "k": 5000,  # wbc gain
+    "k_k": [45, 45*0.02],  # inv kin gain
+    "mu": 0.5  # friction coeff at foot
 }
 
-parallel = {
-    "model": "parallel",
-    "controllerclass": wbc_parallel,
-    "legclass": leg_parallel,
-    "csvpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.csv",
-    "urdfpath": "res/flyhopper_parallel/urdf/flyhopper_parallel.urdf",
-    "linklengths": [.15, .3, .3, .15, .15, 0],
-    "k": 4000,
-    "k_g": 70,
-    "k_gd": 70*0.02,
-    "k_a": 2,
-    "k_ad": 2*0.08,
-    "springpolarity": -1,
-    "hconst": 0.3
-}
-
-serial = {
-    "model": "serial",
-    "controllerclass": wbc_serial,
-    "legclass": leg_serial,
-    "csvpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.csv",
-    "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
-    "linklengths": [.3, .3],
-    "k": 4000,
-    "k_g": 70,
-    "k_gd": 70*0.02,
-    "k_a": 2,
-    "k_ad": 2*0.08,
-    "springpolarity": 0,
-    "hconst": 0.3
-}
-
-belt = {
-    "model": "belt",
-    "controllerclass": wbc_serial,
-    "legclass": leg_belt,
-    "csvpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.csv",
-    "urdfpath": "res/flyhopper_mockup/urdf/flyhopper_mockup.urdf",
-    "linklengths": [.3, .3],
-    "k_g": 15,
-    "k_gd": 15*0.02,
-    "k_a": 0.5,
-    "k_ad": 0.5*0.08,
-    "springpolarity": 0,
-    "hconst": 0.3
-}

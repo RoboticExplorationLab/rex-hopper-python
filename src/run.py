@@ -12,9 +12,9 @@ dt = 1e-3
 parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
-                    choices=['design_rw', 'design', 'serial', 'parallel', 'belt'], type=str)
-parser.add_argument("ctrl", help="'wbc_raibert, wbc_vert, wbc_static, invkin_vert, or invkin_static",
-                    choices=['wbc_raibert', 'wbc_vert', 'wbc_static', 'invkin_vert', 'invkin_static'],
+                    choices=['design_rw', 'design_rw_alt'], type=str)
+parser.add_argument("ctrl", help="'mpc, wbc_raibert, wbc_vert, wbc_static, ik_vert, or ik_static",
+                    choices=['mpc', 'wbc_raibert', 'wbc_vert', 'wbc_static', 'ik_vert', 'ik_static'],
                     type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")
 parser.add_argument("--fixed", help="fixed base: True or False", action="store_true")
@@ -61,20 +61,13 @@ print("model = ", args.model)
 print("ctrl = ", args.ctrl)
 print("\n")
 
-
 if args.model == "design_rw":
     model = param.design_rw
-elif args.model == "design":
-    model = param.design
-elif args.model == "parallel":
-    model = param.parallel
-elif args.model == "serial":
-    model = param.serial
-elif args.model == "belt":
-    model = param.belt
+elif args.model == "design_rw_alt":
+    model = param.design_rw_alt
 else:
     raise NameError('INVALID MODEL')
 
-runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed, spring=spring, record=record,
-                scale=args.scale, recalc=recalc, gravoff=gravoff, total_run=args.runtime, gain=model["k"])
+runner = Runner(dt=dt, plot=plot, model=model, ctrl_type=args.ctrl, fixed=fixed, spr=spring, record=record,
+                scale=args.scale, recalc=recalc, gravoff=gravoff, t_run=args.runtime, gain=model["k"])
 runner.run()

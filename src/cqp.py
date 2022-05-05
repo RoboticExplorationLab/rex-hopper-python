@@ -5,7 +5,6 @@ Copyright (C) 2020-2021 Benjamin Bokser
 import numpy as np
 # import sympy as sp
 import cvxpy as cp
-import itertools
 
 
 class Cqp:
@@ -17,12 +16,12 @@ class Cqp:
         leg = self.leg
 
         M = leg.gen_M()
-        C = leg.gen_C().flatten()
-        G = leg.gen_G().flatten()
+        C = leg.gen_C()
+        G = leg.gen_G()
         Ja = leg.gen_jacA()
         da = leg.gen_da()
         D = leg.gen_D()  # constraint jacobian
-        dc = leg.gen_d().flatten()
+        dc = leg.gen_d()
         B = np.zeros((4, 2))  # actuator selection matrix
         B[0, 0] = 1  # q0
         B[2, 1] = 1  # q2
@@ -38,9 +37,10 @@ class Cqp:
 
         # --- calculate objective --- #
         qdd_f = cp.vstack([x[0], x[2]])
-        r_dd = Ja @ qdd_f + da
+        r_dd = (Ja @ qdd_f).flatten() + da
         P = np.eye(3)  # TODO: play around with this
         # obj = 0.5*cp.sum_squares(r_dd - r_dd_des)
+
         obj = 0.5 * cp.quad_form(r_dd - r_dd_des, P)
 
         # --- calculate constraints --- #

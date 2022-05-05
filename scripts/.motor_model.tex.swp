@@ -1,0 +1,14 @@
+%\documentclass[fleqn]{article}
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+
+\begin{document}
+
+\begin{equation}
+ \tau_{max} = V_{max}*\frac{k_t}{R} - \omega*\frac{k_t^2}{R}
+ \end{equation}
+ 
+ \end{document}

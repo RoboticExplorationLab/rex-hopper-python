@@ -1,0 +1,125 @@
+\documentclass{article}
+
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\makeatletter
+\renewcommand*\env@matrix[1][*\c@MaxMatrixCols c]{%
+  \hskip -\arraycolsep
+  \let\@ifnextchar\new@ifnextchar
+  \array{#1}}
+\makeatother
+\begin{document}
+
+\begin{equation}
+	\begin{bmatrix}
+	\Delta \dot{x}\\
+	\Delta \dot{y}\\
+	\Delta \dot{z}\\
+	\Delta \ddot{x}\\
+	\Delta \ddot{y}\\
+	\Delta \ddot{z}\\
+	g\\
+	\end{bmatrix} = 
+	\begin{bmatrix}
+	0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+	0 & 0 & 0 & 0 & 1 & 0 & 0 \\
+	0 & 0 & 0 & 0 & 0 & 1 & 0 \\
+	0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+	0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+	0 & 0 & 0 & 0 & 0 & 0 & -1 \\
+	0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	\Delta x\\
+	\Delta y\\
+	\Delta z\\
+	\Delta \dot{x}\\
+	\Delta \dot{y}\\
+	\Delta \dot{z}\\
+	g\\
+	\end{bmatrix} + 
+	\begin{bmatrix}
+	0 & 0 & 0 \\
+	0 & 0 & 0 \\
+	0 & 0 & 0 \\
+	\frac{1}{m} & 0 & 0 \\
+	0 & \frac{1}{m} & 0 \\
+	0 & 0 & \frac{1}{m} \\
+	0 & 0 & 0 \\
+	\end{bmatrix}
+	\begin{bmatrix}
+	F_x\\
+	F_y\\
+	F_z\\
+	\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+	\dot{X} = \begin{bmatrix}
+	\Delta \dot{x}\\
+	\Delta \dot{y}\\
+	\Delta \dot{z}\\
+	\Delta \ddot{x}\\
+	\Delta \ddot{y}\\
+	\Delta \ddot{z}
+	\end{bmatrix} = 
+	\begin{bmatrix}
+	\begin{array}{ccc|ccc}
+	  &   &   &   &   &   \\
+	  & 0_{3\times 3} &   &   & I_3 &   \\
+	  &   &   &   &   &   \\\hline
+	  &   &   &   &   &   \\
+	  & 0_{3\times 3} &   &   & 0_{3\times 3} &   \\
+	  &   &   &   &   &  
+	\end{array}
+	\end{bmatrix}
+	\begin{bmatrix}
+	\Delta x\\
+	\Delta y\\
+	\Delta z\\
+	\Delta \dot{x}\\
+	\Delta \dot{y}\\
+	\Delta \dot{z}
+	\end{bmatrix} + 
+	\begin{bmatrix}
+	\begin{array}{ccc}
+	  &   &   \\
+	  & 0_{3\times 3} &   \\
+	  &   &   \\\hline
+	\frac{1}{m} &   &   \\
+	  & \frac{1}{m} &   \\
+	  &   & \frac{1}{m}
+	\end{array}
+	\end{bmatrix}
+	\begin{bmatrix}
+	F_x\\
+	F_y\\
+	F_z\\
+	\end{bmatrix} + 
+	\begin{bmatrix}
+	0\\
+	0\\
+	0\\
+	0\\
+	0\\
+	-g
+	\end{bmatrix}
+\end{equation}
+
+%\begin{equation}
+\begin{align}
+\min_{X_k,U_k} \quad & \lVert X_k - X_{REF, k} \lVert_Q + \lVert U_k - U_{REF,  k} \lVert_R \\
+\textrm{s.t.} \quad & X_{k+1} = A_d X_k + B_d U_k \\
+  & z_{min} \leq {z} \leq z_{max} \\  
+  & 0 \leq {F_{z, k}} \leq F_{z, max} && \forall k \in \mathcal{C}  \\
+  & -\mu {F_{z, k}} \leq F_{x, k} \leq \mu {F_{z, k}} && \forall k \in \mathcal{C}  \\
+  & -\mu {F_{z, k}} \leq F_{y, k} \leq \mu {F_{z, k}} && \forall k \in \mathcal{C}  \\   
+  & F_{x, k} = 0 && \forall k \notin \mathcal{C}  \\   
+  & F_{y, k} = 0 && \forall k \notin \mathcal{C}  \\    
+  & F_{z, k} = 0 && \forall k \notin \mathcal{C}  \\     
+\end{align}
+%\end{equation}
+
+    
+\end{document}

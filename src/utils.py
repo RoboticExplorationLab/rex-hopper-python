@@ -1,4 +1,11 @@
 import numpy as np
+import transforms3d
+
+H = np.zeros((4, 3))
+H[1:4, 0:4] = np.eye(3)
+
+T = np.zeros((4, 4))
+np.fill_diagonal(T, [1.0, -1.0, -1.0, -1.0])
 
 
 def hat(w):
@@ -26,11 +33,16 @@ def R(Q):
     return RQ
 
 
-H = np.zeros((4, 3))
-H[1:4, 0:4] = np.eye(3)
-
-T = np.zeros((4, 4))
-np.fill_diagonal(T, [1.0, -1.0, -1.0, -1.0])
+def convert(X_in):
+    # convert from simulator states to mpc states (SE3 to euler)
+    x0 = np.zeros(12)
+    x0[0:3] = X_in[0:3]
+    q = X_in[3:7]
+    x0[3:6] = quat2euler(q)  # q -> euler
+    Q = L(q) @ R(q).T
+    x0[6:9] = H.T @ Q @ H @ X_in[7:10]  # body frame v -> world frame pdot
+    x0[9:] = H.T @ Q @ H @ X_in[10:13]  # body frame w -> world frame w
+    return x0
 
 
 def Q_inv(Q):
@@ -73,19 +85,18 @@ def angle_z(Q1, Q2):
     return 2 * np.arcsin(Q12[3])
 
 
+def z_rotate(Q_in, z):
+    # rotate quaternion about its z-axis by specified angle "z"
+    # and get rotation about x-axis of that (confusing, I know)
+    Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
+    Q_res = L(Q_z).T @ Q_in
+    Q_res = Q_res / (np.linalg.norm(Q_res))
+    theta_res = 2 * np.arcsin(Q_res[1])  # x-axis of rotated body quaternion
+    return theta_res
+
+
 def vec_to_quat(v2):
     # conversion of line vector to quaternion rotation b/t it and a datum vector v1
-    v1 = np.array([1, 0, 0])  # datum vector, chosen as aligned with x-axis (front facing)
-    Q = np.zeros(4)
-    Q[0] = np.sqrt((np.linalg.norm(v1)**2)*(np.linalg.norm(v2)**2)) + np.dot(v1, v2)
-    Q[1:4] = np.cross(v1, v2)
-    Q = Q / np.linalg.norm(Q)
-    return Q
-
-
-def vec_to_quat2(v2):
-    # conversion of line vector to quaternion rotation b/t it and a datum vector v1
-    # alternative version
     v1 = np.array([0, 0, -1])  # datum vector, chosen as aligned with z-axis (representing leg direction)
     u1 = v1 / np.linalg.norm(v1)
     Q = np.zeros(4)
@@ -96,11 +107,51 @@ def vec_to_quat2(v2):
         if np.array_equal(u1, -u2):
             Q[1:4] = np.linalg.norm(np.cross(v1, v2))
         else:
-            u_half = (u1 + u2)/np.linalg.norm(u1 + u2)
+            u_half = (u1 + u2) / np.linalg.norm(u1 + u2)
             Q[0] = np.dot(u1, u_half)
             Q[1:4] = np.cross(u1, u_half)
             Q = Q / np.linalg.norm(Q)
     return Q_inv(Q)
+
+
+def rz(phi):
+    # linearized rotation matrix Rz(phi) using commanded yaw
+    Rz = np.array([[np.cos(phi), np.sin(phi), 0.0],
+                   [-np.sin(phi), np.cos(phi), 0.0],
+                   [0.0, 0.0, 1.0]])
+    return Rz
+
+
+def quat2euler(Q):
+    # ZYX Euler angles. Output roll-pitch-yaw order # this is why euler angles suck ass
+    zyx = transforms3d.euler.quat2euler(Q, axes='rzyx')  # Intro to Robotics, Mechanics and Control 3rd ed. p. 44
+    xyz = np.zeros(3)
+    xyz[0] = zyx[2]
+    xyz[1] = zyx[1]
+    xyz[2] = zyx[0]
+    return xyz
+
+
+def wrap_to_pi(a):
+    # wrap input angle between 0 and pi
+    return (a + np.pi) % (2 * np.pi) - np.pi
+
+
+def lift(angle, last):
+    # "lift" angle beyond range of (-pi, pi)
+    angle = (angle - last + np.pi) % (2 * np.pi) - np.pi + last
+    last = angle
+    return angle, last
+
+
+def projection(p0, v):
+    # find point p projected onto ground plane from point p0 by vector v
+    z = 0
+    t = (z - p0[2])/v[2]
+    x = p0[0] + t*v[0]
+    y = p0[1] + t*v[1]
+    p = np.array([x, y, z])
+    return p
 
 
 # --- from Shuo's quadruped code --- #
@@ -127,7 +178,7 @@ def euler2rot(euler):
     return R
 
 
-def quat2euler(quat):
+def quat2euler_xyz(quat):
     w, x, y, z = quat
     y_sqr = y * y
 
