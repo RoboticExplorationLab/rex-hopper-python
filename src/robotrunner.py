@@ -128,22 +128,23 @@ class Runner:
         s, sh_prev = 0, 0
         c_prev = False
 
-        tauhist = np.zeros((t_run, n_a))
-        dqhist = np.zeros((t_run, n_a))
-        ahist = np.zeros((t_run, n_a))
-        vhist = np.zeros((t_run, n_a))
-        pfhist = np.zeros((t_run, 3))
-        thetahist = np.zeros((t_run, 3))
-        setphist = np.zeros((t_run, 3))
-        grfhist = np.zeros((t_run, 3))
-        pfdes = np.zeros((t_run, 3))
-        fthist = np.zeros(t_run)
+        tau_hist = np.zeros((t_run, n_a))
+        dq_hist = np.zeros((t_run, n_a))
+        a_hist = np.zeros((t_run, n_a))
+        v_hist = np.zeros((t_run, n_a))
+        pf_hist = np.zeros((t_run, 3))
+        theta_hist = np.zeros((t_run, 3))
+        setp_hist = np.zeros((t_run, 3))
+        grf_hist = np.zeros((t_run, 3))
+        f_hist = np.zeros((t_run, 3))
+        pf_des = np.zeros((t_run, 3))
+        ft_hist = np.zeros(t_run)
         s_hist = np.zeros((t_run, 2))
 
         for k in range(0, t_run):
             t += self.dt
 
-            X, qa, dqa, c, tau, f_sens, tau_sens, i, v, grf = self.simulator.sim_run(u=self.u)  # run sim
+            X, qa, dqa, c, tau, i, v, grf = self.simulator.sim_run(u=self.u)  # run sim
             Q_base = X[3:7]
             pdot = X[7:10]
             X_traj[k, :] = X  # update state from simulator
@@ -166,9 +167,8 @@ class Runner:
             state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
 
             if self.ctrl_type == 'mpc' and first_contact == 0:
-                self.u, thetahist[k, :], setphist[k, :] = \
-                    self.gait.u_wbc_static(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :],
-                                           U_in=U, grf=grf, s=s)
+                self.u, theta_hist[k, :], setp_hist[k, :] = \
+                    self.gait.u_wbc_static(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :])
 
             elif self.ctrl_type == 'mpc' and first_contact == 1:
                 if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
@@ -184,40 +184,39 @@ class Runner:
                 self.u = self.gait.u_mpc(state=state, X_in=X_traj[k, :], U_in=U)
 
             elif self.ctrl_type != 'mpc':
-                self.u, thetahist[k, :], setphist[k, :] = \
-                    self.gaitfn(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :],
-                                U_in=U, grf=grf, s=s)
+                self.u, theta_hist[k, :], setp_hist[k, :] = \
+                    self.gaitfn(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :])
 
-            grfhist[k, :] = grf.flatten()  # ground reaction force
-            fthist[k] = self.ft_saved
-            tauhist[k, :] = tau
-            dqhist[k, :] = dqa
-            ahist[k, :] = i
-            vhist[k, :] = v
-            pfdes[k, :] = self.gait.x_des  # desired footstep positions
-            pfhist[k, :] = pf  # foot pos in world frame
+            ft_hist[k] = self.ft_saved
+            grf_hist[k, :] = grf  # ground reaction force
+            f_hist[k, :] = utils.Z(Q_base, U[0, 0:3])  # world frame output force
+            tau_hist[k, :] = tau
+            dq_hist[k, :] = dqa
+            a_hist[k, :] = i
+            v_hist[k, :] = v
+            pf_des[k, :] = self.gait.x_des  # desired footstep positions
+            pf_hist[k, :] = pf  # foot pos in world frame
             s_hist[k, :] = [s, sh]
             state_prev = state
             sh_prev = sh
             c_prev = c
-
             # if k >= 1000:
             #    break
 
         if self.plot == True:
-            plots.thetaplot(t_run, thetahist, setphist, tauhist, dqhist)
-            # plots.tauplot(self.model, t_run, n_a, tauhist)
-            # plots.dqplot(self.model, t_run, n_a, dqhist)
-            plots.u_plot(t_run, u_hist=U_hist, grfhist=grfhist, p_hist=X_traj[:, 0:3], s_hist=s_hist)
-            plots.posplot_3d(p_hist=X_traj[::mpc_factor, 0:3],
+            # plots.thetaplot(t_run, theta_hist, setp_hist, tau_hist, dq_hist)
+            # plots.tauplot(self.model, t_run, n_a, tau_hist)
+            # plots.dqplot(self.model, t_run, n_a, dq_hist)
+            plots.f_plot(t_run, f_hist=f_hist, grf_hist=grf_hist, s_hist=s_hist)
+            plots.posplot_3d(p_hist=X_traj[::mpc_factor, 0:3], pf_hist=pf_hist[::mpc_factor, :],
                              ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
             plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
                                   ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
-            # plots.currentplot(t_run, n_a, ahist)
-            # plots.voltageplot(t_run, n_a, vhist)
-            # plots.etotalplot(t_run, ahist, vhist, dt=self.dt)
+            # plots.currentplot(t_run, n_a, a_hist)
+            # plots.voltageplot(t_run, n_a, v_hist)
+            # plots.etotalplot(t_run, a_hist, v_hist, dt=self.dt)
 
-        return fthist
+        return ft_hist
 
     def gait_scheduler(self, t, t0):
         phi = np.mod((t - t0) / self.t_p, 1)

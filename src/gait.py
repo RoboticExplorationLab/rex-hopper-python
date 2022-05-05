@@ -49,17 +49,18 @@ class Gait:
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
         # rz_psi = utils.rz(utils.quat2euler(Q_base)[2])
         if state == 'Flight':
-            target[2] = -hconst * 6 / 3  # brace for impact
-            self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_z, target))  # rotate to body frame
+            target[2] = -hconst * 5.5 / 3  # brace for impact
+            self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_z, target))
+            # self.u[0:2] = self.controller.invkin_pos_control(target=utils.Z(Q_z, target), kp=self.k_k, kd=self.kd_k)
         elif state == 'Stance':
             force = utils.Z(Q_z, -U_in[0:3])  # rotate from world frame to body frame
-            self.u[0:2] = self.controller.qp_f_control(force=force)*7
+            self.u[0:2] = self.controller.qp_f_control(force=force)
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
         return self.u / self.a_kt  # convert from torques to current
 
-    def u_raibert(self, state, state_prev, X_in, x_ref, U_in, grf, s):
+    def u_raibert(self, state, state_prev, X_in, x_ref):
         # continuous raibert hopping
         p = X_in[0:3]
         Q_base = X_in[3:7]
@@ -77,7 +78,6 @@ class Gait:
         hconst = self.hconst * k_b
         kr = .15 / k_b  # .15 / k_b "speed cancellation" constant
         kt = 0.4  # gain representing leap period accounting for vertical jump velocity at toe-off
-
         if state == 'Return':
             if state_prev == 'Leap':  # find new footstep position based on desired speed and current speed
                 self.x_des = raibert_x(kr, kt, pdot, pdot_ref) + p  # world frame desired footstep position
@@ -98,7 +98,7 @@ class Gait:
         self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, self.z_ref)
         return self.u, thetar, setp
 
-    def u_wbc_vert(self, state, state_prev, X_in, x_ref, U_in, grf, s):
+    def u_wbc_vert(self, state, state_prev, X_in, x_ref):
         Q_base = X_in[3:7]
         Q_ref = np.array([1, 0, 0, 0])
         hconst = self.hconst
@@ -116,7 +116,7 @@ class Gait:
         self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
 
-    def u_wbc_static(self, state, state_prev, X_in, x_ref, U_in, grf, s):
+    def u_wbc_static(self, state, state_prev, X_in, x_ref):
         Q_base = X_in[3:7]
         Q_ref = np.array([1, 0, 0, 0])
         self.target[0] = 0
@@ -126,37 +126,29 @@ class Gait:
         self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
 
-    def u_ik_vert(self, state, state_prev, X_in, x_ref, U_in, grf, s):
+    def u_ik_vert(self, state, state_prev, X_in, x_ref):
         time.sleep(self.dt)  # closed form inv kin runs much faster than full wbc, slow it down
         Q_base = X_in[3:7]
         Q_ref = np.array([1, 0, 0, 0])
         hconst = self.hconst
-        k = self.k_k
-        kd = self.kd_k
         if state == 'Return':
             self.target[2] = -hconst * 5 / 3
-            k = self.k_k/45
-            kd = self.kd_k/45
+            self.u[0:2] = self.controller.invkin_pos_control(self.target, self.k_k/45, self.kd_k/45)
         elif state == 'HeelStrike':
             self.target[2] = -hconst
-            k = self.k_k
-            kd = self.kd_k
+            self.u[0:2] = self.controller.invkin_pos_control(self.target, self.k_k, self.kd_k)
         elif state == 'Leap':
             self.target[2] = -hconst * 5.5 / 3
-            k = self.k_k
-            kd = self.kd_k
+            self.u[0:2] = self.controller.invkin_pos_control(self.target, self.k_k, self.kd_k)
 
-        self.u[0:2] = self.controller.invkin_pos_control(self.target, k, kd)
         self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp
 
-    def u_ik_static(self, state, state_prev, X_in, x_ref, U_in, grf, s):
+    def u_ik_static(self, state, state_prev, X_in, x_ref):
         Q_base = X_in[3:7]
-        k = self.k_k
-        kd = self.kd_k
         target = self.target
         target[2] = -self.hconst * 5 / 3
         Q_ref = np.array([1, 0, 0, 0])
-        self.u[0:2] = self.controller.invkin_pos_control(self.target, k, kd)
+        self.u[0:2] = self.controller.invkin_pos_control(self.target, self.k_k, self.kd_k)
         self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, z_ref=0)
         return self.u, thetar, setp

@@ -166,5 +166,5 @@ class Sim:
         if useRealTime == 0:
             p.stepSimulation()
 
-        return self.X, qa, dqa, c, tau, f_sens, tau_sens, i, v, grf
+        return self.X, qa, dqa, c, tau, i, v, grf
 

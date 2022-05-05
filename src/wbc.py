@@ -68,7 +68,7 @@ class Control:
     def qp_f_control(self, force):
         # force = utils.Z(self.Q, force)  # rotate the force from world to body frame
         r_dd_des = force / self.m
-        u = self.cqp.qpcontrol(r_dd_des)
+        u = self.cqp.qpcontrol(r_dd_des) * self.m
         return -u
 
     def invkin_pos_control(self, target, kp, kd):
