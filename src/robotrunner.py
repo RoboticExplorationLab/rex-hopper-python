@@ -3,12 +3,12 @@ Copyright (C) 2020-2022 Benjamin Bokser
 """
 import simulationbridge
 import statemachine
-import statemachine_s
+import statemachine_m
 import gait
 import plots
 import moment_ctrl
 import mpc_2f
-import mpc_3f
+# import mpc_3f
 import utils
 import spring
 
@@ -18,6 +18,12 @@ from scipy.signal import find_peaks
 from scipy.interpolate import CubicSpline
 
 np.set_printoptions(suppress=True, linewidth=np.nan)
+
+
+def find_nearest(array, value):
+    # https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
+    idx = (np.linalg.norm(array - value, axis=1)).argmin()
+    return array[idx]
 
 
 class Runner:
@@ -54,7 +60,7 @@ class Runner:
         self.n_U = 6
         self.h = 0.3 * scale  # default extended height
         self.X_0 = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([2, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.X_f = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -68,7 +74,7 @@ class Runner:
         self.t_p = 0.8  # 0.8 gait period, seconds
         self.phi_switch = 0.5  # 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
         self.N = 40  # mpc prediction horizon length (mpc steps)
-        self.mpc_dt = 0.02  # mpc sampling time (s), needs to be a factor of N
+        self.mpc_dt = 0.01  # mpc sampling time (s), needs to be a factor of N
         self.mpc_factor = int(self.mpc_dt / self.dt)  # mpc sampling time (timesteps), repeat mpc every x timesteps
         self.N_time = self.N * self.mpc_dt  # mpc horizon time
         self.N_k = int(self.N * self.mpc_factor)  # total mpc prediction horizon length (low-level timesteps)
@@ -87,7 +93,7 @@ class Runner:
                               target=self.target, hconst=self.hconst, t_st=self.t_st, X_f=self.X_f, gain=gain, dt=dt)
 
         if self.ctrl_type == 'mpc':
-            self.state = statemachine_s.Char()
+            self.state = statemachine_m.Char()
         elif self.ctrl_type == 'wbc_raibert':
             self.gaitfn = self.gait.u_raibert
             self.state = statemachine.Char()
@@ -122,7 +128,7 @@ class Runner:
         U = np.zeros(self.n_U)
         U_hist = np.tile(U, (t_run, 1))  # initial conditions
 
-        x_ref, pf_ref = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
+        x_ref, pf_ref, C = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
         '''
         if self.plot == True:
             plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
@@ -165,28 +171,30 @@ class Runner:
             # TODO: Some way to pause gait scheduler in time to wait for contact to catch up?
             s = self.gait_scheduler(t, t0)
 
-            state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
-
             if self.ctrl_type == 'mpc':
+                state = self.state.FSM.execute(s=s, sh=sh)
                 if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
-                    C = self.gait_map(self.N, self.mpc_dt, t, t0)
+                    Ck = self.ref_traj_grab(x_ref=C, k=k)
                     x_refk = self.ref_traj_grab(x_ref=x_ref, k=k)
                     pf_refk = self.ref_traj_grab(x_ref=pf_ref, k=k)
                     x_in = utils.convert(X_traj[k, :])  # convert to mpc states
-                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf=pf_refk, C=C, f_max=self.f_max(), init=init)
+                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf_ref=pf_refk,
+                                           C=Ck, f_max=self.f_max(), init=init)
                     init = False  # after the first mpc run, change init to false
                 mpc_counter += 1
                 U_hist[k, :] = U  # take first timestep
-                self.u = self.gait.u_mpc(state=state, X_in=X_traj[k, :], U_in=U)
+                pf_refn = find_nearest(pf_ref, X_traj[k, 0:3])
+                self.u = self.gait.u_mpc(s=s, X_in=X_traj[k, :], U_in=U, pf_refn=pf_refn)
 
             else:
+                state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
                 self.u, theta_hist[k, :], setp_hist[k, :] = \
                     self.gaitfn(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :])
 
             ft_hist[k] = self.ft_saved
-            grf_hist[k, :] = grf  # ground reaction force
-            f_hist[k, :] = utils.Z(Q_base, U[0:3])  # world frame output force
+            grf_hist[k, :] = grf  # ground reaction force in world frame
+            f_hist[k, :] = utils.Z(utils.Q_inv(Q_base), U[0:3])  # body frame -> world frame output force
             u_hist[k, :] = -self.u * self.a_kt
             tau_hist[k, :] = tau
             dq_hist[k, :] = dqa
@@ -198,8 +206,8 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            if k >= 1000:
-               break
+            # if k >= 1000:
+            #    break
 
         if self.plot == True:
             # plots.thetaplot(t_run, theta_hist, setp_hist, tau_hist, dq_hist)
@@ -218,7 +226,7 @@ class Runner:
 
     def gait_scheduler(self, t, t0):
         phi = np.mod((t - t0) / self.t_p, 1)
-        return phi < self.phi_switch  # TODO: make sure this works
+        return int(phi < self.phi_switch)
 
     def gait_map(self, N, dt, ts, t0):
         # generate vector of scheduled contact states over the mpc's prediction horizon
@@ -271,7 +279,17 @@ class Runner:
                 kf += 1
             pf_ref[k, 0:2] = x_ref[idx_pf[kf], 0:2]
         # np.set_printoptions(threshold=sys.maxsize)
-        return x_ref, pf_ref
+        return x_ref, pf_ref, C
+
+    def contact_update(self, C):
+        """ If contact has been made early or late, shift contact map"""
+    def pf_ref_update(self, C, pf_ref, pf_new, k):
+        """ Update pf_ref with new footstep position """
+        if C()
+        for i in range():
+
+            pf_ref[k, :] = pf_new
+        return pf_ref
 
     def ref_traj_grab(self, x_ref, k):
         # Grab appropriate timesteps of pre-planned trajectory for mpc

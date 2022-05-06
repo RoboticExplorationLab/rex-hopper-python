@@ -23,10 +23,12 @@ class Mpc:
         self.n_x = 12  # number of euler states
         self.n_u = 6
         self.A = np.zeros((self.n_x, self.n_x))
+        self.A[0:3, 6:9] = np.eye(3)
         self.B = np.zeros((self.n_x, self.n_u))
         self.G = np.zeros(self.n_x)
-        self.A[0:3, 6:9] = np.eye(3)
         self.G[8] = -self.g
+        self.G_2 = np.zeros((self.n_x, 1))  # required for 2nd order version
+        self.G_2[8] = -self.g
         self.Ad = np.zeros((self.N, self.n_x, self.n_x))
         self.Bd = np.zeros((self.N, self.n_x, self.n_u))
         # self.Gd = np.zeros((self.n_x, 1))
@@ -38,7 +40,7 @@ class Mpc:
         self.x = cp.Variable((N + 1, self.n_x))
         self.u = cp.Variable((N, self.n_u))
 
-    def mpcontrol(self, x_in, x_ref_in, pf, C, f_max, init):
+    def mpcontrol(self, x_in, x_ref_in, pf_ref, C, f_max, init):
         """
         SQP: since Ak(xk) and Bk(xk) are functions of x, we need to calculate Ak and Bk for each timestep with some x.
         Since we only have x0 when we run the mpc, we need to guess the rest of the xk over the mpc horizon.
@@ -53,7 +55,7 @@ class Mpc:
             x_guess[0, :] = x_in
             x_guess[1:, :] = x_ref_in  # Use ref traj as initial guess?
             # calculate better x_guess based on initial x_guess
-            self.gen_dt_dynamics(x_guess, pf)  # bad initial x
+            self.gen_dt_dynamics(x_guess, pf_ref)  # bad initial x
             cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
             self.solve_qp(cost, constr)
             x_guess = self.x.value
@@ -63,26 +65,24 @@ class Mpc:
             x_guess[-1, :] = self.x.value[-1, :]  # copy last timestep as a dumb approx
 
         # calculate control based on x_guess
-        self.gen_dt_dynamics(x_guess, pf)  # use new x as initial guess
+        self.gen_dt_dynamics(x_guess, pf_ref)  # use new x as initial guess
         cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
         self.solve_qp(cost, constr)
         u = self.u.value
         return u[0, :]
 
-    def gen_dt_dynamics(self, x, pf):
+    def gen_dt_dynamics(self, x, pf_ref):  # 1st order version
         # this formulation keeps f in the body frame
         # for every MPC horizon timestep, build CT A and B matrices and discretize them
         dt = self.t
         rh = self.rh
         Jinv = self.Jinv
         n_x = self.n_x  # number of states
-        # n_u = self.n_u
         A = self.A
         B = self.B
-        # G = self.G
         for k in range(self.N):
             rz_phi = rz(x[k, 5])
-            rf = rh + rz_phi @ (pf[k, :] - x[k, 0:3])  # vector from body CoM to footstep location in body frame
+            rf = rh + rz_phi @ (pf_ref[k, :] - x[k, 0:3])  # vector from body CoM to footstep location in body frame
             rhat = hat(rf)  # keeping it in body frame this time
             J_w_inv = rz_phi @ Jinv @ rz_phi.T  # world frame Jinv
             A[3:6, 9:] = rz_phi
@@ -92,7 +92,36 @@ class Mpc:
             # discretization
             self.Ad[k, :, :] = np.eye(n_x) + A * dt  # forward euler for comp. speed
             self.Bd[k, :, :] = B * dt
+        return None
 
+    def gen_dt_dynamics_2nd(self, x, pf_ref):  # 2nd order version
+        # this formulation keeps f in the body frame
+        # for every MPC horizon timestep, build CT A and B matrices and discretize them
+        dt = self.t
+        rh = self.rh
+        Jinv = self.Jinv
+        n_x = self.n_x  # number of states
+        n_u = self.n_u
+        A = self.A
+        B = self.B
+        G = self.G_2
+        for k in range(self.N):
+            rz_phi = rz(x[k, 5])
+            rf = rh + rz_phi @ (pf_ref[k, :] - x[k, 0:3])  # vector from body CoM to footstep location in body frame
+            rhat = hat(rf)  # keeping it in body frame this time
+            J_w_inv = rz_phi @ Jinv @ rz_phi.T  # world frame Jinv
+            A[3:6, 9:] = rz_phi
+            B[6:9, 0:3] = rz_phi.T / self.m
+            B[9:12, 0:3] = J_w_inv @ rz_phi.T @ rhat  # here is where you convert to world frame
+            B[9:12, 3:] = J_w_inv @ rz_phi.T
+            # discretization
+            A_bar = np.hstack((A, B, G))
+            A_bar.resize((n_x + n_u + 1, n_x + n_u + 1))
+            I_bar = np.eye(n_x + n_u + 1)
+            M = I_bar + A_bar * dt + 0.5 * (dt ** 2) * A_bar @ A_bar
+            self.Ad[k, :, :] = M[0:n_x, 0:n_x]
+            self.Bd[k, :, :] = M[0:n_x, n_x:n_x + n_u]
+            self.Gd = M[0:n_x, -1]
         return None
 
     def build_qp(self, x_in, x_ref, Ad, Bd, Gd, C):
@@ -149,7 +178,6 @@ class Mpc:
 
         constr += [x[0, :] == x_in]  # initial condition
         # constr += [x[-1, :] == x_ref[-1, :]]  # final condition
-
         return cost, constr
 
     def solve_qp(self, cost, constr):

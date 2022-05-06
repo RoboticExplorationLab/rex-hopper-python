@@ -40,21 +40,22 @@ class Gait:
         self.X_f = X_f
         self.u = np.zeros(self.n_a)
 
-    def u_mpc(self, state, X_in, U_in):
+    def u_mpc(self, s, X_in, U_in, pf_refn):
         # mpc-based hopping
         Q_base = X_in[3:7]
-        target = self.target
-        hconst = self.hconst
         # z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
         # Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
         # rz_psi = utils.rz(utils.quat2euler(Q_base)[2])
-        if state == 'Flight':
-            target[0] = 0.
-            target[2] = -hconst * 5.5 / 3  # brace for impact
-            self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_base, target))
+        if s == 0:
+            pfw_ref = pf_refn - X_in[0:3]  # vec from CoM to footstep ref in world frame
+            pfb_ref = utils.Z(Q_base, pfw_ref)  # vec from CoM to footstep ref in body frame
+            self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
+            # self.target[2] = -self.hconst * 2 / 3  # brace for impact
+            # self.u[0:2] = self.controller.wb_pos_control(target=self.target)
             # self.u[0:2] = self.controller.invkin_pos_control(target=utils.Z(Q_z, target), kp=self.k_k, kd=self.kd_k)
-        elif state == 'Stance':
-            self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame
+        elif s == 1:
+            # self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame
+            self.u[0:2] = self.controller.wb_f_control(force=-U_in[0:3])  # no rotation necessary, already in b frame
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])

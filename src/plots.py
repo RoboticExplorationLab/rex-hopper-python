@@ -216,7 +216,7 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref):
     ax.set_zlabel("Z (m)")
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
-    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="x", s=200, color='purple', label='Planned Footsteps')
+    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="x", s=200, color='blue', label='Planned Footsteps')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Reference Trajectory')
     ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
