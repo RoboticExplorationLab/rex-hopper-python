@@ -7,7 +7,8 @@ import statemachine_s
 import gait
 import plots
 import moment_ctrl
-import mpc
+import mpc_2f
+import mpc_3f
 import utils
 import spring
 
@@ -57,10 +58,13 @@ class Runner:
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
+        self.tau_max1 = np.array([-50, 50]).T
+        self.tau_max2 = np.array([50, 50]).T
 
         self.target_init = np.array([0, 0, -self.hconst])
         self.target = self.target_init[:]
 
+        # mpc and planning-related constants
         self.t_p = 0.8  # 0.8 gait period, seconds
         self.phi_switch = 0.5  # 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
         self.N = 40  # mpc prediction horizon length (mpc steps)
@@ -78,7 +82,7 @@ class Runner:
                                               fixed=fixed, spr=spr, record=record, scale=scale,
                                               gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
-        self.mpc = mpc.Mpc(t=self.mpc_dt, N=self.N, m=self.m, g=self.g, mu=self.mu, Jinv=self.Jinv, rh=self.rh)
+        self.mpc = mpc_2f.Mpc(t=self.mpc_dt, N=self.N, m=self.m, g=self.g, mu=self.mu, Jinv=self.Jinv, rh=self.rh)
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
                               target=self.target, hconst=self.hconst, t_st=self.t_st, X_f=self.X_f, gain=gain, dt=dt)
 
@@ -170,7 +174,7 @@ class Runner:
                     x_refk = self.ref_traj_grab(x_ref=x_ref, k=k)
                     pf_refk = self.ref_traj_grab(x_ref=pf_ref, k=k)
                     x_in = utils.convert(X_traj[k, :])  # convert to mpc states
-                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf=pf_refk, C=C, init=init)
+                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf=pf_refk, C=C, f_max=self.f_max(), init=init)
                     init = False  # after the first mpc run, change init to false
                 mpc_counter += 1
                 U_hist[k, :] = U  # take first timestep
@@ -300,3 +304,9 @@ class Runner:
             self.go = True
 
         return c
+
+    def f_max(self):
+        jac_inv = np.linalg.pinv(self.leg.gen_jacA())
+        f_max1 = np.absolute(self.tau_max1 @ jac_inv)  # max output force at default pose
+        f_max2 = np.absolute(self.tau_max2 @ jac_inv)  # max output force at default pose
+        return np.maximum(f_max1, f_max2)

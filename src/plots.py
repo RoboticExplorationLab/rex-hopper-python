@@ -94,8 +94,8 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     fig, axs = plt.subplots(4, sharex='all')
     plt.xlabel("Timesteps")
 
-    axs[0].plot(range(total), grf_hist[:, 0], color='b', label="Actual GRF")
-    axs[0].plot(range(total), f_hist[:, 0], color='r', label="Force Ref")
+    axs[0].plot(range(total), grf_hist[:, 0], color='r', label="Actual GRF")
+    axs[0].plot(range(total), f_hist[:, 0], color='b', label="Force Ref")
     axs[0].set_title('X Ground Reaction Force')
     axs[0].set_ylabel("Force, N")
     axs[0].set_ylim(-300, 300)
@@ -116,8 +116,8 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels, loc='upper center')
 
-    axs[3].plot(range(total), s_hist[:, 0], color='b', lw='2', ls="--", label='Scheduled')
-    axs[3].plot(range(total), s_hist[:, 1], color='r', lw='1', ls="-", label='Actual')
+    axs[3].plot(range(total), s_hist[:, 0], color='purple', lw='2', ls="--", label='Scheduled')
+    axs[3].plot(range(total), s_hist[:, 1], color='orange', lw='1', ls="-", label='Actual')
     axs[3].set_title('Scheduled Contact')
     axs[3].set_ylabel("True/False")
     axs[3].legend(loc="upper left")

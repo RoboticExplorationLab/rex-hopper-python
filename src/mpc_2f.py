@@ -17,32 +17,35 @@ class Mpc:
         self.mu = mu
         self.Jinv = Jinv
         self.rh = rh
+        self.f_max = None  # initialize max forces
+        self.f_min = None  # initialize min forces
+
         self.n_x = 12  # number of euler states
         self.n_u = 6
         self.A = np.zeros((self.n_x, self.n_x))
         self.B = np.zeros((self.n_x, self.n_u))
         self.G = np.zeros(self.n_x)
         self.A[0:3, 6:9] = np.eye(3)
-        self.B[6:9, 0:3] = np.eye(3) / self.m
         self.G[8] = -self.g
         self.Ad = np.zeros((self.N, self.n_x, self.n_x))
         self.Bd = np.zeros((self.N, self.n_x, self.n_u))
         # self.Gd = np.zeros((self.n_x, 1))
         self.Gd = self.G * t  # doesn't change, doesn't need updating per timestep
         self.Q = np.eye(self.n_x)
-        np.fill_diagonal(self.Q, [5., 5., 2., 1., 1., 50., 1., 1., 1., 10., 10., 10.])
+        np.fill_diagonal(self.Q, [10., 10., 2., 1., 1., 50., 1., 1., 1., 10., 10., 10.])
         self.R = np.eye(self.n_u)
         np.fill_diagonal(self.R, [0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
         self.x = cp.Variable((N + 1, self.n_x))
         self.u = cp.Variable((N, self.n_u))
 
-    def mpcontrol(self, x_in, x_ref_in, pf, C, init):
+    def mpcontrol(self, x_in, x_ref_in, pf, C, f_max, init):
         """
         SQP: since Ak(xk) and Bk(xk) are functions of x, we need to calculate Ak and Bk for each timestep with some x.
         Since we only have x0 when we run the mpc, we need to guess the rest of the xk over the mpc horizon.
         An easy way guess x is to use the x generated from the previous MPC run and time shift it.
         """
         # print(x_ref_in[0, :] - x_in)
+        self.f_max = f_max  # update f_max
         N = self.N
         x_guess = np.zeros((N+1, self.n_x))
         if init is True:
@@ -67,6 +70,7 @@ class Mpc:
         return u[0, :]
 
     def gen_dt_dynamics(self, x, pf):
+        # this formulation keeps f in the body frame
         # for every MPC horizon timestep, build CT A and B matrices and discretize them
         dt = self.t
         rh = self.rh
@@ -79,10 +83,11 @@ class Mpc:
         for k in range(self.N):
             rz_phi = rz(x[k, 5])
             rf = rh + rz_phi @ (pf[k, :] - x[k, 0:3])  # vector from body CoM to footstep location in body frame
-            rhat = hat(rz_phi.T @ rf)  # world frame vector from CoM to foot position
+            rhat = hat(rf)  # keeping it in body frame this time
             J_w_inv = rz_phi @ Jinv @ rz_phi.T  # world frame Jinv
             A[3:6, 9:] = rz_phi
-            B[9:12, 0:3] = J_w_inv @ rhat
+            B[6:9, 0:3] = rz_phi.T / self.m
+            B[9:12, 0:3] = J_w_inv @ rz_phi.T @ rhat  # here is where you convert to world frame
             B[9:12, 3:] = J_w_inv @ rz_phi.T
             # discretization
             self.Ad[k, :, :] = np.eye(n_x) + A * dt  # forward euler for comp. speed
@@ -123,13 +128,13 @@ class Mpc:
                        tauy >= -7.78,
                        tauz <= 4,
                        tauz >= -4]
-
+            constr += [fy == 0]  # body frame y is always zero
+            
             if C[k] == 0:  # even
                 u_ref[2] = 0
                 cost += cp.quad_form(x[k + 1, :] - x_ref[k, :], Q * kf) + cp.quad_form(u[k, :] - u_ref, R * kuf)
                 constr += [x[k + 1, :] == Ak @ x[k, :] + Bk @ u[k, :] + Gd,
                            0 == fx,
-                           0 == fy,
                            0 == fz]
             else:  # odd
                 u_ref[2] = m * g * 2
@@ -137,10 +142,8 @@ class Mpc:
                 constr += [x[k + 1, :] == Ak @ x[k, :] + Bk @ u[k, :] + Gd,
                            0 >= fx - mu * fz,
                            0 >= -fx - mu * fz,
-                           0 >= fy - mu * fz,
-                           0 >= -fy - mu * fz,
                            fz >= 0,
-                           fz <= m * g * 4]  #,  # TODO: Calculate max vertical force
+                           fz <= self.f_max[2]]
                            # z >= 0.1,
                            # z <= 3]
 

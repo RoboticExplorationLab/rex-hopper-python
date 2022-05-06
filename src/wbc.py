@@ -50,10 +50,10 @@ class Control:
         leg = self.leg
         Ja = leg.gen_jacA()  # 3x2
         # force = utils.Z(self.Q, force)  # rotate the force from world to body frame
-        r_dd_des = force / self.m
-        Mx = leg.gen_Mx()
-        fx = Mx @ r_dd_des
-        u = (Ja.T @ fx).flatten()
+        # r_dd_des = force / self.m
+        # Mx = leg.gen_Mx()
+        # fx = Mx @ r_dd_des
+        u = (Ja.T @ force).flatten()
         return -u
 
     def qp_pos_control(self, target):
@@ -66,6 +66,7 @@ class Control:
         return -u
 
     def qp_f_control(self, force):
+        # TODO: THIS IS WRONG!!! FIX THIS
         # force = utils.Z(self.Q, force)  # rotate the force from world to body frame
         r_dd_des = force / self.m
         u = self.cqp.qpcontrol(r_dd_des)  # * self.m

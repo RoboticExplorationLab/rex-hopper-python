@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("model", help="choose the robot model",
                     choices=['design_rw', 'design_rw_alt'], type=str)
-parser.add_argument("ctrl", help="'mpc, wbc_raibert, wbc_vert, wbc_static, ik_vert, or ik_static",
+parser.add_argument("ctrl", help="mpc, wbc_raibert, wbc_vert, wbc_static, ik_vert, or ik_static",
                     choices=['mpc', 'wbc_raibert', 'wbc_vert', 'wbc_static', 'ik_vert', 'ik_static'],
                     type=str)
 parser.add_argument("--plot", help="whether or not you would like to plot results", action="store_true")

@@ -45,17 +45,16 @@ class Gait:
         Q_base = X_in[3:7]
         target = self.target
         hconst = self.hconst
-        z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
-        Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
+        # z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
+        # Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
         # rz_psi = utils.rz(utils.quat2euler(Q_base)[2])
         if state == 'Flight':
-            target[0] = 0.1
+            target[0] = 0.
             target[2] = -hconst * 5.5 / 3  # brace for impact
-            self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_z, target))
+            self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_base, target))
             # self.u[0:2] = self.controller.invkin_pos_control(target=utils.Z(Q_z, target), kp=self.k_k, kd=self.kd_k)
         elif state == 'Stance':
-            force = utils.Z(Q_z, -U_in[0:3])  # rotate from world frame to body frame
-            self.u[0:2] = self.controller.qp_f_control(force=force) * 56
+            self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
