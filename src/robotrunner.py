@@ -22,8 +22,8 @@ np.set_printoptions(suppress=True, linewidth=np.nan)
 
 def find_nearest(array, value):
     # https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
-    idx = (np.linalg.norm(array - value, axis=1)).argmin()
-    return array[idx]
+    i = (np.linalg.norm(array - value, axis=1)).argmin()
+    return array[i]
 
 
 class Runner:
@@ -79,7 +79,11 @@ class Runner:
         self.N_time = self.N * self.mpc_dt  # mpc horizon time
         self.N_k = int(self.N * self.mpc_factor)  # total mpc prediction horizon length (low-level timesteps)
         self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
-        self.t_st = self.t_p * self.phi_switch  # time spent stance
+        self.t_st = self.t_p * self.phi_switch  # time spent in stance
+        self.Nc = self.t_st / self.dt  # number of timesteps spent in contact
+        self.n_idx = None
+        self.kf_ref = None
+        self.pf_list = None
 
         # class initializations
         self.spring = spring.Spring(model)
@@ -168,24 +172,28 @@ class Runner:
             pfb = self.leg.position()  # position of the foot in body frame
             pf = X_traj[k, 0:3] + utils.Z(Q_base, pfb)  # position of the foot in world frame
 
-            # TODO: Some way to pause gait scheduler in time to wait for contact to catch up?
-            s = self.gait_scheduler(t, t0)
+            s = C[k]  # self.gait_scheduler(t, t0)
 
             if self.ctrl_type == 'mpc':
                 state = self.state.FSM.execute(s=s, sh=sh)
+                # if (state_prev == "Flight" and state == "Early") or (state_prev == "Late" and state == "Contact"):
+                if sh_prev == 0 and sh == 1:  # if contact has just been made...
+                    C, pf_ref = self.contact_update(C, pf_ref, pf, k)  # update C & pf_ref to reflect new timing
+
                 if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
-                    Ck = self.ref_traj_grab(x_ref=C, k=k)
-                    x_refk = self.ref_traj_grab(x_ref=x_ref, k=k)
-                    pf_refk = self.ref_traj_grab(x_ref=pf_ref, k=k)
+                    Ck = self.ref_traj_grab(ref=C, k=k)
+                    x_refk = self.ref_traj_grab(ref=x_ref, k=k)
+                    pf_refk = self.ref_traj_grab(ref=pf_ref, k=k)
                     x_in = utils.convert(X_traj[k, :])  # convert to mpc states
                     U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf_ref=pf_refk,
                                            C=Ck, f_max=self.f_max(), init=init)
                     init = False  # after the first mpc run, change init to false
+
                 mpc_counter += 1
                 U_hist[k, :] = U  # take first timestep
                 pf_refn = find_nearest(pf_ref, X_traj[k, 0:3])
-                self.u = self.gait.u_mpc(s=s, X_in=X_traj[k, :], U_in=U, pf_refn=pf_refn)
+                self.u = self.gait.u_mpc(sh=sh, X_in=X_traj[k, :], U_in=U, pf_refn=pf_refn)
 
             else:
                 state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
@@ -228,7 +236,7 @@ class Runner:
         phi = np.mod((t - t0) / self.t_p, 1)
         return int(phi < self.phi_switch)
 
-    def gait_map(self, N, dt, ts, t0):
+    def contact_map(self, N, dt, ts, t0):
         # generate vector of scheduled contact states over the mpc's prediction horizon
         C = np.zeros(N)
         for k in range(0, N):
@@ -266,34 +274,48 @@ class Runner:
         x_ref[:, 2] = [x_in[2] + amp + amp * np.sin(2 * np.pi / period * (i * dt) + phi) for i in range(t_ref)]
         x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(t_ref - 1)]  # interpolate linear vel
 
-        C = self.gait_map(t_ref, dt, self.t_start, 0)  # low-level contact map for the entire run
-        idx_pf = find_peaks(-x_ref[:, 2])[0]  # indexes of footstep positions
-        idx_pf = np.hstack((0, idx_pf))  # add initial footstep idx based on first timestep
-        idx_pf = np.hstack((idx_pf, t_ref - 1))  # add final footstep idx based on last timestep
-        n_idx = np.shape(idx_pf)[0]
-
+        C = self.contact_map(t_ref, dt, self.t_start, 0)  # low-level contact map for the entire run
+        idx = find_peaks(-x_ref[:, 2])[0]  # indexes of footstep positions
+        idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
+        idx = np.hstack((idx, t_ref - 1))  # add final footstep idx based on last timestep
+        n_idx = np.shape(idx)[0]
         pf_ref = np.zeros((t_ref, 3))
         kf = 0
+        kf_ref = copy(C)  # store footstep index numbers
+        pf_list = np.zeros((n_idx, 3))
         for k in range(1, t_ref):
             if C[k - 1] == 0 and C[k] == 1 and kf < n_idx:
                 kf += 1
-            pf_ref[k, 0:2] = x_ref[idx_pf[kf], 0:2]
+                pf_list[kf, 0:2] = x_ref[idx[kf], 0:2]  # store reference footsteps here
+            kf_ref[k] = kf
+            pf_ref[k, 0:2] = x_ref[idx[kf], 0:2]  # add reference footsteps to appropriate timesteps
         # np.set_printoptions(threshold=sys.maxsize)
+        self.n_idx = n_idx
+        self.kf_ref = kf_ref
+        self.pf_list = pf_list
         return x_ref, pf_ref, C
 
-    def contact_update(self, C):
-        """ If contact has been made early or late, shift contact map"""
-    def pf_ref_update(self, C, pf_ref, pf_new, k):
-        """ Update pf_ref with new footstep position """
-        if C()
-        for i in range():
+    def contact_update(self, C, pf_ref, pf, k):
+        """ shift contact map and rewrite corresponding pf_ref
+        Use if contact has been made early or was previously late """
+        N = np.shape(C)[0]  # size of contact map
+        C[k:] = self.contact_map(N=(N-k), dt=self.dt, ts=0, t0=0)  # just rewrite it assuming contact starts now
+        # now rewrite pf_ref
+        kf = 0
+        kf_cur = self.kf_ref[k]  # get footstep index for the current timestep
+        for i in range(1, N):  # update kf
+            if C[i - 1] == 0 and C[i] == 1 and kf < self.n_idx:
+                kf += 1
+            if kf == kf_cur:
+                pf_ref[i, 0:2] = pf
+            else:
+                pf_ref[i, 0:2] = self.pf_list[kf]
 
-            pf_ref[k, :] = pf_new
-        return pf_ref
+        return C, pf_ref
 
-    def ref_traj_grab(self, x_ref, k):
+    def ref_traj_grab(self, ref, k):
         # Grab appropriate timesteps of pre-planned trajectory for mpc
-        return x_ref[k:(k + self.N_k):self.mpc_factor, :]  # change to mpc-level timesteps
+        return ref[k:(k + self.N_k):self.mpc_factor, :]  # change to mpc-level timesteps
 
     def ft_check(self, sh, sh_prev, t):
         # flight time recorder
