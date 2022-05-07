@@ -9,6 +9,7 @@ import plots
 import moment_ctrl
 import mpc_2f
 # import mpc_3f
+import sys
 import utils
 import spring
 
@@ -133,13 +134,13 @@ class Runner:
         U_hist = np.tile(U, (t_run, 1))  # initial conditions
 
         x_ref, pf_ref, C = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
-        '''
+        pf_ref_0 = copy(pf_ref)  # original unmodified pf_ref
         if self.plot == True:
-            plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3],
-                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])'''
+            plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3], pf_hist=np.zeros((t_run, 3))[::mpc_factor, :],
+                                  ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
         init = True
         state_prev = str("init")
-        s, sh_prev = 0, 0
+        s, sh_prev = 1, 1
         c_prev = False
         u_hist = np.zeros((t_run, n_a))  # gait torque command output
         tau_hist = np.zeros((t_run, n_a))  # torque commands after actuator
@@ -177,12 +178,12 @@ class Runner:
             if self.ctrl_type == 'mpc':
                 state = self.state.FSM.execute(s=s, sh=sh)
                 # if (state_prev == "Flight" and state == "Early") or (state_prev == "Late" and state == "Contact"):
-                if sh_prev == 0 and sh == 1:  # if contact has just been made...
+                if sh_prev == 0 and sh == 1 and k > 10:  # if contact has just been made...
                     C, pf_ref = self.contact_update(C, pf_ref, pf, k)  # update C & pf_ref to reflect new timing
 
                 if mpc_counter >= mpc_factor:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
-                    Ck = self.ref_traj_grab(ref=C, k=k)
+                    Ck = C[k:(k + self.N_k):self.mpc_factor]  # 1D ref_traj_grab
                     x_refk = self.ref_traj_grab(ref=x_ref, k=k)
                     pf_refk = self.ref_traj_grab(ref=pf_ref, k=k)
                     x_in = utils.convert(X_traj[k, :])  # convert to mpc states
@@ -192,8 +193,9 @@ class Runner:
 
                 mpc_counter += 1
                 U_hist[k, :] = U  # take first timestep
-                pf_refn = find_nearest(pf_ref, X_traj[k, 0:3])
-                self.u = self.gait.u_mpc(sh=sh, X_in=X_traj[k, :], U_in=U, pf_refn=pf_refn)
+                # pf_refn = find_nearest(pf_ref, X_traj[k, 0:3])
+                # self.u = self.gait.u_mpc(sh=sh, X_in=X_traj[k, :], U_in=U, pf_refn=pf_refn)
+                self.u = self.gait.u_mpc(sh=sh, X_in=X_traj[k, :], U_in=U, pf_refk=pf_ref[k, :])
 
             else:
                 state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
@@ -223,7 +225,8 @@ class Runner:
             # plots.dqplot(self.model, t_run, n_a, dq_hist)
             plots.f_plot(t_run, f_hist=f_hist, grf_hist=grf_hist, s_hist=s_hist)
             plots.posplot_3d(p_hist=X_traj[::mpc_factor, 0:3], pf_hist=pf_hist[::mpc_factor, :],
-                             ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
+                             ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :],
+                             pf_ref0=pf_ref_0[::mpc_factor, :])
             plots.posplot_animate(p_hist=X_traj[::mpc_factor, 0:3], pf_hist=pf_hist[::mpc_factor, :],
                                   ref_traj=x_ref[::mpc_factor, 0:3], pf_ref=pf_ref[::mpc_factor, :])
             # plots.currentplot(t_run, n_a, a_hist)
@@ -284,15 +287,16 @@ class Runner:
         kf_ref = copy(C)  # store footstep index numbers
         pf_list = np.zeros((n_idx, 3))
         for k in range(1, t_ref):
-            if C[k - 1] == 0 and C[k] == 1 and kf < n_idx:
+            if C[k - 1] == 1 and C[k] == 0 and kf < n_idx:
                 kf += 1
                 pf_list[kf, 0:2] = x_ref[idx[kf], 0:2]  # store reference footsteps here
             kf_ref[k] = kf
             pf_ref[k, 0:2] = x_ref[idx[kf], 0:2]  # add reference footsteps to appropriate timesteps
-        # np.set_printoptions(threshold=sys.maxsize)
         self.n_idx = n_idx
         self.kf_ref = kf_ref
         self.pf_list = pf_list
+        # np.set_printoptions(threshold=sys.maxsize)
+        print("pf_list = ", pf_list)
         return x_ref, pf_ref, C
 
     def contact_update(self, C, pf_ref, pf, k):
@@ -301,20 +305,19 @@ class Runner:
         N = np.shape(C)[0]  # size of contact map
         C[k:] = self.contact_map(N=(N-k), dt=self.dt, ts=0, t0=0)  # just rewrite it assuming contact starts now
         # now rewrite pf_ref
-        kf = 0
-        kf_cur = self.kf_ref[k]  # get footstep index for the current timestep
-        for i in range(1, N):  # update kf
-            if C[i - 1] == 0 and C[i] == 1 and kf < self.n_idx:
+        # kf = 0
+        kf_cur = int(self.kf_ref[k])
+        kf = copy(kf_cur)  # get footstep index for the current timestep
+        self.pf_list[kf, 0:2] = pf[0:2]  # change footstep list
+        for i in range(k, N):  # regen pf_ref
+            if C[i - 1] == 1 and C[i] == 0 and kf < (self.n_idx-1):
                 kf += 1
-            if kf == kf_cur:
-                pf_ref[i, 0:2] = pf
-            else:
-                pf_ref[i, 0:2] = self.pf_list[kf]
-
+            pf_ref[i, :] = self.pf_list[kf, :]
+        print("pf_list new = ", self.pf_list)
+        # print("pf_ref new = ", pf_ref)
         return C, pf_ref
 
-    def ref_traj_grab(self, ref, k):
-        # Grab appropriate timesteps of pre-planned trajectory for mpc
+    def ref_traj_grab(self, ref, k):  # Grab appropriate timesteps of pre-planned trajectory for mpc
         return ref[k:(k + self.N_k):self.mpc_factor, :]  # change to mpc-level timesteps
 
     def ft_check(self, sh, sh_prev, t):
