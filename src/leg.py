@@ -267,4 +267,4 @@ class Leg:
         # self.d2q_previous = self.d2q
 
         # Rotate gravity vector to match body orientation
-        self.g = utils.Z(Q_base, self.g_init)  # TODO: Check
+        self.g = utils.Z(utils.Q_inv(Q_base), self.g_init)  # world frame to body frame

@@ -171,6 +171,7 @@ class Runner:
             self.ft_check(sh, sh_prev, t)  # flight time recorder
 
             pfb = self.leg.position()  # position of the foot in body frame
+            # pf = X_traj[k, 0:3] + utils.Z(utils.Q_inv(Q_base), pfb)  # position of the foot in world frame
             pf = X_traj[k, 0:3] + utils.Z(Q_base, pfb)  # position of the foot in world frame
 
             s = C[k]  # self.gait_scheduler(t, t0)
@@ -204,7 +205,7 @@ class Runner:
 
             ft_hist[k] = self.ft_saved
             grf_hist[k, :] = grf  # ground reaction force in world frame
-            f_hist[k, :] = utils.Z(utils.Q_inv(Q_base), U[0:3])  # body frame -> world frame output force
+            f_hist[k, :] = utils.Z(Q_base, U[0:3])  # body frame -> world frame output force
             u_hist[k, :] = -self.u * self.a_kt
             tau_hist[k, :] = tau
             dq_hist[k, :] = dqa

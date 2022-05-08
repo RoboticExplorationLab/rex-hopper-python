@@ -52,7 +52,7 @@ class Gait:
                 self.u[0:2] = self.controller.wb_pos_control(target=self.target)
             else:
                 pfw_ref = pf_refk - X_in[0:3]  # vec from CoM to footstep ref in world frame
-                pfb_ref = utils.Z(Q_base, pfw_ref)  # vec from CoM to footstep ref in body frame
+                pfb_ref = utils.Z(utils.Q_inv(Q_base), pfw_ref)  # world frame -> body frame
                 pfb_ref = pfb_ref/np.linalg.norm(pfb_ref) * self.hconst * 4.5 / 3
                 self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
             # self.u[0:2] = self.controller.invkin_pos_control(target=pfb_ref, kp=self.k_k, kd=self.kd_k)
@@ -73,8 +73,9 @@ class Gait:
         z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
         # z = utils.quat2euler(Q_base)[2]
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
-        pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z, p), setp=utils.Z(Q_z, p_ref))  # adjust for yaw
-        pdot_ref = utils.Z(utils.Q_inv(Q_z), pdot_ref)  # rotate back into world frame
+        Q_z_inv = utils.Q_inv(Q_z)
+        pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z_inv, p), setp=utils.Z(Q_z_inv, p_ref))  # adjust for yaw
+        pdot_ref = utils.Z(Q_z, pdot_ref)  # world frame -> body frame
         if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
             v_ref = p_ref - p
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
