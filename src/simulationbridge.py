@@ -83,10 +83,6 @@ class Sim:
         # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
         p.changeDynamics(self.bot, self.c_link, lateralFriction=3)  # , restitution=0.01)
 
-        # Record Video in real time
-        if self.record_rt is True:
-            p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
-
         for i in range(self.numJoints):
             # Disable the default velocity/position motor:
             # force=1 allows us to easily mimic joint friction rather than disabling
@@ -100,7 +96,15 @@ class Sim:
         self.init = True
         self.Q_calib = np.array([1, 0, 0, 0])
 
+        self.i = 0
+
     def sim_run(self, u):
+        # Record Video in real time
+        self.i += 1
+        if self.record_rt is True and self.i == 10:  # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
+            self.i = 0
+            img = p.getCameraImage(640, 480, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+
         q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
         dq_ = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 

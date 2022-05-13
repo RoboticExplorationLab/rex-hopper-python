@@ -21,12 +21,6 @@ from scipy.interpolate import CubicSpline
 np.set_printoptions(suppress=True, linewidth=np.nan)
 
 
-def find_nearest(array, value):
-    # https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
-    i = (np.linalg.norm(array - value, axis=1)).argmin()
-    return array[i]
-
-
 class Runner:
 
     def __init__(self, model, dt=1e-3, ctrl_type='ik_vert', plot=False, fixed=False, spr=False,
@@ -54,14 +48,14 @@ class Runner:
         self.mu = model["mu"]  # friction
         self.a_kt = model["a_kt"]
 
-        self.spline = False
+        self.ref_curve = False
 
         # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
         self.n_X = 13
         self.n_U = 6
         self.h = 0.3 * scale  # default extended height
         self.X_0 = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.X_f = np.array([1, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -85,7 +79,7 @@ class Runner:
         self.n_idx = None
         self.kf_ref = None
         self.pf_list = None
-
+        self.z_ref = None
         # class initializations
         self.spring = spring.Spring(model)
         self.controller = controller_class.Control(leg=self.leg, m=self.m, dt=dt, gain=gain)
@@ -194,8 +188,6 @@ class Runner:
 
                 mpc_counter += 1
                 U_hist[k, :] = U  # take first timestep
-                # pf_refn = find_nearest(pf_ref, X_traj[k, 0:3])
-                # self.u = self.gait.u_mpc(sh=sh, X_in=X_traj[k, :], U_in=U, pf_refn=pf_refn)
                 self.u = self.gait.u_mpc(sh=sh, X_in=X_traj[k, :], U_in=U, pf_refk=pf_ref[k, :])
 
             else:
@@ -257,8 +249,8 @@ class Runner:
         t_traj = int(t_run - t_sit)  # timesteps for trajectory not including sit time
         t_ref = t_run + N_k  # timesteps for reference (extra for MPC)
         x_ref = np.linspace(start=x_in, stop=xf, num=t_traj)  # interpolate positions
-
-        if self.spline is True:
+        C = self.contact_map(t_ref, dt, self.t_start, 0)  # low-level contact map for the entire run
+        if self.ref_curve is True:
             spline_t = np.array([0, t_traj * 0.3, t_traj])
             spline_y = np.array([x_in[1], xf[1] * 0.7, xf[1]])
             csy = CubicSpline(spline_t, spline_y)
@@ -275,11 +267,19 @@ class Runner:
         amp = self.t_p / 4  # amplitude
         phi = np.pi * 3 / 2  # np.pi*3/2  # phase offset
         # make height sine wave
-        x_ref[:, 2] = [x_in[2] + amp + amp * np.sin(2 * np.pi / period * (i * dt) + phi) for i in range(t_ref)]
+        sine_wave = np.array([x_in[2] + amp + amp * np.sin(2 * np.pi / period * (i * dt) + phi) for i in range(t_ref)])
+        peaks = find_peaks(sine_wave)[0]
+        troughs = find_peaks(-sine_wave)[0]
+        spline_k = np.sort(np.hstack((peaks, troughs)))
+        spline_k = np.hstack((0, spline_k))  # add initial footstep idx based on first timestep
+        spline_k = np.hstack((spline_k, t_ref - 1))  # add final footstep idx based on last timestep
+        spline_z = sine_wave[spline_k]
+        spline_sin = CubicSpline(spline_k, spline_z, bc_type='clamped')  # generate cubic spline
+        x_ref[:, 2] = [spline_sin(k) for k in range(t_ref)]  # create z-spline
+
         x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(t_ref - 1)]  # interpolate linear vel
 
-        C = self.contact_map(t_ref, dt, self.t_start, 0)  # low-level contact map for the entire run
-        idx = find_peaks(-x_ref[:, 2])[0]  # indexes of footstep positions
+        idx = troughs - 120  # indexes of footstep positions
         idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
         idx = np.hstack((idx, t_ref - 1))  # add final footstep idx based on last timestep
         n_idx = np.shape(idx)[0]
@@ -297,7 +297,6 @@ class Runner:
         self.kf_ref = kf_ref
         self.pf_list = pf_list
         # np.set_printoptions(threshold=sys.maxsize)
-        print("pf_list = ", pf_list)
         return x_ref, pf_ref, C
 
     def contact_update(self, C, pf_ref, pf, k):
@@ -314,8 +313,7 @@ class Runner:
             if C[i - 1] == 1 and C[i] == 0 and kf < (self.n_idx-1):
                 kf += 1
             pf_ref[i, :] = self.pf_list[kf, :]
-        print("pf_list new = ", self.pf_list)
-        # print("pf_ref new = ", pf_ref)
+        # print("pf_list new = ", self.pf_list)
         return C, pf_ref
 
     def ref_traj_grab(self, ref, k):  # Grab appropriate timesteps of pre-planned trajectory for mpc
