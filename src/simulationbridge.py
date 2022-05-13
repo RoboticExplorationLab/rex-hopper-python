@@ -5,7 +5,9 @@ Copyright (C) 2020 Benjamin Bokser
 import numpy as np
 import pybullet as p
 import pybullet_data
+from PIL import Image
 import os
+
 import actuator
 import actuator_param
 from utils import L, Z, Q_inv
@@ -53,10 +55,10 @@ class Sim:
         robotStartOrientation = p.getQuaternionFromEuler([0, 0, 0])
 
         curdir = os.getcwd()
-        path_parent = os.path.dirname(curdir)
+        self.path_parent = os.path.dirname(curdir)
         model_path = model["urdfpath"]
         # self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7 * scale],
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), X_0[0:3],  # 0.31
+        self.bot = p.loadURDF(os.path.join(self.path_parent, model_path), X_0[0:3],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
         # p.resetDebugVisualizerCamera(cameraDistance=1.5, cameraYaw=45, cameraPitch=-45, cameraTargetPosition=[0,0,0])
@@ -95,16 +97,10 @@ class Sim:
         self.X = np.zeros(13)  # initialize state
         self.init = True
         self.Q_calib = np.array([1, 0, 0, 0])
-
         self.i = 0
+        self.ii = 0
 
     def sim_run(self, u):
-        # Record Video in real time
-        self.i += 1
-        if self.record_rt is True and self.i == 10:  # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
-            self.i = 0
-            img = p.getCameraImage(640, 480, renderer=p.ER_BULLET_HARDWARE_OPENGL)
-
         q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
         dq_ = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
 
@@ -130,8 +126,7 @@ class Sim:
         torque = self.S @ tau
 
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
-
-        Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
+        p_base, Q_base_p = p.getBasePositionAndOrientation(self.bot)
         Q_base = np.roll(Q_base_p, 1)  # pybullet gives quaternions in xyzw format instead of wxyz, shift values.
         if self.init is True:
             """
@@ -144,7 +139,8 @@ class Sim:
             self.init = False
         Q_base = L(self.Q_calib).T @ Q_base  # correct Q_base by rotating it by Q_calib
         velocities = p.getBaseVelocity(self.bot)
-        self.X[0:3] = np.array(p.getBasePositionAndOrientation(self.bot)[0])
+
+        self.X[0:3] = p_base
         self.X[3:7] = Q_base
         self.X[7:10] = Z(Q_inv(Q_base), velocities[0])  # linear vel world -> body frame
         self.X[10:] = Z(Q_inv(Q_base), velocities[1])  # angular vel world -> body frame
@@ -166,6 +162,17 @@ class Sim:
             fric_x = fric2 * fric2_dir
             grf = (grf_z - fric_y - fric_x).flatten()
             c = True  # Detect contact with ground plane
+
+        # Record Video in real time
+        self.ii += 1
+        if self.record_rt is True and self.ii == 24:  # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
+            self.ii = 0
+            self.i += 1
+            # fix camera onto model
+            p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-20, cameraTargetPosition=p_base)
+            width, height, rgbImg, depthImg, segImg = p.getCameraImage(640, 480, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+            im = Image.fromarray(rgbImg)
+            im.save(self.path_parent + '/imgs/' + str(self.i).zfill(3) + ".png")
 
         if useRealTime == 0:
             p.stepSimulation()
