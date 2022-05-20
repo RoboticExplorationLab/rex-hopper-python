@@ -55,7 +55,7 @@ class Runner:
         self.n_U = 6
         self.h = 0.3 * scale  # default extended height
         self.X_0 = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([1, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.X_f = np.array([2.5, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -114,6 +114,7 @@ class Runner:
         self.k_c = -100
         self.c_s = 0
         self.go = True
+        self.ref_spline = None
 
     def run(self):
         n_a = self.n_a
@@ -270,16 +271,19 @@ class Runner:
         sine_wave = np.array([x_in[2] + amp + amp * np.sin(2 * np.pi / period * (i * dt) + phi) for i in range(t_ref)])
         peaks = find_peaks(sine_wave)[0]
         troughs = find_peaks(-sine_wave)[0]
-        spline_k = np.sort(np.hstack((peaks, troughs)))
+        spline_k = np.sort(np.hstack((peaks, troughs)))  # independent variable
         spline_k = np.hstack((0, spline_k))  # add initial footstep idx based on first timestep
         spline_k = np.hstack((spline_k, t_ref - 1))  # add final footstep idx based on last timestep
-        spline_z = sine_wave[spline_k]
-        spline_sin = CubicSpline(spline_k, spline_z, bc_type='clamped')  # generate cubic spline
-        x_ref[:, 2] = [spline_sin(k) for k in range(t_ref)]  # create z-spline
+        n_k = np.shape(spline_k)[0]
+        spline_i = np.zeros((n_k, 3))
+        spline_i[:, 0:2] = x_ref[spline_k, 0:2]
+        spline_i[:, 2] = sine_wave[spline_k]  # dependent variable
+        ref_spline = CubicSpline(spline_k, spline_i, bc_type='clamped')  # generate cubic spline
+        x_ref[:, 0:3] = [ref_spline(k) for k in range(t_ref)]  # create z-spline
 
         x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(t_ref - 1)]  # interpolate linear vel
 
-        idx = troughs - 120  # indexes of footstep positions
+        idx = troughs - 115  # indices of footstep positions
         idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
         idx = np.hstack((idx, t_ref - 1))  # add final footstep idx based on last timestep
         n_idx = np.shape(idx)[0]
@@ -304,8 +308,6 @@ class Runner:
         Use if contact has been made early or was previously late """
         N = np.shape(C)[0]  # size of contact map
         C[k:] = self.contact_map(N=(N-k), dt=self.dt, ts=0, t0=0)  # just rewrite it assuming contact starts now
-        # now rewrite pf_ref
-        # kf = 0
         kf_cur = int(self.kf_ref[k])
         kf = copy(kf_cur)  # get footstep index for the current timestep
         self.pf_list[kf, 0:2] = pf[0:2]  # change footstep list

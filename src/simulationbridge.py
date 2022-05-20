@@ -172,7 +172,10 @@ class Sim:
             p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-20, cameraTargetPosition=p_base)
             width, height, rgbImg, depthImg, segImg = p.getCameraImage(640, 480, renderer=p.ER_BULLET_HARDWARE_OPENGL)
             im = Image.fromarray(rgbImg)
-            im.save(self.path_parent + '/imgs/' + str(self.i).zfill(3) + ".png")
+            im.save(self.path_parent + '/imgs/' + str(self.i).zfill(4) + ".png")
+            """To convert these images to video, run the following command in /imgs:
+            cat *.png | ffmpeg -f image2pipe -i - output.mp4
+            """
 
         if useRealTime == 0:
             p.stepSimulation()
