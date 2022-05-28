@@ -208,12 +208,15 @@ def _set_axes_radius(ax, origin, radius):
     ax.set_zlim3d([z - radius, z + radius])
 
 
-def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0):
+def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0, dist):
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
+    ax.set_xlim3d(0, dist)
+    ax.set_ylim3d(0, dist)
+    ax.set_zlim3d(0, dist)
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref Trajectory')
@@ -249,16 +252,16 @@ def animate_line(N, dataSet1, dataSet2, dataSet3, dataSet4, line, ref, pf, pfr, 
     # ax.view_init(elev=10., azim=N)
 
 
-def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref):
+def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, dist):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
-    ax.set_xlim3d(0, 2)
-    ax.set_ylim3d(0, 2)
-    ax.set_zlim3d(0, 2)
+    ax.set_xlim3d(0, dist)
+    ax.set_ylim3d(0, dist)
+    ax.set_zlim3d(0, dist)
 
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
