@@ -61,7 +61,7 @@ class Runner:
         self.n_U = 6
         self.h = 0.3 * scale  # default extended height
         self.X_0 = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
-        self.X_f = np.array([0, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
+        self.X_f = np.array([1.5, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # desired final state in world frame
 
         self.leg = leg_class.Leg(dt=dt, model=model, g=self.g, recalc=recalc)
         self.m = self.leg.m_total
@@ -217,7 +217,7 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            # if k >= 1000:
+            # if k >= 3579:
             #    break
 
         if self.plot == True:
@@ -279,7 +279,7 @@ class Runner:
         x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(t_ref - 1)]  # interpolate linear vel
 
         C = self.contact_map(t_ref, dt, self.t_start, 0)  # low-level contact map for the entire run
-        idx = find_peaks(-x_ref[:, 2])[0]  # indexes of footstep positions
+        idx = find_peaks(-x_ref[:, 2])[0] - 120  # indexes of footstep positions
         idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
         idx = np.hstack((idx, t_ref - 1))  # add final footstep idx based on last timestep
         n_idx = np.shape(idx)[0]
@@ -297,7 +297,7 @@ class Runner:
         self.kf_ref = kf_ref
         self.pf_list = pf_list
         # np.set_printoptions(threshold=sys.maxsize)
-        print("pf_list = ", pf_list)
+        # print("pf_list = ", pf_list)
         return x_ref, pf_ref, C
 
     def contact_update(self, C, pf_ref, pf, k):

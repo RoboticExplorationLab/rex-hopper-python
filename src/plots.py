@@ -210,19 +210,18 @@ def _set_axes_radius(ax, origin, radius):
 
 def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0):
     ax = plt.axes(projection='3d')
-    ax.set_title('Body Position')
+    # ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref Trajectory')
+    # ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="x", s=200, color='blue', label='Actual Footsteps')
     ax.scatter(pf_ref0[:, 0], pf_ref0[:, 1], pf_ref0[:, 2], marker="x", s=200, color='green', label='Ref Footsteps')
-    ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
-    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="x", s=200, color='blue', label='Planned Footsteps')
+    ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position', zorder=3)
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
-
-    ax.legend()
+    ax.legend(facecolor='white', framealpha=1)
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
     ax.xaxis.set_minor_locator(loc)
