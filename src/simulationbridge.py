@@ -23,16 +23,15 @@ def reaction(numJoints, bot):  # returns joint reaction force
 
 class Sim:
 
-    def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False, spr=False,
+    def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False,
                  record=False, scale=1, gravoff=False, direct=False):
         self.dt = dt
         self.record_rt = record  # record video in real time
-        self.spr = spr
         self.L = model["linklengths"]
         self.model = model["model"]
         self.n_a = model["n_a"]
         self.S = model["S"]
-        self.spring_fn = spring.fn_spring if spr is True else spring.fn_no_spring
+        self.spring_fn = spring.fn_spring
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
