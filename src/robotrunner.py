@@ -68,21 +68,23 @@ class Runner:
         # mpc and planning-related constants
         self.t_p = 0.8  # gait period, seconds
         self.phi_switch = 0.5  # 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-        self.t_st = self.t_p * self.phi_switch  # time (seconds) spent in contact
+        self.t_c = self.t_p * self.phi_switch  # time (seconds) spent in contact
+        self.t_fl = self.t_p * (1 - self.phi_switch)  # time (seconds) spent in flight
         self.N = int(40)  # mpc prediction horizon length (mpc steps)
         self.dt_mpc = 0.01  # mpc sampling time (s), needs to be a factor of N
         self.N_dt = int(self.dt_mpc / self.dt)  # mpc sampling time (low-level timesteps), repeat mpc every x timesteps
         self.N_k = int(self.N * self.N_dt)  # total mpc prediction horizon length (in low-level timesteps)
-        self.N_c = int(self.t_st / self.dt)  # number of low-level timesteps spent in contact
+        self.N_c = int(self.t_c / self.dt)  # number of low-level timesteps spent in contact
+        self.N_f = int(self.t_fl / self.dt)  # number of low-level timesteps spent in flight
         self.t_horizon = self.N * self.dt_mpc  # time (seconds) of mpc horizon
         self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
 
         self.dt_qp = self.t_p * self.phi_switch / 2  # point mass qp sampling time
-        # make this cover 4x as many seconds to avoid being too short
-        self.Np = int(self.t_horizon * 2 / self.dt_qp)  # point mass traj opt prediction horizon length (in qp steps)
-        self.Np_dt = int(self.dt_mpc / self.dt)  # qp sampling time (in low-level timesteps)
+        # avoid being too short
+        self.Np = int((self.t_horizon + 2 * self.t_p) / self.dt_qp)  # traj opt prediction horizon length (in qp steps)
+        self.Np_dt = int(self.dt_qp / self.dt)  # qp sampling time (in low-level timesteps)
         self.Np_k = int(self.Np * self.Np_dt)  # point mass prediction horizon length (in low-level timesteps)
-
+        print("Np = ", self.Np)
         self.kf_ref = None
         self.n_idx = None
         self.pf_list = None
@@ -114,7 +116,7 @@ class Runner:
         self.qp_point = qp_point.Qp(t=self.dt_qp, A=self.Ap, B=self.Bp, G=self.Gp,
                                     N=self.Np, m=self.m, mu=self.mu, g=self.g)
         self.gait = gait.Gait(model=model, moment=self.moment, controller=self.controller, leg=self.leg,
-                              target=self.target, hconst=self.hconst, t_st=self.t_st, X_f=self.X_f, gain=gain, dt=dt)
+                              target=self.target, hconst=self.hconst, t_st=self.t_c, X_f=self.X_f, gain=gain, dt=dt)
 
         if self.ctrl_type == 'mpc':
             self.state = statemachine_m.Char()
@@ -159,7 +161,8 @@ class Runner:
         x_ref0 = copy(x_ref)  # original unmodified x_ref
         if self.plot == True:
             plots.posplot_animate(p_hist=X_traj[::N_dt*10, 0:3], pf_hist=np.zeros((N_run, 3))[::N_dt*10, :],
-                                  ref_traj=x_ref0[::N_dt*10, 0:3], pf_ref=pf_ref[::N_dt*10, :], dist=self.dist)
+                                  ref_traj=x_ref[::N_dt*10, 0:3], pf_ref=pf_ref[::N_dt*10, :],
+                                  ref_traj0=x_ref0[::N_dt*10, 0:3], dist=self.dist)
         init = True
         state_prev = str("init")
         s, sh_prev = 1, 1
@@ -209,8 +212,8 @@ class Runner:
                 if sh_prev == 0 and sh == 1 and k > 10:  # if contact has just been made...
                     C = self.contact_update(C, k)  # update C to reflect new timing
                     # generate new ref traj
-                    x_ref[k:, :], pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref0,
-                                                         C=C, pf_ref=pf_ref, pf=pf)
+                    x_ref[k:(k+self.Np_k), :], pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref0,
+                                                                      C=C, pf_ref=pf_ref, pf=pf)
 
                 if mpc_counter >= N_dt:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
@@ -245,8 +248,9 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            # if k >= 1000:
-            #    break
+
+            if k >= 1000:
+                break
 
         if self.plot == True:
             # plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
@@ -257,7 +261,8 @@ class Runner:
                              ref_traj=x_ref[::N_dt, 0:3], pf_ref=pf_ref[::N_dt, :],
                              pf_ref0=pf_ref0[::N_dt, :], dist=self.dist)
             plots.posplot_animate(p_hist=X_traj[::N_dt, 0:3], pf_hist=pf_hist[::N_dt, :],
-                                  ref_traj=x_ref[::N_dt, 0:3], pf_ref=pf_ref[::N_dt, :], dist=self.dist)
+                                  ref_traj=x_ref[::N_dt, 0:3], pf_ref=pf_ref[::N_dt, :],
+                                  ref_traj0=x_ref0[::N_dt, 0:3], dist=self.dist)
             # plots.currentplot(N_run, n_a, a_hist)
             # plots.voltageplot(N_run, n_a, v_hist)
             # plots.etotalplot(N_run, a_hist, v_hist, dt=self.dt)
@@ -295,7 +300,7 @@ class Runner:
             for k in range(t_traj):
                 x_ref[k, 1] = csy(k)  # create evenly spaced sample points of desired trajectory
                 x_ref[k, 5] = cspsi(k)  # create evenly spaced sample points of desired trajectory
-                # interpolate angular velocity
+            # interpolate angular velocity
             x_ref[:-1, 11] = [(x_ref[i + 1, 11] - x_ref[i, 11]) / dt for i in range(N_run - 1)]
 
         x_ref = np.vstack((x_ref, np.tile(xf, (N_k + t_sit, 1))))  # sit at the goal
@@ -352,7 +357,12 @@ class Runner:
         kf = int(self.kf_ref[k])  # get footstep index for the current timestep
         self.pf_list[kf, 0:2] = pf[0:2]  # update footstep list
         for i in range(k, N):  # regen pf_ref
-            if C[i - 1] == 1 and C[i] == 0 and kf < (self.n_idx - 1):
+            if i <= int(self.N_f / 2):
+                N_hf = 0
+            else:
+                N_hf = int(self.N_f / 2)  # number of timesteps for half of flight phase
+
+            if C[i - 1 - N_hf] == 1 and C[i - N_hf] == 0 and kf < (self.n_idx - 1):  # when flight starts
                 kf += 1
             # self.kf_ref[k] = kf  # update footstep indices
             pf_ref[i, :] = self.pf_list[kf, :]  # add reference footsteps to appropriate timesteps
@@ -401,8 +411,8 @@ class Runner:
         Np_traj = self.Np_k  # + 1
         xp_traj = np.zeros((Np_traj, 6))
         x_ref = np.zeros((Np_traj, 12))
-        f_pred_hist = np.zeros((self.Np+1, 3))
-        p_pred_hist = np.zeros((self.Np+1, 3))
+        f_pred_hist = np.zeros((self.Np + 1, 3))
+        p_pred_hist = np.zeros((self.Np + 1, 3))
 
         p_in = X_in[0:3]
         dp_in = X_in[7:10]
@@ -411,6 +421,8 @@ class Runner:
 
         xp_in = np.hstack((p_in, dp_in))
         xp_ref = np.hstack((p_ref, dp_ref))
+
+        xp_traj[0, :] = xp_in  # init value
 
         xp_refk = xp_ref[k:(k + Np_traj):self.Np_dt, :]
         Cpk = self.Ck_grab(C, k, self.Np, Np_traj, self.Np_dt)  # C[k:(k + Np_traj):self.Np_dt]  # 1D ref_traj_grab
@@ -430,7 +442,7 @@ class Runner:
                 self.pf_list[kf, :] = utils.projection(p_pred_hist[i + 1, :], f_pred_hist[i + 1, :])
                 kf += 1
 
-        for k in range(0, Np_traj):
+        for k in range(0, Np_traj - 1):
             xp_traj[k + 1, :] = self.rk4(xk=xp_traj[k, :], uk=f_hist[k, :])
 
         x_ref[:, 0:3] = xp_traj[:, 0:3]
@@ -438,12 +450,12 @@ class Runner:
 
         pf_ref = self.footstep_update(C, pf_ref, pf, k)  # update pf_ref to reflect new timing & ref traj
 
-        # roll compensation
-        for k in range(0, Np_traj):
-            # find vector b/t x_ref and pf_ref
-            pf_b = x_ref[k, 0:3] - pf_ref[k, 0:3]
-            # get xz plane angle
-            x_ref[k, 0] = np.arctan2(pf_b[2], pf_b[0])  # TODO: Check
+        for k in range(0, Np_traj):  # roll compensation
+            pf_b = x_ref[k, 0:3] - pf_ref[k, 0:3]  # find vector b/t x_ref and pf_ref
+            x_ref[k, 3] = np.arctan2(pf_b[2], pf_b[0])  # get xz plane angle TODO: Check
+
+        # interpolate angular velocity
+        x_ref[:-1, 11] = [(x_ref[i + 1, 11] - x_ref[i, 11]) / self.dt for i in range(Np_traj - 1)]
 
         return x_ref, pf_ref
 
@@ -451,7 +463,7 @@ class Runner:
         # CT dynamics X -> dX
         A = self.Ap
         B = self.Bp
-        G = self.Gp
+        G = self.Gp.flatten()
         X_next = A @ X + B @ U + G
         return X_next
 

@@ -252,7 +252,7 @@ def animate_line(N, dataSet1, dataSet2, dataSet3, dataSet4, line, ref, pf, pfr, 
     # ax.view_init(elev=10., azim=N)
 
 
-def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, dist):
+def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, ref_traj0, dist):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
@@ -265,6 +265,7 @@ def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, dist):
 
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
+    ax.plot(ref_traj0[:, 0], ref_traj0[:, 1], ref_traj0[:, 2], ls='--', c='g', label='Reference Trajectory')
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
     ax.xaxis.set_minor_locator(loc)
@@ -278,7 +279,7 @@ def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, dist):
 
     N = len(p_hist)
     line = ax.scatter(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], lw=2, c='r', label='CoM Position')  # For line plot
-    ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], lw=2, c='g', label='Reference Trajectory')
+    ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], lw=2, c='c', label='Updated Ref Traj')
     pf = ax.scatter(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
     pfr = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='blue', marker='x', s=200, label='Planned Footsteps')
     ax.legend()
