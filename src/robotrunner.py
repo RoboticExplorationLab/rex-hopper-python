@@ -85,6 +85,7 @@ class Runner:
         self.Np_dt = int(self.dt_qp / self.dt)  # qp sampling time (in low-level timesteps)
         self.Np_k = int(self.Np * self.Np_dt)  # point mass prediction horizon length (in low-level timesteps)
         print("Np = ", self.Np)
+        print("Np_k = ", self.Np_k)
         self.kf_ref = None
         self.n_idx = None
         self.pf_list = None
@@ -159,10 +160,11 @@ class Runner:
         x_ref, pf_ref, C = self.ref_traj_init(x_in=utils.convert(X_traj[0, :]), xf=utils.convert(self.X_f))
         pf_ref0 = copy(pf_ref)  # original unmodified pf_ref
         x_ref0 = copy(x_ref)  # original unmodified x_ref
+        '''
         if self.plot == True:
             plots.posplot_animate(p_hist=X_traj[::N_dt*10, 0:3], pf_hist=np.zeros((N_run, 3))[::N_dt*10, :],
                                   ref_traj=x_ref[::N_dt*10, 0:3], pf_ref=pf_ref[::N_dt*10, :],
-                                  ref_traj0=x_ref0[::N_dt*10, 0:3], dist=self.dist)
+                                  ref_traj0=x_ref0[::N_dt*10, 0:3], dist=self.dist)'''
         init = True
         state_prev = str("init")
         s, sh_prev = 1, 1
@@ -212,8 +214,7 @@ class Runner:
                 if sh_prev == 0 and sh == 1 and k > 10:  # if contact has just been made...
                     C = self.contact_update(C, k)  # update C to reflect new timing
                     # generate new ref traj
-                    x_ref[k:(k+self.Np_k), :], pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref0,
-                                                                      C=C, pf_ref=pf_ref, pf=pf)
+                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref0, C=C, pf_ref=pf_ref, pf=pf)
 
                 if mpc_counter >= N_dt:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
@@ -248,8 +249,8 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-
-            if k >= 1000:
+            # print(k)
+            if k >= 1457:
                 break
 
         if self.plot == True:
@@ -361,7 +362,7 @@ class Runner:
                 N_hf = 0
             else:
                 N_hf = int(self.N_f / 2)  # number of timesteps for half of flight phase
-
+            
             if C[i - 1 - N_hf] == 1 and C[i - N_hf] == 0 and kf < (self.n_idx - 1):  # when flight starts
                 kf += 1
             # self.kf_ref[k] = kf  # update footstep indices
@@ -408,9 +409,9 @@ class Runner:
 
     def traj_opt(self, k, X_in, x_ref0, C, pf_ref, pf):
         # use point mass mpc to create new ref traj online
-        Np_traj = self.Np_k  # + 1
-        xp_traj = np.zeros((Np_traj, 6))
-        x_ref = np.zeros((Np_traj, 12))
+        Np_k = self.Np_k  # + 1
+        xp_traj = np.zeros((Np_k, 6))
+        x_ref = copy(x_ref0)
         f_pred_hist = np.zeros((self.Np + 1, 3))
         p_pred_hist = np.zeros((self.Np + 1, 3))
 
@@ -424,11 +425,11 @@ class Runner:
 
         xp_traj[0, :] = xp_in  # init value
 
-        xp_refk = xp_ref[k:(k + Np_traj):self.Np_dt, :]
-        Cpk = self.Ck_grab(C, k, self.Np, Np_traj, self.Np_dt)  # C[k:(k + Np_traj):self.Np_dt]  # 1D ref_traj_grab
+        xp_refk = xp_ref[k:(k + Np_k):self.Np_dt, :]
+        Cpk = self.Ck_grab(C, k, self.Np, Np_k, self.Np_dt)  # C[k:(k + Np_k):self.Np_dt]  # 1D ref_traj_grab
         u_pred, x_pred = self.qp_point.qpcontrol(x_in=xp_in, x_ref=xp_refk, Ck=Cpk)
 
-        f_hist = np.zeros((Np_traj, 3))
+        f_hist = np.zeros((Np_k, 3))
         j = self.Np_dt
 
         for i in range(0, self.Np):
@@ -442,20 +443,20 @@ class Runner:
                 self.pf_list[kf, :] = utils.projection(p_pred_hist[i + 1, :], f_pred_hist[i + 1, :])
                 kf += 1
 
-        for k in range(0, Np_traj - 1):
-            xp_traj[k + 1, :] = self.rk4(xk=xp_traj[k, :], uk=f_hist[k, :])
+        for i in range(0, Np_k - 1):
+            xp_traj[i + 1, :] = self.rk4(xk=xp_traj[i, :], uk=f_hist[i, :])
 
-        x_ref[:, 0:3] = xp_traj[:, 0:3]
-        x_ref[:, 6:9] = xp_traj[:, 3:6]
+        x_ref[k:(k+Np_k), 0:3] = xp_traj[:, 0:3]
+        x_ref[k:(k+Np_k), 6:9] = xp_traj[:, 3:6]
 
         pf_ref = self.footstep_update(C, pf_ref, pf, k)  # update pf_ref to reflect new timing & ref traj
 
-        for k in range(0, Np_traj):  # roll compensation
-            pf_b = x_ref[k, 0:3] - pf_ref[k, 0:3]  # find vector b/t x_ref and pf_ref
-            x_ref[k, 3] = np.arctan2(pf_b[2], pf_b[0])  # get xz plane angle TODO: Check
+        for i in range(k, k+Np_k):  # roll compensation
+            pf_b = x_ref[i, 0:3] - pf_ref[i, 0:3]  # find vector b/t x_ref and pf_ref
+            x_ref[i, 3] = np.arctan2(pf_b[2], pf_b[0])  # get xz plane angle TODO: Check
 
         # interpolate angular velocity
-        x_ref[:-1, 11] = [(x_ref[i + 1, 11] - x_ref[i, 11]) / self.dt for i in range(Np_traj - 1)]
+        x_ref[k:(k+Np_k), 11] = [(x_ref[k + i + 1, 11] - x_ref[k + i, 11]) / self.dt for i in range(Np_k)]
 
         return x_ref, pf_ref
 
