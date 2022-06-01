@@ -211,10 +211,12 @@ class Runner:
             if self.ctrl_type == 'mpc':
                 state = self.state.FSM.execute(s=s, sh=sh)
                 # if (state_prev == "Flight" and state == "Early") or (state_prev == "Late" and state == "Contact"):
+
                 if sh_prev == 0 and sh == 1 and k > 10:  # if contact has just been made...
                     C = self.contact_update(C, k)  # update C to reflect new timing
-                    # generate new ref traj
-                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref, C=C, pf_ref=pf_ref, pf=pf)
+                    pf_ref = self.footstep_update(C=C, pf_ref=pf_ref, pf=pf, k=k)
+                    '''# generate new ref traj
+                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref, C=C, pf_ref=pf_ref, pf=pf)'''
 
                 if mpc_counter >= N_dt:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
@@ -250,8 +252,8 @@ class Runner:
             sh_prev = sh
             c_prev = c
             # print(k)
-            if k >= 2000:
-               break
+            # if k >= 2000:
+            #    break
 
         if self.plot == True:
             # plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
