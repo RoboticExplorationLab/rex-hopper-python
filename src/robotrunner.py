@@ -215,8 +215,8 @@ class Runner:
                 if sh_prev == 0 and sh == 1 and k > 10:  # if contact has just been made...
                     C = self.contact_update(C, k)  # update C to reflect new timing
                     pf_ref = self.footstep_update(C=C, pf_ref=pf_ref, pf=pf, k=k)
-                    '''# generate new ref traj
-                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref, C=C, pf_ref=pf_ref, pf=pf)'''
+                    # generate new ref traj
+                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref, C=C, pf_ref=pf_ref)
 
                 if mpc_counter >= N_dt:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
@@ -252,8 +252,8 @@ class Runner:
             sh_prev = sh
             c_prev = c
             # print(k)
-            # if k >= 2000:
-            #    break
+            if k >= 3000:
+                break
 
         if self.plot == True:
             # plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
@@ -409,7 +409,7 @@ class Runner:
         f_max2 = np.absolute(self.tau_max2 @ jac_inv)  # max output force at default pose
         return np.maximum(f_max1, f_max2)
 
-    def traj_opt(self, k, X_in, x_ref0, C, pf_ref, pf):
+    def traj_opt(self, k, X_in, x_ref0, C, pf_ref):
         # use point mass mpc to create new ref traj online
         Np_k = self.Np_k  # + 1
         xp_traj = np.zeros((Np_k, 6))
@@ -450,12 +450,13 @@ class Runner:
 
         x_ref[k:(k+Np_k), 0:3] = xp_traj[:, 0:3]
         x_ref[k:(k+Np_k), 6:9] = xp_traj[:, 3:6]
+        # interpolate linear vel
+        # x_ref[k:(k+Np_k), 6:9] = [(x_ref[k + i + 1, 0:3] - x_ref[k + i, 0:3]) / self.dt for i in range(Np_k)]
 
-        pf_ref = self.footstep_update(C, pf_ref, pf, k)  # update pf_ref to reflect new timing & ref traj
-
-        for i in range(k, k+Np_k):  # roll compensation
+        '''for i in range(k, k+Np_k):  # roll compensation
             pf_b = pf_ref[i, 0:3] - x_ref[i, 0:3]    # find vector b/t x_ref and pf_ref
-            x_ref[i, 3] = np.arctan2(pf_b[2], pf_b[0])  # get xz plane angle TODO: Check
+            # this only works if robot is facing exactly forward
+            x_ref[i, 3] = np.arctan2(pf_b[2], pf_b[0])  # get xz plane angle TODO: Check'''
 
         # interpolate angular velocity
         x_ref[k:(k+Np_k), 11] = [(x_ref[k + i + 1, 11] - x_ref[k + i, 11]) / self.dt for i in range(Np_k)]
