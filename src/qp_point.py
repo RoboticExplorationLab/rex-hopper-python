@@ -69,9 +69,9 @@ class Qp:
                            0 >= -fx - mu * fz,
                            0 >= fy - mu * fz,
                            0 >= -fy - mu * fz,
-                           fz >= 0,
-                           z >= 0.2,
-                           z <= 1]
+                           fz >= 0] #,
+                           #z >= 0.2,
+                           #z <= 1]
         constr += [X[0, :] == x_in]  # initial condition
         # constr += [X[N, :] == x_ref[-1, :]]  # final condition
         # --- set up solver --- #

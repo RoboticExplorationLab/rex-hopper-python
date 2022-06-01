@@ -214,7 +214,7 @@ class Runner:
                 if sh_prev == 0 and sh == 1 and k > 10:  # if contact has just been made...
                     C = self.contact_update(C, k)  # update C to reflect new timing
                     # generate new ref traj
-                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref0, C=C, pf_ref=pf_ref, pf=pf)
+                    x_ref, pf_ref = self.traj_opt(k=k, X_in=X_traj[k, :], x_ref0=x_ref, C=C, pf_ref=pf_ref, pf=pf)
 
                 if mpc_counter >= N_dt:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
@@ -250,8 +250,8 @@ class Runner:
             sh_prev = sh
             c_prev = c
             # print(k)
-            if k >= 1457:
-                break
+            if k >= 2000:
+               break
 
         if self.plot == True:
             # plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
@@ -435,7 +435,7 @@ class Runner:
         for i in range(0, self.Np):
             f_hist[int(i * j):int(i * j + j), :] = np.tile(u_pred[i, :], (j, 1))
 
-        kf = int(self.kf_ref[k])  # get footstep index for the current timestep
+        kf = int(self.kf_ref[k]) + 1  # get footstep index for the current timestep
         for i in range(1, self.Np - 1):  # update footstep list
             if Cpk[i - 1] == 0 and Cpk[i] == 1:
                 p_pred_hist[i + 1, :] = x_pred[i + 1, 0:3]
@@ -452,7 +452,7 @@ class Runner:
         pf_ref = self.footstep_update(C, pf_ref, pf, k)  # update pf_ref to reflect new timing & ref traj
 
         for i in range(k, k+Np_k):  # roll compensation
-            pf_b = x_ref[i, 0:3] - pf_ref[i, 0:3]  # find vector b/t x_ref and pf_ref
+            pf_b = pf_ref[i, 0:3] - x_ref[i, 0:3]    # find vector b/t x_ref and pf_ref
             x_ref[i, 3] = np.arctan2(pf_b[2], pf_b[0])  # get xz plane angle TODO: Check
 
         # interpolate angular velocity
