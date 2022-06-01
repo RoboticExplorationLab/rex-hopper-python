@@ -26,7 +26,6 @@
 \end{equation}
 
 Euler angle-based linearized dynamics:
-Assume fx = fy = 0 : r becomes redundant?
 \begin{equation}
 	\begin{bmatrix}
 	{}^W \dot{P}_{3 \times 1}\\
@@ -49,8 +48,8 @@ Assume fx = fy = 0 : r becomes redundant?
 	\begin{bmatrix}
 		0_3 & 0_3 \\
 		0_3 & 0_3 \\
-		\frac{1}{m} R_z(\psi)^\top & 0_3 \\
-		{}^WJ^{-1} R_z(\psi)^\top [r]^\times & {}^WJ^{-1} R_z(\psi)^\top \\
+		\frac{1}{m}R_z(\psi)^\top & 0_3 \\
+		{}^WJ^{-1} R_z(\psi)^\top [{}^Br]^\times & {}^WJ^{-1} R_z(\psi)^\top \\
 	\end{bmatrix}
 	\begin{bmatrix}
 	{}^B f_{3 \times 1} \\

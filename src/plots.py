@@ -208,12 +208,15 @@ def _set_axes_radius(ax, origin, radius):
     ax.set_zlim3d([z - radius, z + radius])
 
 
-def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0):
+def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0, dist):
     ax = plt.axes(projection='3d')
     # ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
+    ax.set_xlim3d(0, dist)
+    ax.set_ylim3d(0, dist)
+    ax.set_zlim3d(0, dist)
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref Trajectory')
@@ -240,27 +243,29 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0):
     plt.show()
 
 
-def animate_line(N, dataSet1, dataSet2, dataSet3, dataSet4, line, ref, pf, pfr, ax):
+def animate_line(N, dataSet1, dataSet2, dataSet3, dataSet4, dataSet5, line, ref, pf, pfr, ref0, ax):
     line._offsets3d = (dataSet1[0:3, :N])
     ref._offsets3d = (dataSet2[0:3, :N])
     pf._offsets3d = (dataSet3[0:3, :N])
     pfr._offsets3d = (dataSet4[0:3, :N])
+    ref0._offsets3d = (dataSet5[0:3, :N])
     # ax.view_init(elev=10., azim=N)
 
 
-def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref):
+def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, ref_traj0, dist):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
-    ax.set_xlim3d(0, 2)
-    ax.set_ylim3d(0, 2)
-    ax.set_zlim3d(0, 2)
+    ax.set_xlim3d(0, dist)
+    ax.set_ylim3d(0, dist)
+    ax.set_zlim3d(0, dist)
 
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
+    # ax.plot(ref_traj0[:, 0], ref_traj0[:, 1], ref_traj0[:, 2], ls='--', c='g', label='Reference Trajectory')
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
     ax.xaxis.set_minor_locator(loc)
@@ -274,12 +279,14 @@ def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref):
 
     N = len(p_hist)
     line = ax.scatter(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], lw=2, c='r', label='CoM Position')  # For line plot
-    ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], lw=2, c='g', label='Reference Trajectory')
-    pf = ax.scatter(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
-    pfr = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='blue', marker='x', s=200, label='Planned Footsteps')
+    ref0 = ax.scatter(ref_traj0[:, 0], ref_traj0[:, 1], ref_traj0[:, 2], lw=2, c='g', label='Reference Trajectory')
+    ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], lw=2, c='c', label='Updated Ref Traj')
+    pf = ax.scatter(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='b', label='Foot Position')
+    pfr = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='g', marker='x', s=200, label='Planned Footsteps')
     ax.legend()
     line_ani = animation.FuncAnimation(fig, animate_line, frames=N,
-                                       fargs=(p_hist.T, ref_traj.T, pf_hist.T, pf_ref.T, line, ref, pf, pfr, ax),
+                                       fargs=(p_hist.T, ref_traj.T, pf_hist.T, pf_ref.T, ref_traj0.T,
+                                              line, ref, pf, pfr, ref0, ax),
                                        interval=2, blit=False)
     # line_ani.save('basic_animation.mp4', fps=30, bitrate=4000, extra_args=['-vcodec', 'libx264'])
 

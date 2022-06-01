@@ -6,7 +6,7 @@ import numpy as np
 
 class Spring:
 
-    def __init__(self, model, **kwargs):
+    def __init__(self, model, spr, **kwargs):
         """
         linear extension spring b/t joints 1 and 3 of parallel mechanism
         """
@@ -18,8 +18,12 @@ class Spring:
         L0 = self.L[0]  # .15
         L2 = self.L[2]  # .3
         self.r0 = np.sqrt(L0 ** 2 + L2 ** 2 - 2 * L0 * L2 * np.cos(2.5 * np.pi / 180))  # 0.17
+        if spr == True:
+            self.fn_spring = self.fn_yes_spring
+        else:
+            self.fn_spring = self.fn_no_spring
 
-    def fn_spring(self, q):
+    def fn_yes_spring(self, q):
         """
         effect of spring tension approximated by applying torques to joints 0 and 2
         """
