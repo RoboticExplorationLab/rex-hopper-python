@@ -215,7 +215,7 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0, dist):
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
     ax.set_xlim3d(0, dist)
-    ax.set_ylim3d(0, dist)
+    ax.set_ylim3d(-dist/2, dist/2)
     ax.set_zlim3d(0, dist)
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
@@ -261,7 +261,7 @@ def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, ref_traj0, dist):
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
     ax.set_xlim3d(0, dist)
-    ax.set_ylim3d(0, dist)
+    ax.set_ylim3d(-dist/2, dist/2)
     ax.set_zlim3d(0, dist)
 
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
