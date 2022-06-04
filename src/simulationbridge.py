@@ -101,8 +101,9 @@ class Sim:
         qa = (q.T @ self.S).flatten()
         dqa = (dq.T @ self.S).flatten()
 
-        q_in = np.add(qa[0:2], self.q_cal)  # TODO: check
-        tau_s = self.spring_fn(q_in)
+        q0 = qa[0] + self.q_cal[0]
+        q2 = qa[1] + self.q_cal[1]
+        tau_s = self.spring_fn(q0=q0, q2=q2)
 
         tau = np.zeros(self.n_a)
         i = np.zeros(self.n_a)

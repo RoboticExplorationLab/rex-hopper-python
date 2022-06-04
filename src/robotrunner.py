@@ -87,7 +87,7 @@ class Runner:
         self.z_ref = None
         # class initializations
         self.spring = spring.Spring(model=model, spr=spr)
-        self.controller = controller_class.Control(leg=self.leg, m=self.m, dt=dt, gain=gain)
+        self.controller = controller_class.Control(leg=self.leg, spring=self.spring, m=self.m, dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(X_0=self.X_0, model=model, spring=self.spring, q_cal=self.q_cal,
                                               dt=dt, g=self.g, fixed=fixed, record=record, scale=scale,
                                               gravoff=gravoff, direct=direct)
@@ -387,11 +387,14 @@ class Runner:
 
     def f_max(self):
         jac_inv = np.linalg.pinv(self.leg.gen_jacA())
-        tau_s = self.spring.fn_spring(q=self.leg.q)
+        q0 = self.leg.q[0]
+        q2 = self.leg.q[2]
+        tau_s = - self.spring.fn_spring(q0=q0, q2=q2)
         tau_max1 = self.tau_max1 + tau_s  # max output torques including spring
         tau_max2 = self.tau_max2 + tau_s
         f_max1 = np.absolute(tau_max1 @ jac_inv)  # max output force at default pose
         f_max2 = np.absolute(tau_max2 @ jac_inv)
+        print(np.maximum(f_max1, f_max2), tau_s @ jac_inv)
         return np.maximum(f_max1, f_max2)
 
     def traj_update(self, X_in, x_ref, k, k_f, k_c):
