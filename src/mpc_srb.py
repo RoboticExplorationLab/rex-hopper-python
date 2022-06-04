@@ -55,7 +55,7 @@ class Mpc:
             x_guess[0, :] = x_in
             x_guess[1:, :] = x_ref_in  # Use ref traj as initial guess?
             # calculate better x_guess based on initial x_guess
-            self.gen_dt_dynamics(x_guess, pf_ref)  # bad initial x
+            self.gen_dt_dynamics_2nd(x_guess, pf_ref)  # bad initial x
             cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
             self.solve_qp(cost, constr)
             x_guess = self.x.value
@@ -65,7 +65,7 @@ class Mpc:
             x_guess[-1, :] = self.x.value[-1, :]  # copy last timestep as a dumb approx
 
         # calculate control based on x_guess
-        self.gen_dt_dynamics(x_guess, pf_ref)  # use new x as initial guess
+        self.gen_dt_dynamics_2nd(x_guess, pf_ref)  # use new x as initial guess
         cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
         self.solve_qp(cost, constr)
         u = self.u.value
@@ -173,7 +173,7 @@ class Mpc:
                            0 >= -fx - mu * fz,
                            fz >= 0,
                            fz <= self.f_max[2]]
-                           # z >= 0.1,
+                           # z >= 0.1]  #,
                            # z <= 3]
 
         constr += [x[0, :] == x_in]  # initial condition

@@ -91,7 +91,7 @@ def dqplot(model, total, n_a, dq_hist):
 
 
 def f_plot(total, f_hist, grf_hist, s_hist):
-    fig, axs = plt.subplots(4, sharex='all')
+    fig, axs = plt.subplots(5, sharex='all')
     plt.xlabel("Timesteps")
 
     axs[0].plot(range(total), grf_hist[:, 0], color='r', label="Actual GRF")
@@ -116,11 +116,15 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels, loc='upper center')
 
-    axs[3].plot(range(total), s_hist[:, 0], color='purple', lw='2', ls="--", label='Scheduled')
-    axs[3].plot(range(total), s_hist[:, 1], color='orange', lw='1', ls="-", label='Actual')
-    axs[3].set_title('Scheduled Contact')
+    axs[3].plot(range(total), s_hist[:, 0], color='green', lw='3', ls="--")
+    axs[3].set_title('Original Contact Schedule')
     axs[3].set_ylabel("True/False")
-    axs[3].legend(loc="upper left")
+
+    axs[4].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Updated Schedule')
+    axs[4].plot(range(total), s_hist[:, 2], color='orange', lw='1', ls="-", label='Actual')
+    axs[4].set_title('Actual and Scheduled Contact')
+    axs[4].set_ylabel("True/False")
+    axs[4].legend(loc="upper right")
 
     plt.show()
 
@@ -208,7 +212,7 @@ def _set_axes_radius(ax, origin, radius):
     ax.set_zlim3d([z - radius, z + radius])
 
 
-def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0, dist):
+def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_list, pf_list0, dist):
     ax = plt.axes(projection='3d')
     ax.set_title('Body Position')
     ax.set_xlabel("X (m)")
@@ -216,14 +220,17 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0, dist):
     ax.set_zlabel("Z (m)")
     ax.set_xlim3d(0, dist)
     ax.set_ylim3d(-dist/2, dist/2)
-    ax.set_zlim3d(0, dist)
+    ax.set_zlim3d(0, 2)
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
-    ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref Trajectory')
-    ax.scatter(pf_ref0[:, 0], pf_ref0[:, 1], pf_ref0[:, 2], marker="x", s=200, color='green', label='Ref Footsteps')
+    ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref CoM Traj')
+    ax.plot(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='cyan', ls='--', label='Ref Foot Traj')
+    ax.scatter(pf_list0[:, 0], pf_list0[:, 1], pf_list0[:, 2], color='cyan', marker="x", s=200, label='Ref Footsteps')
+
     ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
-    ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], marker="x", s=200, color='blue', label='Planned Footsteps')
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
+    ax.scatter(pf_list[:, 0], pf_list[:, 1], pf_list[:, 2],
+               marker="x", s=200, color='blue', label='Updated Footsteps')
 
     ax.legend()
     intervals = 2
@@ -244,12 +251,12 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_ref0, dist):
     plt.show()
 
 
-def animate_line(N, dataSet1, dataSet2, dataSet3, dataSet4, dataSet5, line, ref, pf, pfr, ref0, ax):
-    line._offsets3d = (dataSet1[0:3, :N])
-    ref._offsets3d = (dataSet2[0:3, :N])
-    pf._offsets3d = (dataSet3[0:3, :N])
-    pfr._offsets3d = (dataSet4[0:3, :N])
-    ref0._offsets3d = (dataSet5[0:3, :N])
+def animate_line(N, ref_traj, pf_ref, p_hist, pf_hist, ref, pfr, com, pf, ax):
+    ref._offsets3d = (ref_traj[0:3, :N])
+    pfr._offsets3d = (pf_ref[0:3, :N])
+    com._offsets3d = (p_hist[0:3, :N])
+    pf._offsets3d = (pf_hist[0:3, :N])
+
     # ax.view_init(elev=10., azim=N)
 
 
@@ -262,11 +269,11 @@ def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, ref_traj0, dist):
     ax.set_zlabel("Z (m)")
     ax.set_xlim3d(0, dist)
     ax.set_ylim3d(-dist/2, dist/2)
-    ax.set_zlim3d(0, dist)
+    ax.set_zlim3d(0, 2)
 
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
-    ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
-    # ax.plot(ref_traj0[:, 0], ref_traj0[:, 1], ref_traj0[:, 2], ls='--', c='g', label='Reference Trajectory')
+    ax.scatter(*ref_traj0[-1, 0:3], color='orange', marker="*", s=200, label='Target Position')
+    ax.plot(ref_traj0[:, 0], ref_traj0[:, 1], ref_traj0[:, 2], ls='--', c='g', label='Reference CoM Traj')
     intervals = 2
     loc = plticker.MultipleLocator(base=intervals)
     ax.xaxis.set_minor_locator(loc)
@@ -279,15 +286,16 @@ def posplot_animate(p_hist, pf_hist, ref_traj, pf_ref, ref_traj0, dist):
     ax.zaxis.labelpad = 30
 
     N = len(p_hist)
-    line = ax.scatter(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], lw=2, c='r', label='CoM Position')  # For line plot
-    ref0 = ax.scatter(ref_traj0[:, 0], ref_traj0[:, 1], ref_traj0[:, 2], lw=2, c='g', label='Reference Trajectory')
-    ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], lw=2, c='c', label='Updated Ref Traj')
+
+    ref = ax.scatter(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], c='m', lw=2, label='Updated Ref CoM Traj')
+    pfr = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='y',  label='Updated Ref Foot Traj')
+    com = ax.scatter(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], c='r', lw=2, label='CoM Position')
     pf = ax.scatter(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='b', label='Foot Position')
-    pfr = ax.scatter(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='g', marker='x', s=200, label='Planned Footsteps')
+
     ax.legend()
     line_ani = animation.FuncAnimation(fig, animate_line, frames=N,
-                                       fargs=(p_hist.T, ref_traj.T, pf_hist.T, pf_ref.T, ref_traj0.T,
-                                              line, ref, pf, pfr, ref0, ax),
+                                       fargs=(ref_traj.T, pf_ref.T, p_hist.T, pf_hist.T,
+                                              ref, pfr, com, pf, ax),
                                        interval=2, blit=False)
     # line_ani.save('basic_animation.mp4', fps=30, bitrate=4000, extra_args=['-vcodec', 'libx264'])
 

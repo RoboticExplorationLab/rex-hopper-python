@@ -78,7 +78,7 @@ class Leg:
         # self.d2q_previous = init_d2q
 
         self.reset()
-        self.q_calibration = np.array([init_q[0], init_q[2]])
+        self.q_cal = np.array([init_q[0], init_q[2]])
 
         self.g_init = np.array([[0, 0, g]]).T
         self.g = copy.copy(self.g_init)
@@ -254,13 +254,13 @@ class Leg:
     def update_state(self, q_in, Q_base):
         # Pull values in from simulator and calibrate encoders
         # Make sure this only happens once per time step
-        q_in = np.add(q_in, self.q_calibration)
+        q_in = np.add(q_in, self.q_cal)
         q0 = q_in[0]
         q2 = q_in[1]
         q1 = q2 - q0  # basic geometry
         q3 = -q1
         self.q = np.array([q0, q1, q2, q3])
-        self.dq = (self.q - self.q_previous) / self.dt  # TODO: upgrade from Euler?
+        self.dq = (self.q - self.q_previous) / self.dt
         # self.d2q = (self.dq - self.dq_previous) / self.dt
         self.q_previous = self.q
         self.dq_previous = self.dq
