@@ -23,8 +23,9 @@ def reaction(numJoints, bot):  # returns joint reaction force
 
 class Sim:
 
-    def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False,
+    def __init__(self, X_0, model, spring, q_cal, dt, g=9.807, fixed=False,
                  record=False, scale=1, gravoff=False, direct=False):
+        self.q_cal = q_cal
         self.dt = dt
         self.record_rt = record  # record video in real time
         self.L = model["linklengths"]
@@ -68,11 +69,6 @@ class Sim:
 
         p.setRealTimeSimulation(useRealTime)
 
-        self.c_link = 1  # contact link
-
-        # if self.model != 'design_rw' and self.model != 'design_cmg':
-        #     vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
-
         # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
         jconn_1 = [x * scale for x in [0.135, 0, 0]]
         jconn_2 = [x * scale for x in [-0.0014381, 0, 0.01485326948]]
@@ -100,15 +96,14 @@ class Sim:
         self.ii = 0
 
     def sim_run(self, u):
-        q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-        dq_ = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-
-        q = q_.flatten()
-        dq = dq_.flatten()
+        q = np.array([j[0] for j in p.getJointStates(1, range(0, self.numJoints))])
+        dq = np.array([j[1] for j in p.getJointStates(1, range(0, self.numJoints))])
         qa = (q.T @ self.S).flatten()
-        dqa = (dq_.T @ self.S).flatten()
+        dqa = (dq.T @ self.S).flatten()
 
-        tau_s = self.spring_fn(q)
+        q0 = qa[0] + self.q_cal[0]
+        q2 = qa[1] + self.q_cal[1]
+        tau_s = self.spring_fn(q0=q0, q2=q2)
 
         tau = np.zeros(self.n_a)
         i = np.zeros(self.n_a)

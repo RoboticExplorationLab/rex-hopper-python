@@ -47,18 +47,15 @@ class Gait:
         # Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
         # rz_psi = utils.rz(utils.quat2euler(Q_base)[2])
         if sh == 0:
-            if X_in[9] >= -0.5:  # if robot is still rising
-                self.target[2] = -self.hconst * 3 / 3  # pull leg up to prevent tripping
-                self.u[0:2] = self.controller.wb_pos_control(target=self.target)
-            else:
-                pfw_ref = pf_refk - X_in[0:3]  # vec from CoM to footstep ref in world frame
-                pfb_ref = utils.Z(utils.Q_inv(Q_base), pfw_ref)  # world frame -> body frame
-                pfb_ref = pfb_ref/np.linalg.norm(pfb_ref) * self.hconst * 4.5 / 3
-                self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
-            # self.u[0:2] = self.controller.invkin_pos_control(target=pfb_ref, kp=self.k_k, kd=self.kd_k)
+            pfw_ref = pf_refk - X_in[0:3]  # vec from CoM to footstep ref in world frame
+            pfb_ref = utils.Z(utils.Q_inv(Q_base), pfw_ref)  # world frame -> body frame
+            # pfb_ref = pfb_ref/np.linalg.norm(pfb_ref) * self.hconst * 4.5 / 3
+            self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
+            # self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
         elif sh == 1:
             # self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame
             self.u[0:2] = self.controller.wb_f_control(force=-U_in[0:3])  # no rotation necessary, already in b frame
+            # self.u[2:], thetar, setp = self.moment.rw_control(np.array([1, 0, 0, 0]), Q_base, 0)
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])

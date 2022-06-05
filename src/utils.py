@@ -1,5 +1,4 @@
 import numpy as np
-import transforms3d
 
 H = np.zeros((4, 3))
 H[1:4, 0:4] = np.eye(3)

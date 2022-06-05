@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2022 Benjamin Bokser
+Copyright (C) 2020 Benjamin Bokser
 """
 
 
@@ -18,53 +18,39 @@ class State:
         pass
 
 
-class Early(State):
+class Leap(State):
+    # Thrust up until unloading
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        if self.FSM.s == 1:
-            self.FSM.to_transition("toContact")
-        return str("Early")
+        if self.FSM.sh == 0 and self.FSM.leg_pos[2] < -0.4:
+            self.FSM.to_transition("toReturn")
+        # print(self.FSM.leg_pos[2])
+        return str("Leap")
 
 
-class Contact(State):
-    def __init__(self, fsm):
-        super().__init__(fsm)
-
-    def execute(self):
-        if self.FSM.s == 0:
-            self.FSM.to_transition("toFlight")
-        return str("Contact")
-
-
-class Late(State):
-    def __init__(self, fsm):
-        super().__init__(fsm)
-
-    def execute(self):
-        if self.FSM.sh == 1:
-            self.FSM.to_transition("toContact")
-        return str("Late")
-
-
-class Flight(State):
+class Return(State):
     # Aerial Phase
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        # if self.FSM.sh == 1:  # and self.FSM.pdot[2] <= 0:
-        if self.FSM.sh == 1 and self.FSM.s == 0:
-            self.FSM.to_transition("toEarly")
+        if self.FSM.sh == 1:  # and self.FSM.pdot[2] <= 0:  # Recognize that the bot is falling
+            self.FSM.to_transition("toHeelStrike")
 
-        if self.FSM.s == 1 and self.FSM.sh == 1:
-            self.FSM.to_transition("toContact")
+        return str("Return")
 
-        if self.FSM.sh == 0 and self.FSM.s == 1:
-            self.FSM.to_transition("toLate")
 
-        return str("Flight")
+class HeelStrike(State):
+    # Landing compression phase
+    def __init__(self, fsm):
+        super().__init__(fsm)
+
+    def execute(self):
+        if self.FSM.leg_pos[2] >= -0.4:  # if self.FSM.pdot[2] >= 0:
+            self.FSM.to_transition("toLeap")
+        return str("HeelStrike")
 
 
 class Transition:
@@ -86,6 +72,9 @@ class FSM:
 
         self.s = None
         self.sh = None
+        self.go = None  # Prevents stuck-in-stance bug
+        self.pdot = None
+        self.leg_pos = None
 
     def add_transition(self, transname, transition):
         self.transitions[transname] = transition
@@ -102,9 +91,12 @@ class FSM:
         # set the transition state
         self.trans = self.transitions[to_trans]
 
-    def execute(self, s, sh):
+    def execute(self, s, sh, go, pdot, leg_pos):
         self.s = s
         self.sh = sh
+        self.go = go
+        self.pdot = pdot
+        self.leg_pos = leg_pos
         
         if self.trans:
             self.curState.exit()
@@ -121,19 +113,17 @@ class FSM:
 class Char:
     def __init__(self):
         self.FSM = FSM(self)
-        self.Contact = True
+        self.Leap = True
 
-        self.FSM.add_state("Contact", Contact(self.FSM))
-        self.FSM.add_state("Flight", Flight(self.FSM))
-        self.FSM.add_state("Early", Early(self.FSM))
-        self.FSM.add_state("Late", Late(self.FSM))
+        self.FSM.add_state("Leap", Leap(self.FSM))
+        self.FSM.add_state("Return", Return(self.FSM))
+        self.FSM.add_state("HeelStrike", HeelStrike(self.FSM))
 
-        self.FSM.add_transition("toContact", Transition("Contact"))
-        self.FSM.add_transition("toFlight", Transition("Flight"))
-        self.FSM.add_transition("toEarly", Transition("Early"))
-        self.FSM.add_transition("toLate", Transition("Late"))
+        self.FSM.add_transition("toLeap", Transition("Leap"))
+        self.FSM.add_transition("toReturn", Transition("Return"))
+        self.FSM.add_transition("toHeelStrike", Transition("HeelStrike"))
 
-        self.FSM.setstate("Flight")
+        self.FSM.setstate("Return")
 
     def execute(self):
-        self.FSM.execute(s, sh)
+        self.FSM.execute(s, sh, go, pdot, leg_pos)

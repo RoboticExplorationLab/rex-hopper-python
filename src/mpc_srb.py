@@ -34,7 +34,7 @@ class Mpc:
         # self.Gd = np.zeros((self.n_x, 1))
         self.Gd = self.G * t  # doesn't change, doesn't need updating per timestep
         self.Q = np.eye(self.n_x)
-        np.fill_diagonal(self.Q, [5., 5., 5., 1., 1., 50., 1., 1., 1., 10., 10., 10.])
+        np.fill_diagonal(self.Q, [50., 50., 50., 2., 1., 50., 1., 1., 1., 10., 10., 10.])
         self.R = np.eye(self.n_u)
         np.fill_diagonal(self.R, [0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
         self.x = cp.Variable((N + 1, self.n_x))
@@ -158,7 +158,7 @@ class Mpc:
                        tauz <= 4,
                        tauz >= -4]
             constr += [fy == 0]  # body frame y is always zero
-            
+            # constr += [z >= 0.1]
             if C[k] == 0:  # even
                 u_ref[2] = 0
                 cost += cp.quad_form(x[k + 1, :] - x_ref[k, :], Q * kf) + cp.quad_form(u[k, :] - u_ref, R * kuf)
@@ -173,7 +173,7 @@ class Mpc:
                            0 >= -fx - mu * fz,
                            fz >= 0,
                            fz <= self.f_max[2]]
-                           # z >= 0.1,
+                           # z >= 0.1]  #,
                            # z <= 3]
 
         constr += [x[0, :] == x_in]  # initial condition

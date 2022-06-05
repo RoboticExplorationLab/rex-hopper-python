@@ -29,7 +29,7 @@ design_rw = {
                    [0, 0, 0, 0, 1]]),  # actuator selection matrix
     "hconst": 0.27,  # default height
     "n_a": 5,  # number of actuators
-    "ks": 996,  # spring constant
+    "ks": 3000,  # spring constant, N/m
     "springpolarity": 1,  # spring polarity
     "k": 5000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain
@@ -59,7 +59,7 @@ design_rw_alt = {
                    [0, 0, 0, 0, 1]]),  # actuator selection matrix
     "hconst": 0.27,  # default height
     "n_a": 5,  # number of actuators
-    "ks": 996,  # spring constant
+    "ks": 3000,  # spring constant
     "springpolarity": 1,  # spring polarity
     "k": 5000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain
