@@ -51,10 +51,11 @@ class Gait:
             pfb_ref = utils.Z(utils.Q_inv(Q_base), pfw_ref)  # world frame -> body frame
             # pfb_ref = pfb_ref/np.linalg.norm(pfb_ref) * self.hconst * 4.5 / 3
             self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
-            # self.u[0:2] = self.controller.invkin_pos_control(target=pfb_ref, kp=self.k_k, kd=self.kd_k)
+            # self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
         elif sh == 1:
             # self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame
             self.u[0:2] = self.controller.wb_f_control(force=-U_in[0:3])  # no rotation necessary, already in b frame
+            # self.u[2:], thetar, setp = self.moment.rw_control(np.array([1, 0, 0, 0]), Q_base, 0)
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])

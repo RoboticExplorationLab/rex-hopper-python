@@ -34,7 +34,7 @@ class Mpc:
         # self.Gd = np.zeros((self.n_x, 1))
         self.Gd = self.G * t  # doesn't change, doesn't need updating per timestep
         self.Q = np.eye(self.n_x)
-        np.fill_diagonal(self.Q, [5., 5., 5., 1., 1., 50., 1., 1., 1., 10., 10., 10.])
+        np.fill_diagonal(self.Q, [50., 50., 50., 2., 1., 50., 1., 1., 1., 10., 10., 10.])
         self.R = np.eye(self.n_u)
         np.fill_diagonal(self.R, [0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
         self.x = cp.Variable((N + 1, self.n_x))
@@ -55,7 +55,7 @@ class Mpc:
             x_guess[0, :] = x_in
             x_guess[1:, :] = x_ref_in  # Use ref traj as initial guess?
             # calculate better x_guess based on initial x_guess
-            self.gen_dt_dynamics_2nd(x_guess, pf_ref)  # bad initial x
+            self.gen_dt_dynamics(x_guess, pf_ref)  # bad initial x
             cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
             self.solve_qp(cost, constr)
             x_guess = self.x.value
@@ -65,7 +65,7 @@ class Mpc:
             x_guess[-1, :] = self.x.value[-1, :]  # copy last timestep as a dumb approx
 
         # calculate control based on x_guess
-        self.gen_dt_dynamics_2nd(x_guess, pf_ref)  # use new x as initial guess
+        self.gen_dt_dynamics(x_guess, pf_ref)  # use new x as initial guess
         cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
         self.solve_qp(cost, constr)
         u = self.u.value
@@ -158,7 +158,7 @@ class Mpc:
                        tauz <= 4,
                        tauz >= -4]
             constr += [fy == 0]  # body frame y is always zero
-            
+            # constr += [z >= 0.1]
             if C[k] == 0:  # even
                 u_ref[2] = 0
                 cost += cp.quad_form(x[k + 1, :] - x_ref[k, :], Q * kf) + cp.quad_form(u[k, :] - u_ref, R * kuf)

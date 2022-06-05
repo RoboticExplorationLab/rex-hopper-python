@@ -54,8 +54,8 @@ class Runner:
         # simulator uses SE(3) states! (X). mpc uses euler-angle based states! (x). Pay attn to X vs x !!!
         self.n_X = 13
         self.n_U = 6
-        self.h = 0.3 * scale  # default extended height
-        self.dist = 0.9 * (N_run * dt)  # 1.2 make travel distance dependent on runtime
+        self.h = self.hconst * scale  # default extended height
+        self.dist = 1 * (N_run * dt)  # 1.2 make travel distance dependent on runtime
         self.X_0 = np.array([0,         0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # initial conditions
         self.X_f = np.array([self.dist, 0, self.h, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).T  # des final state in world frame
 
@@ -80,8 +80,8 @@ class Runner:
         self.N_c = int(self.t_c / self.dt)  # number of low-level timesteps spent in contact
         self.N_f = int(self.t_fl / self.dt)  # number of low-level timesteps spent in flight
         self.t_horizon = self.N * self.dt_mpc  # time (seconds) of mpc horizon
-        self.t_start = 0.33 * self.t_p * self.phi_switch  # start halfway through stance phase
-        self.step_adjustment = 15  # adjusts step to be behind local minima of traj by traj timesteps
+        self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
+        self.step_adjustment = -115  # adjusts step to be ahead/behind local minima of traj by traj timesteps
         self.n_idx = None
         self.pf_list = None
         self.z_ref = None
@@ -120,7 +120,9 @@ class Runner:
         self.spline_i = None
         self.N_ref = None
         self.kf_list = None
-        pf_spline_k = np.array([0., self.N_f / 2, self.N_f])
+        N_early = 200  # number of timesteps for foot to arrive early by
+        self.N_pf = self.N_f - N_early
+        pf_spline_k = np.array([0., self.N_pf / 2, self.N_pf])
         pf_spline_i = np.array([0., self.amp, 0.])
         self.pf_spline = CubicSpline(pf_spline_k, pf_spline_i, bc_type='not-a-knot')  # generate cubic spline
 
@@ -142,10 +144,10 @@ class Runner:
         pf_ref0 = copy(pf_ref)  # original unmodified pf_ref
         x_ref0 = copy(x_ref)  # original unmodified x_ref
 
-        if self.plot == True:
-            plots.posplot_animate(p_hist=X_traj[::N_dt*10, 0:3], pf_hist=np.zeros((N_run, 3))[::N_dt*10, :],
-                                  ref_traj=x_ref[::N_dt*10, 0:3], pf_ref=pf_ref[::N_dt*10, :],
-                                  ref_traj0=x_ref0[::N_dt*10, 0:3], dist=self.dist)
+        '''if self.plot == True:
+            plots.posplot_animate(p_hist=X_traj[::N_dt*5, 0:3], pf_hist=np.zeros((N_run, 3))[::N_dt*5, :],
+                                  ref_traj=x_ref[::N_dt*5, 0:3], pf_ref=pf_ref[::N_dt*5, :],
+                                  ref_traj0=x_ref0[::N_dt*5, 0:3], dist=self.dist)'''
         init = True
         state_prev = str("Init")
         sh_prev = 1
@@ -165,7 +167,7 @@ class Runner:
         ft_hist = np.zeros(N_run)
         # kt = 0.8
         kr = 0.1
-
+        f_max = self.f_max()
         # print("unaltered: ", self.pf_list[:, 0:2], "k_f = ", self.kf_list[0])
 
         for k in range(0, N_run):
@@ -242,8 +244,8 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            if k >= 2500:
-                break
+            # if k >= 1500:
+            #     break
 
         if self.plot == True:
             plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
@@ -366,15 +368,14 @@ class Runner:
         for k in range(0, self.N_ref):  # regen pf_ref
             k_f = self.kf_list[k]
             pf_ref[k, :] = self.pf_list[k_f, :]  # add reference footsteps to appropriate timesteps
-        N_early = 40  # number of timesteps for foot to arrive early by
-        N_f = self.N_f - N_early
-        pf_spline_ref = [self.pf_spline(k) for k in range(N_f)]  # create z-spline
+        N_pf = self.N_pf
+        pf_spline_ref = [self.pf_spline(k) for k in range(N_pf)]  # create z-spline
         for k in range(0, self.N_ref):
             k_f = self.kf_list[k]
             if C[k - 1] == 1 and C[k] == 0 and k_f < (self.n_idx - 1):
-                pf_ref[k:(k + N_f), :] = \
-                    np.linspace(start=self.pf_list[k_f - 1, :], stop=self.pf_list[k_f, :], num=N_f)
-                pf_ref[k:(k + N_f), 2] = pf_spline_ref
+                pf_ref[k:(k + N_pf), :] = \
+                    np.linspace(start=self.pf_list[k_f - 1, :], stop=self.pf_list[k_f, :], num=N_pf)
+                pf_ref[k:(k + N_pf), 2] = pf_spline_ref
         return pf_ref
 
     def ref_traj_grab(self, ref, k):  # Grab appropriate timesteps of pre-planned trajectory for mpc
@@ -394,8 +395,7 @@ class Runner:
         tau_max2 = self.tau_max2 + tau_s
         f_max1 = np.absolute(tau_max1 @ jac_inv)  # max output force at default pose
         f_max2 = np.absolute(tau_max2 @ jac_inv)
-        print(np.maximum(f_max1, f_max2), tau_s @ jac_inv)
-        return np.maximum(f_max1, f_max2)
+        return np.maximum(f_max1, f_max2)  # TODO: f is in world frame here, f_max should be in world frame
 
     def traj_update(self, X_in, x_ref, k, k_f, k_c):
         """ create new ref traj online. Only run at the lowest point of trajectory """
