@@ -1,5 +1,4 @@
 import numpy as np
-import transforms3d
 
 H = np.zeros((4, 3))
 H[1:4, 0:4] = np.eye(3)
@@ -122,16 +121,6 @@ def rz(phi):
     return Rz
 
 
-def quat2euler(Q):
-    # ZYX Euler angles. Output roll-pitch-yaw order # this is why euler angles suck ass
-    zyx = transforms3d.euler.quat2euler(Q, axes='rzyx')  # Intro to Robotics, Mechanics and Control 3rd ed. p. 44
-    xyz = np.zeros(3)
-    xyz[0] = zyx[2]
-    xyz[1] = zyx[1]
-    xyz[2] = zyx[0]
-    return xyz
-
-
 def wrap_to_pi(a):
     # wrap input angle between 0 and pi
     return (a + np.pi) % (2 * np.pi) - np.pi
@@ -178,7 +167,7 @@ def euler2rot(euler):
     return R
 
 
-def quat2euler_xyz(quat):
+def quat2euler(quat):
     w, x, y, z = quat
     y_sqr = y * y
 

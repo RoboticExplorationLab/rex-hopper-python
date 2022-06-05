@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020-2022 Benjamin Bokser
+Copyright (C) 2020 Benjamin Bokser
 """
 
 
@@ -18,29 +18,39 @@ class State:
         pass
 
 
-class Stance(State):
+class Leap(State):
     # Thrust up until unloading
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
         if self.FSM.sh == 0 and self.FSM.leg_pos[2] < -0.4:
-            self.FSM.to_transition("toFlight")
+            self.FSM.to_transition("toReturn")
         # print(self.FSM.leg_pos[2])
-        return str("Stance")
+        return str("Leap")
 
 
-class Flight(State):
+class Return(State):
     # Aerial Phase
     def __init__(self, fsm):
         super().__init__(fsm)
 
     def execute(self):
-        # if self.FSM.sh == 1:  # and self.FSM.pdot[2] <= 0:
-        if self.FSM.s == 1 and self.FSM.sh == 1:  # and self.FSM.go == True:  # wait to jump until scheduled to
-            self.FSM.to_transition("toStance")
+        if self.FSM.sh == 1:  # and self.FSM.pdot[2] <= 0:  # Recognize that the bot is falling
+            self.FSM.to_transition("toHeelStrike")
 
-        return str("Flight")
+        return str("Return")
+
+
+class HeelStrike(State):
+    # Landing compression phase
+    def __init__(self, fsm):
+        super().__init__(fsm)
+
+    def execute(self):
+        if self.FSM.leg_pos[2] >= -0.4:  # if self.FSM.pdot[2] >= 0:
+            self.FSM.to_transition("toLeap")
+        return str("HeelStrike")
 
 
 class Transition:
@@ -103,15 +113,17 @@ class FSM:
 class Char:
     def __init__(self):
         self.FSM = FSM(self)
-        self.Stance = True
+        self.Leap = True
 
-        self.FSM.add_state("Stance", Stance(self.FSM))
-        self.FSM.add_state("Flight", Flight(self.FSM))
+        self.FSM.add_state("Leap", Leap(self.FSM))
+        self.FSM.add_state("Return", Return(self.FSM))
+        self.FSM.add_state("HeelStrike", HeelStrike(self.FSM))
 
-        self.FSM.add_transition("toStance", Transition("Stance"))
-        self.FSM.add_transition("toFlight", Transition("Flight"))
+        self.FSM.add_transition("toLeap", Transition("Leap"))
+        self.FSM.add_transition("toReturn", Transition("Return"))
+        self.FSM.add_transition("toHeelStrike", Transition("HeelStrike"))
 
-        self.FSM.setstate("Flight")
+        self.FSM.setstate("Return")
 
     def execute(self):
         self.FSM.execute(s, sh, go, pdot, leg_pos)

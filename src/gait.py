@@ -40,25 +40,26 @@ class Gait:
         self.X_f = X_f
         self.u = np.zeros(self.n_a)
 
-    def u_mpc(self, state, X_in, U_in):
+    def u_mpc(self, sh, X_in, U_in, pf_refk):
         # mpc-based hopping
         Q_base = X_in[3:7]
-        target = self.target
-        hconst = self.hconst
-        z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
-        Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
+        # z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
+        # Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T  # Q_base converted to just the z-axis rotation
         # rz_psi = utils.rz(utils.quat2euler(Q_base)[2])
-        if state == 'Flight':
-            target[2] = -hconst * 5.5 / 3  # brace for impact
-            self.u[0:2] = self.controller.wb_pos_control(target=utils.Z(Q_z, target))
-            # self.u[0:2] = self.controller.invkin_pos_control(target=utils.Z(Q_z, target), kp=self.k_k, kd=self.kd_k)
-        elif state == 'Stance':
-            force = utils.Z(Q_z, -U_in[0:3])  # rotate from world frame to body frame
-            self.u[0:2] = self.controller.qp_f_control(force=force)
+        if sh == 0:
+            pfw_ref = pf_refk - X_in[0:3]  # vec from CoM to footstep ref in world frame
+            pfb_ref = utils.Z(utils.Q_inv(Q_base), pfw_ref)  # world frame -> body frame
+            # pfb_ref = pfb_ref/np.linalg.norm(pfb_ref) * self.hconst * 4.5 / 3
+            self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
+            # self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
+        elif sh == 1:
+            # self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame
+            self.u[0:2] = self.controller.wb_f_control(force=-U_in[0:3])  # no rotation necessary, already in b frame
+            # self.u[2:], thetar, setp = self.moment.rw_control(np.array([1, 0, 0, 0]), Q_base, 0)
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
-        return self.u / self.a_kt  # convert from torques to current
+        return self.u / self.a_kt  # convert from Nm to A
 
     def u_raibert(self, state, state_prev, X_in, x_ref):
         # continuous raibert hopping
@@ -69,8 +70,9 @@ class Gait:
         z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
         # z = utils.quat2euler(Q_base)[2]
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
-        pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z, p), setp=utils.Z(Q_z, p_ref))  # adjust for yaw
-        pdot_ref = utils.Z(utils.Q_inv(Q_z), pdot_ref)  # rotate back into world frame
+        Q_z_inv = utils.Q_inv(Q_z)
+        pdot_ref = -self.pid_pdot.pid_control(inp=utils.Z(Q_z_inv, p), setp=utils.Z(Q_z_inv, p_ref))  # adjust for yaw
+        pdot_ref = utils.Z(Q_z, pdot_ref)  # world frame -> body frame
         if np.linalg.norm(self.X_f[0:2] - X_in[0:2]) >= 1:
             v_ref = p_ref - p
             self.z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw

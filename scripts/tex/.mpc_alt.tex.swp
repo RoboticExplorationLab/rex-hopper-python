@@ -26,7 +26,6 @@
 \end{equation}
 
 Euler angle-based linearized dynamics:
-Assume fx = fy = 0 : r becomes redundant?
 \begin{equation}
 	\begin{bmatrix}
 	{}^W \dot{P}_{3 \times 1}\\
@@ -49,8 +48,8 @@ Assume fx = fy = 0 : r becomes redundant?
 	\begin{bmatrix}
 		0_3 & 0_3 \\
 		0_3 & 0_3 \\
-		R_z(\psi)^\top\frac{1}{m} & 0_3 \\
-		0_3 & {}^WJ^{-1} R_z(\psi)^\top \\
+		\frac{1}{m}R_z(\psi)^\top & 0_3 \\
+		{}^WJ^{-1} R_z(\psi)^\top [{}^Br]^\times & {}^WJ^{-1} R_z(\psi)^\top \\
 	\end{bmatrix}
 	\begin{bmatrix}
 	{}^B f_{3 \times 1} \\
@@ -77,55 +76,8 @@ Assume fx = fy = 0 : r becomes redundant?
   & f_{z, k} = 0 && \forall k \notin \mathcal{C}  \\
   & -\mu {f_{z, k}} \leq f_{x, k} \leq \mu {f_{z, k}} && \forall k  \\
   & -\mu {f_{z, k}} \leq f_{y, k} \leq \mu {f_{z, k}} && \forall k  \\   
-  & -\tau_{max} \leq {\tau_k} \leq \tau_{max} && \forall k  \\
-  & \begin{bmatrix} 0 & 1 & 0\end{bmatrix} R_z(\psi) \begin{bmatrix} f_x & f_y & f_z \end{bmatrix}^\top  = 0 && \forall k
+  & -\tau_{max} \leq {\tau_k} \leq \tau_{max} && \forall k 
 \end{align}
 %\end{equation}
-
-\begin{equation}
-	\begin{bmatrix}
-	{}^W \dot{P}_{3 \times 1}\\
-	{}^W \dot{\Theta}_{3 \times 1}\\
-	{}^W \ddot{P}_{3 \times 1}\\
-	{}^W \dot{\omega}_{3 \times 1}\\
-	{}^W \dot{\rho}_{3 \times 1}
-	\end{bmatrix} = 
-	\begin{bmatrix}
-		0_3 & 0_3 & 1_3 & 0_3 & 0_3  \\
-		0_3 & 0_3 & 0_3 & R_z(\psi) & 0_3  \\
-		0_3 & 0_3 & 0_3 & 0_3 & 0_3 \\
-		0_3 & 0_3 & 0_3 & 0_3 & 0_3 \\
-		0_3 & 0_3 & 0_3 & 0_3 & 0_3 \\
-	\end{bmatrix}
-	\begin{bmatrix}
-	{}^W P_{3 \times 1}\\
-	{}^W \Theta_{3 \times 1}\\
-	{}^W \dot{P}_{3 \times 1}\\
-	{}^W {\omega}_{3 \times 1}\\
-	{}^W \rho_{3 \times 1}
-	\end{bmatrix} + 
-	\begin{bmatrix}
-		0_3 & 0_3 \\
-		0_3 & 0_3 \\
-		1_3\frac{1}{m} & 0_3 \\
-		{}^WJ^{-1} [r]^\times & {}^WJ^{-1} R_z(\phi)^\top \\
-		0_3 & 1_3 \\
-	\end{bmatrix}
-	\begin{bmatrix}
-	{}^Wf_x\\
-	{}^Wf_y\\
-	{}^Wf_z\\
-	{}^B\tau_x \\
-	{}^B\tau_y \\
-	{}^B\tau_z
-	\end{bmatrix} +
-	\begin{bmatrix}
-	0_{3\times 1} \\
-	0_{3\times 1} \\
-	g_{3\times 1} \\
-	0_{3\times 1} \\
-	0_{3\times 1} \\
-	\end{bmatrix}
-\end{equation}
 
 \end{document}

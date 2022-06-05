@@ -5,7 +5,9 @@ Copyright (C) 2020 Benjamin Bokser
 import numpy as np
 import pybullet as p
 import pybullet_data
+from PIL import Image
 import os
+
 import actuator
 import actuator_param
 from utils import L, Z, Q_inv
@@ -21,16 +23,16 @@ def reaction(numJoints, bot):  # returns joint reaction force
 
 class Sim:
 
-    def __init__(self, X_0, model, spring, dt=1e-3, g=9.807, fixed=False, spr=False,
+    def __init__(self, X_0, model, spring, q_cal, dt, g=9.807, fixed=False,
                  record=False, scale=1, gravoff=False, direct=False):
+        self.q_cal = q_cal
         self.dt = dt
         self.record_rt = record  # record video in real time
-        self.spr = spr
         self.L = model["linklengths"]
         self.model = model["model"]
         self.n_a = model["n_a"]
         self.S = model["S"]
-        self.spring_fn = spring.fn_spring if spr is True else spring.fn_no_spring
+        self.spring_fn = spring.fn_spring
         self.actuator_q0 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_q2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_rmdx10)
         self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
@@ -53,10 +55,10 @@ class Sim:
         robotStartOrientation = p.getQuaternionFromEuler([0, 0, 0])
 
         curdir = os.getcwd()
-        path_parent = os.path.dirname(curdir)
+        self.path_parent = os.path.dirname(curdir)
         model_path = model["urdfpath"]
         # self.bot = p.loadURDF(os.path.join(path_parent, os.path.pardir, model_path), [0, 0, 0.7 * scale],
-        self.bot = p.loadURDF(os.path.join(path_parent, model_path), X_0[0:3],  # 0.31
+        self.bot = p.loadURDF(os.path.join(self.path_parent, model_path), X_0[0:3],  # 0.31
                          robotStartOrientation, useFixedBase=fixed, globalScaling=scale,
                          flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER)
         # p.resetDebugVisualizerCamera(cameraDistance=1.5, cameraYaw=45, cameraPitch=-45, cameraTargetPosition=[0,0,0])
@@ -66,11 +68,6 @@ class Sim:
         self.numJoints = p.getNumJoints(self.bot)
 
         p.setRealTimeSimulation(useRealTime)
-
-        self.c_link = 1  # contact link
-
-        # if self.model != 'design_rw' and self.model != 'design_cmg':
-        #     vert = p.createConstraint(self.bot, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0, 1], [0, 0, 0], [0, 0, 0])
 
         # p.createConstraint(self.bot, 3, -1, -1, p.JOINT_POINT2POINT, [0, 0, 0], [-0.135, 0, 0], [0, 0, 0])
         jconn_1 = [x * scale for x in [0.135, 0, 0]]
@@ -82,10 +79,6 @@ class Sim:
         # increase friction of toe to ideal
         # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
         p.changeDynamics(self.bot, self.c_link, lateralFriction=3)  # , restitution=0.01)
-
-        # Record Video in real time
-        if self.record_rt is True:
-            p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
 
         for i in range(self.numJoints):
             # Disable the default velocity/position motor:
@@ -99,17 +92,18 @@ class Sim:
         self.X = np.zeros(13)  # initialize state
         self.init = True
         self.Q_calib = np.array([1, 0, 0, 0])
+        self.i = 0
+        self.ii = 0
 
     def sim_run(self, u):
-        q_ = np.reshape([j[0] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-        dq_ = np.reshape([j[1] for j in p.getJointStates(1, range(0, self.numJoints))], (-1, 1))
-
-        q = q_.flatten()
-        dq = dq_.flatten()
+        q = np.array([j[0] for j in p.getJointStates(1, range(0, self.numJoints))])
+        dq = np.array([j[1] for j in p.getJointStates(1, range(0, self.numJoints))])
         qa = (q.T @ self.S).flatten()
-        dqa = (dq_.T @ self.S).flatten()
+        dqa = (dq.T @ self.S).flatten()
 
-        tau_s = self.spring_fn(q)
+        q0 = qa[0] + self.q_cal[0]
+        q2 = qa[1] + self.q_cal[1]
+        tau_s = self.spring_fn(q0=q0, q2=q2)
 
         tau = np.zeros(self.n_a)
         i = np.zeros(self.n_a)
@@ -126,8 +120,7 @@ class Sim:
         torque = self.S @ tau
 
         p.setJointMotorControlArray(self.bot, self.jointArray, p.TORQUE_CONTROL, forces=torque)
-
-        Q_base_p = np.array(p.getBasePositionAndOrientation(self.bot)[1])
+        p_base, Q_base_p = p.getBasePositionAndOrientation(self.bot)
         Q_base = np.roll(Q_base_p, 1)  # pybullet gives quaternions in xyzw format instead of wxyz, shift values.
         if self.init is True:
             """
@@ -140,12 +133,13 @@ class Sim:
             self.init = False
         Q_base = L(self.Q_calib).T @ Q_base  # correct Q_base by rotating it by Q_calib
         velocities = p.getBaseVelocity(self.bot)
-        self.X[0:3] = np.array(p.getBasePositionAndOrientation(self.bot)[0])
+
+        self.X[0:3] = p_base
         self.X[3:7] = Q_base
         self.X[7:10] = Z(Q_inv(Q_base), velocities[0])  # linear vel world -> body frame
         self.X[10:] = Z(Q_inv(Q_base), velocities[1])  # angular vel world -> body frame
 
-        f_sens, tau_sens = reaction(self.numJoints, self.bot)
+        # f_sens, tau_sens = reaction(self.numJoints, self.bot)
         contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
         if np.shape(contact)[0] == 0:  # prevent empty list from being passed
             grf = np.zeros(3)
@@ -160,8 +154,22 @@ class Sim:
             grf_z = grf_nrml * grf_nrml_onB
             fric_y = fric1 * fric1_dir
             fric_x = fric2 * fric2_dir
-            grf = (grf_z + fric_y + fric_x).flatten()
+            grf = (grf_z - fric_y - fric_x).flatten()
             c = True  # Detect contact with ground plane
+
+        # Record Video in real time
+        self.ii += 1
+        if self.record_rt is True and self.ii == 24:  # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "file1.mp4")
+            self.ii = 0
+            self.i += 1
+            # fix camera onto model
+            p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-20, cameraTargetPosition=p_base)
+            width, height, rgbImg, depthImg, segImg = p.getCameraImage(640, 480, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+            im = Image.fromarray(rgbImg)
+            im.save(self.path_parent + '/imgs/' + str(self.i).zfill(4) + ".png")
+            """To convert these images to video, run the following command in /imgs:
+            cat *.png | ffmpeg -f image2pipe -i - output.mp4
+            """
 
         if useRealTime == 0:
             p.stepSimulation()
