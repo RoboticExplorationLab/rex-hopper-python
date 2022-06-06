@@ -45,11 +45,13 @@ class Gait:
         # mpc-based hopping
         Q_base = X_in[3:7]
         if state == "Rise" or state == "Fall":
-            pfw_ref = pf_refk - X_in[0:3]  # vec from CoM to footstep ref in world frame
+            pfw_ref = pf_refk[0:3] - X_in[0:3]  # vec from CoM to footstep ref in world frame
             pfw_ref[2] = np.clip(pfw_ref[2], -self.h_tran, 0)  # limit leg z-pos to h_tran
             pfb_ref = utils.Z(utils.Q_inv(Q_base), pfw_ref)  # world frame -> body frame
+            vel_pfw_ref = pf_refk[3:6] - X_in[7:10]
+            vel_pfb_ref = utils.Z(utils.Q_inv(Q_base), vel_pfw_ref)  # world frame -> body frame
             # pfb_ref = pfb_ref/np.linalg.norm(pfb_ref) * self.h * 4.5 / 3
-            self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref)
+            self.u[0:2] = self.controller.wb_pos_control(target=pfb_ref, target_vel=vel_pfb_ref)
             # self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
         elif state == "Compress" or state == "Push":
             # self.u[0:2] = self.controller.wb_f_control(force=utils.Z(Q_base, -U_in[0:3]))  # world frame to body frame

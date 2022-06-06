@@ -73,7 +73,7 @@ class Runner:
         self.phase_offset = 1.5 * np.pi  # np.pi * 3 / 2  # phase offset
         self.t_c = self.t_p * self.phi_switch  # time (seconds) spent in contact
         self.t_fl = self.t_p * (1 - self.phi_switch)  # time (seconds) spent in flight
-        self.N = int(60)  # mpc prediction horizon length (mpc steps)
+        self.N = int(40)  # mpc prediction horizon length (mpc steps)
         self.dt_mpc = 0.01  # 0.01 mpc sampling time (s), needs to be a factor of N
         self.N_dt = int(self.dt_mpc / self.dt)  # mpc sampling time (low-level timesteps), repeat mpc every x timesteps
         self.N_k = int(self.N * self.N_dt)  # total mpc prediction horizon length (in low-level timesteps)
@@ -83,7 +83,7 @@ class Runner:
         self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
 
         self.step_adjustment = -110  # adjusts step to be ahead/behind local minima of traj by traj timesteps
-        self.h_tran = self.h + self.amp + 0.025  # leg height for transition from contact to flight and vice versa
+        self.h_tran = self.h + self.amp + 0.0375  # leg height for transition from contact to flight and vice versa
         self.n_idx = None
         self.pf_list = None
         self.z_ref = None
@@ -123,11 +123,11 @@ class Runner:
         self.spline_i = None
         self.N_ref = None
         self.kf_list = None
-        N_early = 200  # number of timesteps for foot to arrive early by
+        N_early = 50  # number of timesteps for foot to arrive early by
         self.N_pf = self.N_f - N_early
-        pf_spline_k = np.array([0., self.N_pf / 2, self.N_pf])
-        pf_spline_i = np.array([0., self.amp, 0.])
-        self.pf_spline = CubicSpline(pf_spline_k, pf_spline_i, bc_type='not-a-knot')  # generate cubic spline
+        pf_spline_k = np.array([0., 0.5 * self.N_pf, self.N_pf])
+        pf_spline_i = np.array([0.1, 1.5 * self.amp, 0.])
+        self.pf_spline = CubicSpline(pf_spline_k, pf_spline_i, bc_type='natural')  # generate cubic spline
 
     def run(self):
         n_a = self.n_a
@@ -216,7 +216,7 @@ class Runner:
                     x_refk = self.ref_traj_grab(ref=x_ref, k=k)
                     pf_refk = self.ref_traj_grab(ref=pf_ref, k=k)
                     x_in = utils.convert(X_traj[k, :])  # convert to mpc states
-                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf_ref=pf_refk,
+                    U = self.mpc.mpcontrol(x_in=x_in, x_ref_in=x_refk, pf_ref=pf_refk[:, 0:3],
                                            C=Ck, f_max=self.f_max(), init=init)
                     init = False  # after the first mpc run, change init to false
 
@@ -244,7 +244,7 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            if k >= 1500:
+            if k >= 2000:
                 break
 
         if self.plot == True:
@@ -333,7 +333,7 @@ class Runner:
         idx = np.hstack((idx, N_ref - 1))  # add final footstep idx based on last timestep
 
         self.n_idx = np.shape(idx)[0]
-        pf_ref = np.zeros((N_ref, 3))
+        pf_ref = np.zeros((N_ref, 6))
         self.pf_list = np.zeros((self.n_idx, 3))
 
         k_f = 0
@@ -374,15 +374,17 @@ class Runner:
         """ rewrite pf_ref based on actual current footstep location """
         for k in range(0, self.N_ref):  # regen pf_ref
             k_f = self.kf_list[k]
-            pf_ref[k, :] = self.pf_list[k_f, :]  # add reference footsteps to appropriate timesteps
+            pf_ref[k, 0:3] = self.pf_list[k_f, :]  # add reference footsteps to appropriate timesteps
         N_pf = self.N_pf
         pf_spline_ref = [self.pf_spline(k) for k in range(N_pf)]  # create z-spline
         for k in range(0, self.N_ref):
             k_f = self.kf_list[k]
             if C[k - 1] == 1 and C[k] == 0 and k_f < (self.n_idx - 1):
-                pf_ref[k:(k + N_pf), :] = \
+                pf_ref[k:(k + N_pf), 0:3] = \
                     np.linspace(start=self.pf_list[k_f - 1, :], stop=self.pf_list[k_f, :], num=N_pf)
                 pf_ref[k:(k + N_pf), 2] = pf_spline_ref
+        # interpolate linear vel
+        pf_ref[:-1, 3:6] = [(pf_ref[i + 1, 0:3] - pf_ref[i, 0:3]) / self.dt for i in range(self.N_ref - 1)]
         return pf_ref
 
     def ref_traj_grab(self, ref, k):  # Grab appropriate timesteps of pre-planned trajectory for mpc
