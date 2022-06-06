@@ -182,7 +182,7 @@ class Mpc:
 
     def solve_qp(self, cost, constr):
         problem = cp.Problem(cp.Minimize(cost), constr)
-        problem.solve(solver=cp.OSQP)  # , verbose=True)
+        problem.solve(solver=cp.OSQP)  #, verbose=True)
         if self.u.value is None or self.x.value is None:
             raise Exception("\n *** QP FAILED *** \n")
         return None

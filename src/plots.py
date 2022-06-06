@@ -90,7 +90,7 @@ def dqplot(model, total, n_a, dq_hist):
     plt.show()
 
 
-def f_plot(total, f_hist, grf_hist, s_hist):
+def f_plot(total, f_hist, grf_hist, s_hist, statem_hist):
     fig, axs = plt.subplots(5, sharex='all')
     plt.xlabel("Timesteps")
 
@@ -100,14 +100,14 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     axs[0].set_ylabel("Force, N")
     axs[0].set_ylim(-300, 300)
 
-    axs[1].plot(range(total), grf_hist[:, 1], color='b')
-    axs[1].plot(range(total), f_hist[:, 1], color='r')
+    axs[1].plot(range(total), grf_hist[:, 1], color='r')
+    axs[1].plot(range(total), f_hist[:, 1], color='b')
     axs[1].set_title('Y Ground Reaction Force')
     axs[1].set_ylabel("Force, N")
     axs[1].set_ylim(-300, 300)
 
-    axs[2].plot(range(total), grf_hist[:, 2], color='b')
-    axs[2].plot(range(total), f_hist[:, 2], color='r')
+    axs[2].plot(range(total), grf_hist[:, 2], color='r')
+    axs[2].plot(range(total), f_hist[:, 2], color='b')
     axs[2].set_title('Z Ground Reaction Force')
     axs[2].set_ylabel("Force, N")
     axs[2].set_ylim(-300, 300)
@@ -116,7 +116,8 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels, loc='upper center')
 
-    axs[3].plot(range(total), s_hist[:, 0], color='green', lw='3', ls="--")
+    # axs[3].plot(range(total), s_hist[:, 0], color='green', lw='2', ls="--", label='Contact Schedule')
+    axs[3].plot(range(total), statem_hist, color='cyan', lw='1', ls="-", label='State Machine States')
     axs[3].set_title('Original Contact Schedule')
     axs[3].set_ylabel("True/False")
 
