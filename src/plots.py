@@ -222,12 +222,14 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_list, pf_list0, dist):
     ax.set_xlim3d(0, dist)
     ax.set_ylim3d(-dist/2, dist/2)
     ax.set_zlim3d(0, 2)
+
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref CoM Traj')
     ax.plot(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='cyan', ls='--', label='Ref Foot Traj')
     ax.scatter(pf_list0[:, 0], pf_list0[:, 1], pf_list0[:, 2], color='cyan', marker="x", s=200, label='Ref Footsteps')
 
+    p_hist = p_hist[~np.all(p_hist == 0, axis=1)]  # remove all rows containing only zeros
     ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
     ax.scatter(pf_list[:, 0], pf_list[:, 1], pf_list[:, 2],

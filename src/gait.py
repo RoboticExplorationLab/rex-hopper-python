@@ -60,7 +60,7 @@ class Gait:
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
-
+        # yaw override
         v_ref = x_ref[200, 0:3] - X_in[0:3]
         z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
         torques, thetar, setp = self.moment.rw_control(np.array([1, 0, 0, 0]), Q_base, z_ref)

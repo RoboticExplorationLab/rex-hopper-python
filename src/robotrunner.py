@@ -82,7 +82,7 @@ class Runner:
         self.t_horizon = self.N * self.dt_mpc  # time (seconds) of mpc horizon
         self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
 
-        self.step_adjustment = -145  # adjusts step to be ahead/behind local minima of traj by traj timesteps
+        self.step_adjustment = -135  # adjusts step to be ahead/behind local minima of traj by traj timesteps
         self.h_tran = self.h + self.amp + 0.025  # leg height for transition from contact to flight and vice versa
         self.n_idx = None
         self.pf_list = None
@@ -341,12 +341,13 @@ class Runner:
 
         idx = find_peaks(-x_ref[:, 2])[0]  # + self.step_adjustment  # indices of footstep positions
         adj = self.step_adjustment
+        adj_min = 0.5 * self.step_adjustment
         for i in range(len(idx)):
             idx[i] += adj
-            if adj < 0:
-                adj += 30
-            else:
-                adj = 0
+            print(adj)
+            adj += 30
+            # adj = np.clip(adj, adj_min, self.step_adjustment)
+            adj = np.clip(adj, self.step_adjustment, adj_min)
 
         idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
         idx = np.hstack((idx, N_ref - 1))  # add final footstep idx based on last timestep
@@ -368,6 +369,39 @@ class Runner:
         self.k_f_update(C)  # update kf_list
         pf_ref = self.footstep_update(pf_ref, C)
         return x_ref, pf_ref, C
+
+    def traj_update(self, X_in, x_ref, k, k_f, k_c):
+        """ create new ref traj online. Only run at the lowest point of trajectory """
+        N_k = self.N_k
+        N_ref = self.N_ref
+        k_s = int(k_f * 2) + k_c  # get spline position index for the current timestep
+        spline_k = self.spline_k
+        np.set_printoptions(threshold=sys.maxsize)
+        self.spline_i[k_s, 1] = X_in[1]  # update spline with new CoM position
+        # print("spline_i = ", self.spline_i, "x_in", X_in[0:3], "k_s = ", k_s)
+        ref_spline = CubicSpline(spline_k, self.spline_i, bc_type='clamped')  # generate cubic spline
+        x_ref[:, 0:3] = [ref_spline(k) for k in range(N_ref)]  # create z-spline
+        # interpolate linear vel
+        x_ref[k:(k+N_k), 6:9] = [(x_ref[k + i + 1, 0:3] - x_ref[k + i, 0:3]) / self.dt for i in range(N_k)]
+        '''
+        for i in range(k, k+N_k):  # roll compensation
+            if x_ref[i, 8] >= 0:
+                k_f_i = k_f
+            else:
+                k_f_i = k_f + 1
+            pf_b = self.pf_list[k_f_i, :] - x_ref[i, 0:3]  # find vector b/t x_ref and pf_ref
+            # this only works if robot is facing exactly forward
+            x_ref[i, 3] = np.pi/2 + utils.wrap_to_pi(np.arctan2(pf_b[2], pf_b[0]))  # get xz plane angle TODO: Check
+            # print(x_ref[i, 3])'''
+        # yaw compensation
+        for i in range(k, k + N_k):
+            vec_ref = x_ref[i+200, 0:3] - x_ref[i, 0:3]  # vector from current position to future position
+            x_ref[i, 5] = np.arctan2(vec_ref[1], vec_ref[0])  # desired yaw
+
+        # interpolate angular velocities
+        x_ref[k:(k+N_k), 9:12] = [(x_ref[k + i + 1, 3:6] - x_ref[k + i, 3:6]) / self.dt for i in range(N_k)]
+
+        return x_ref
 
     def k_f_update(self, C):
         """ update kf_list with new contact map """
@@ -424,35 +458,6 @@ class Runner:
         f_max1 = np.absolute(tau_max1 @ jac_inv)  # max output force at default pose
         f_max2 = np.absolute(tau_max2 @ jac_inv)
         return np.maximum(f_max1, f_max2)  # TODO: f is in world frame here, f_max should be in world frame
-
-    def traj_update(self, X_in, x_ref, k, k_f, k_c):
-        """ create new ref traj online. Only run at the lowest point of trajectory """
-        N_k = self.N_k
-        N_ref = self.N_ref
-        k_s = int(k_f * 2) + k_c  # get spline position index for the current timestep
-        spline_k = self.spline_k
-        np.set_printoptions(threshold=sys.maxsize)
-        self.spline_i[k_s, 1] = X_in[1]  # update spline with new CoM position
-        # print("spline_i = ", self.spline_i, "x_in", X_in[0:3], "k_s = ", k_s)
-        ref_spline = CubicSpline(spline_k, self.spline_i, bc_type='clamped')  # generate cubic spline
-        x_ref[:, 0:3] = [ref_spline(k) for k in range(N_ref)]  # create z-spline
-        # interpolate linear vel
-        x_ref[k:(k+N_k), 6:9] = [(x_ref[k + i + 1, 0:3] - x_ref[k + i, 0:3]) / self.dt for i in range(N_k)]
-        '''
-        for i in range(k, k+N_k):  # roll compensation
-            if x_ref[i, 8] >= 0:
-                k_f_i = k_f
-            else:
-                k_f_i = k_f + 1
-            pf_b = self.pf_list[k_f_i, :] - x_ref[i, 0:3]  # find vector b/t x_ref and pf_ref
-            # this only works if robot is facing exactly forward
-            x_ref[i, 3] = np.pi/2 + utils.wrap_to_pi(np.arctan2(pf_b[2], pf_b[0]))  # get xz plane angle TODO: Check
-            # print(x_ref[i, 3])'''
-
-        # interpolate angular velocity
-        x_ref[k:(k+N_k), 9] = [(x_ref[k + i + 1, 9] - x_ref[k + i, 9]) / self.dt for i in range(N_k)]  # '''
-
-        return x_ref
 
     def ft_check(self, sh, sh_prev, t):
         # flight time recorder
