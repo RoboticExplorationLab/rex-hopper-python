@@ -116,12 +116,12 @@ def f_plot(total, f_hist, grf_hist, s_hist, statem_hist):
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels, loc='upper center')
 
-    # axs[3].plot(range(total), s_hist[:, 0], color='green', lw='2', ls="--", label='Contact Schedule')
+    # axs[3].plot(range(total), s_hist[:, 0], color='green', lw='2', ls="--", label='Original Contact Schedule')
     axs[3].plot(range(total), statem_hist, color='cyan', lw='1', ls="-", label='State Machine States')
-    axs[3].set_title('Original Contact Schedule')
+    axs[3].set_title('State Machine States')
     axs[3].set_ylabel("True/False")
 
-    axs[4].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Updated Schedule')
+    axs[4].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Contact Schedule')
     axs[4].plot(range(total), s_hist[:, 2], color='orange', lw='1', ls="-", label='Actual')
     axs[4].set_title('Actual and Scheduled Contact')
     axs[4].set_ylabel("True/False")

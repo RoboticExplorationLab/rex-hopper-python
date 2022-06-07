@@ -41,7 +41,7 @@ class Gait:
         self.X_f = X_f
         self.u = np.zeros(self.n_a)
 
-    def u_mpc(self, state, X_in, U_in, pf_refk):
+    def u_mpc(self, state, X_in, U_in, pf_refk, x_ref):
         # mpc-based hopping
         Q_base = X_in[3:7]
         if state == "Rise" or state == "Fall":
@@ -60,6 +60,11 @@ class Gait:
         else:
             raise NameError('INVALID STATE')
         self.u[2:] = self.moment.rw_torque_ctrl(U_in[3:6])
+
+        v_ref = x_ref[200, 0:3] - X_in[0:3]
+        z_ref = np.arctan2(v_ref[1], v_ref[0])  # desired yaw
+        torques, thetar, setp = self.moment.rw_control(np.array([1, 0, 0, 0]), Q_base, z_ref)
+        self.u[4] = torques[2]
         return self.u / self.a_kt  # convert from Nm to A
 
     def u_raibert(self, state, state_prev, X_in, x_ref):

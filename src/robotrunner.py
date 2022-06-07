@@ -69,11 +69,11 @@ class Runner:
         # mpc and planning-related constants
         self.t_p = 0.8  # gait period, seconds
         self.phi_switch = 0.5  # switching phase, must be between 0 and 1. Percentage of gait spent in contact.
-        self.amp = self.t_p * 1 / 4  # amplitude
+        self.amp = 0.25 * self.t_p  # amplitude
         self.phase_offset = 1.5 * np.pi  # np.pi * 3 / 2  # phase offset
         self.t_c = self.t_p * self.phi_switch  # time (seconds) spent in contact
         self.t_fl = self.t_p * (1 - self.phi_switch)  # time (seconds) spent in flight
-        self.N = int(40)  # mpc prediction horizon length (mpc steps)
+        self.N = int(30)  # mpc prediction horizon length (mpc steps)
         self.dt_mpc = 0.01  # 0.01 mpc sampling time (s), needs to be a factor of N
         self.N_dt = int(self.dt_mpc / self.dt)  # mpc sampling time (low-level timesteps), repeat mpc every x timesteps
         self.N_k = int(self.N * self.N_dt)  # total mpc prediction horizon length (in low-level timesteps)
@@ -82,8 +82,8 @@ class Runner:
         self.t_horizon = self.N * self.dt_mpc  # time (seconds) of mpc horizon
         self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
 
-        self.step_adjustment = -110  # adjusts step to be ahead/behind local minima of traj by traj timesteps
-        self.h_tran = self.h + self.amp + 0.0375  # leg height for transition from contact to flight and vice versa
+        self.step_adjustment = -145  # adjusts step to be ahead/behind local minima of traj by traj timesteps
+        self.h_tran = self.h + self.amp + 0.025  # leg height for transition from contact to flight and vice versa
         self.n_idx = None
         self.pf_list = None
         self.z_ref = None
@@ -91,7 +91,7 @@ class Runner:
         self.spring = spring.Spring(model=model, spr=spr)
         self.controller = controller_class.Control(leg=self.leg, spring=self.spring, m=self.m, dt=dt, gain=gain)
         self.simulator = simulationbridge.Sim(X_0=self.X_0, model=model, spring=self.spring, q_cal=self.q_cal,
-                                              dt=dt, g=self.g, fixed=fixed, record=record, scale=scale,
+                                              dt=dt, mu=self.mu, g=self.g, fixed=fixed, record=record, scale=scale,
                                               gravoff=gravoff, direct=direct)
         self.moment = moment_ctrl.MomentCtrl(model=model, dt=dt)
         self.mpc = mpc_srb.Mpc(t=self.dt_mpc, N=self.N, m=self.m, g=self.g, mu=self.mu, Jinv=self.Jinv, rh=self.rh)
@@ -123,10 +123,10 @@ class Runner:
         self.spline_i = None
         self.N_ref = None
         self.kf_list = None
-        N_early = 50  # number of timesteps for foot to arrive early by
+        N_early = 100  # number of timesteps for foot to arrive early by
         self.N_pf = self.N_f - N_early
         pf_spline_k = np.array([0., 0.5 * self.N_pf, self.N_pf])
-        pf_spline_i = np.array([0.1, 1.5 * self.amp, 0.])
+        pf_spline_i = np.array([0., 1.5 * self.amp, 0.])
         self.pf_spline = CubicSpline(pf_spline_k, pf_spline_i, bc_type='natural')  # generate cubic spline
 
     def run(self):
@@ -194,21 +194,22 @@ class Runner:
             k_f = self.kf_list[k]
 
             if self.ctrl_type == 'mpc':
-                if state == 'Compress' and state_prev == 'Fall' and k > 10:  # if contact has just been made...
+                if sh == 1 and sh_prev == 0 and k > 10:
+                    # if state == 'Compress' and state_prev == 'Fall' and k > 10:  # if contact has just been made...
                     # C = self.contact_update_enter(C, k)  # update C to reflect new timing
                     self.pf_list[k_f, 0:2] = pf[0:2]  # update footstep list
                     pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update current footstep position
-                elif state == 'Push' and state_prev == 'Compress':  # at the bottom of the trough...
+                if state == 'Push' and state_prev == 'Compress':  # at the bottom of the trough...
                     x_ref = self.traj_update(X_in=X_traj[k, :], x_ref=x_ref, k=k, k_f=k_f, k_c=0)  # update traj
                 # elif state == 'Rise' and state_prev == 'Push':  # if we are leaving contact...
-                    '''C = self.contact_update_leave(C, k)  # update C to reflect new timing
-                    pdot_ref = x_ref[k, 6:9]
-                    pf_next = self.pf_list[k_f, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
-                    self.pf_list[k_f, 0:2] = pf_next[0:2]  # update footstep list
-                    pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update next footstep position
-                    k_c = -1  # update traj
-                    x_next = self.spline_i[int(k_f * 2) + k_c, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
-                    x_ref = self.traj_update(X_in=x_next, x_ref=x_ref, k=k, k_f=k_f, k_c=k_c)'''
+                #     C = self.contact_update_leave(C, k)  # update C to reflect new timing
+                #     pdot_ref = x_ref[k, 6:9]
+                #     pf_next = self.pf_list[k_f, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
+                #     self.pf_list[k_f, 0:2] = pf_next[0:2]  # update footstep list
+                #     pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update next footstep position
+                #     k_c = -1  # update traj
+                #     x_next = self.spline_i[int(k_f * 2) + k_c, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
+                #     x_ref = self.traj_update(X_in=x_next, x_ref=x_ref, k=k, k_f=k_f, k_c=k_c)
 
                 if mpc_counter >= N_dt:  # check if it's time to restart the mpc
                     mpc_counter = 0  # restart the mpc counter
@@ -222,7 +223,8 @@ class Runner:
 
                 mpc_counter += 1
                 U_hist[k, :] = U  # take first timestep
-                self.u = self.gait.u_mpc(state=state, X_in=X_traj[k, :], U_in=U, pf_refk=pf_ref[k, :])
+                self.u = self.gait.u_mpc(state=state, X_in=X_traj[k, :], U_in=U, pf_refk=pf_ref[k, :],
+                                         x_ref=x_ref[k:, :])
 
             else:
                 # state = self.state.FSM.execute(s=s, sh=sh, go=self.go, pdot=pdot, leg_pos=pfb)
@@ -244,8 +246,12 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
-            if k >= 2000:
+
+            if k_f > 1 and self.ft_saved <= 0.5 * self.t_fl:
+                print("Ending sim as robot has failed")
                 break
+            # if k >= 3000:
+            #     break
 
         if self.plot == True:
             plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
@@ -300,8 +306,8 @@ class Runner:
             x_ref[:-1, 11] = [(x_ref[i + 1, 11] - x_ref[i, 11]) / dt for i in range(N_run - 1)]
 
         x_ref = np.vstack((x_ref, np.tile(xf, (N_k + N_sit, 1))))  # sit at the goal
-        period = self.t_p  # *1.2  # * self.dt_mpc / 2
         amp = self.amp
+        period = self.t_p  # *1.2  # * self.dt_mpc / 2
         phi = self.phase_offset
         # make height sine wave
         sine_wave = np.array([x_in[2] + amp + amp * np.sin(2 * np.pi / period * (i * dt) + phi) for i in range(N_ref)])
@@ -317,18 +323,31 @@ class Runner:
         spline_i[1:, 0] += -0.2  # make first step shorter
         ref_spline = CubicSpline(spline_k, spline_i, bc_type='natural')  # generate cubic spline
         x_ref[:, 0:3] = [ref_spline(k) for k in range(N_ref)]  # create z-spline
-
+        '''
+        N_p = self.N_c + self.N_f  # number of timesteps in period
+        N_steps = int(N_ref/N_p) - 1  # number of periods in N_ref
+        spline_k = np.array([0, 0.5 * N_p, N_p], dtype=int)
+        spline_i = np.array([x_in[2], x_in[2] + 2 * amp, x_in[2]])
+        N_p_0 = int(N_p * 0.6)
+        spline_k_0 = np.array([0, 0.5 * N_p_0, N_p_0], dtype=int)
+        ref_spline_0 = CubicSpline(spline_k_0, spline_i, bc_type='natural')  # generate cubic spline for one hop
+        x_ref[0:N_p_0, 2] = [ref_spline_0(k) for k in range(N_p_0)]  # first hop
+        ref_spline = CubicSpline(spline_k, spline_i, bc_type='natural')  # generate cubic spline for one hop
+        for i in range(N_steps):
+            x_ref[N_p_0 + (i * N_p):N_p_0 + (i * N_p + N_p), 2] = [ref_spline(k) for k in range(N_p)]  # create z-spline
+        x_ref[N_p_0 + (N_steps * N_p):, 2] = [ref_spline(k) for k in range(N_ref - N_steps * N_p - N_p_0)]  # last step
+        '''
         x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(N_ref - 1)]  # interpolate linear vel
 
-        # idx = troughs + self.step_adjustment  # indices of footstep positions
-        idx = copy(troughs)
+        idx = find_peaks(-x_ref[:, 2])[0]  # + self.step_adjustment  # indices of footstep positions
         adj = self.step_adjustment
-        for i in range(len(troughs)):
+        for i in range(len(idx)):
             idx[i] += adj
             if adj < 0:
-                adj += 20
+                adj += 30
             else:
                 adj = 0
+
         idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
         idx = np.hstack((idx, N_ref - 1))  # add final footstep idx based on last timestep
 
