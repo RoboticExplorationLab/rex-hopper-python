@@ -130,6 +130,53 @@ def f_plot(total, f_hist, grf_hist, s_hist, statem_hist):
     plt.show()
 
 
+def vel_plot(total, vel_hist, vel_ref, omega_hist, omega_ref):
+    fig, axs = plt.subplots(6, sharex='all')
+    plt.xlabel("Timesteps")
+
+    axs[0].plot(range(total), vel_hist[:, 0], color='r', label="Vel Actual")
+    axs[0].plot(range(total), vel_ref[:, 0], color='b', label="Vel Ref")
+    axs[0].set_title('X Linear Velocity')
+    axs[0].set_ylabel("m/s")
+    # axs[0].set_ylim(-300, 300)
+
+    axs[1].plot(range(total), vel_hist[:, 1], color='r')
+    axs[1].plot(range(total), vel_ref[:, 1], color='b')
+    axs[1].set_title('Y Linear Velocity')
+    axs[1].set_ylabel("m/s")
+    # axs[1].set_ylim(-300, 300)
+
+    axs[2].plot(range(total), vel_hist[:, 2], color='r')
+    axs[2].plot(range(total), vel_ref[:, 2], color='b')
+    axs[2].set_title('Z Linear Velocity')
+    axs[2].set_ylabel("m/s")
+    # axs[2].set_ylim(-300, 300)
+
+    axs[3].plot(range(total), omega_hist[:, 0], color='r')
+    axs[3].plot(range(total), omega_ref[:, 0], color='b')
+    axs[3].set_title('X Angular Velocity')
+    axs[3].set_ylabel("rad/s")
+    # axs[2].set_ylim(-300, 300)
+
+    axs[4].plot(range(total), omega_hist[:, 1], color='r')
+    axs[4].plot(range(total), omega_ref[:, 1], color='b')
+    axs[4].set_title('Y Angular Velocity')
+    axs[4].set_ylabel("rad/s")
+    # axs[2].set_ylim(-300, 300)
+
+    axs[5].plot(range(total), omega_hist[:, 2], color='r')
+    axs[5].plot(range(total), omega_ref[:, 2], color='b')
+    axs[5].set_title('Z Angular Velocity')
+    axs[5].set_ylabel("rad/s")
+    # axs[2].set_ylim(-300, 300)
+
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    fig.legend(lines, labels, loc='upper center')
+
+    plt.show()
+
+
 def currentplot(total, n_a, a_hist):
     cols = 3
     rows = n_a // cols
@@ -229,7 +276,8 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_list, pf_list0, dist):
     ax.plot(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='cyan', ls='--', label='Ref Foot Traj')
     ax.scatter(pf_list0[:, 0], pf_list0[:, 1], pf_list0[:, 2], color='cyan', marker="x", s=200, label='Ref Footsteps')
 
-    p_hist = p_hist[~np.all(p_hist == 0, axis=1)]  # remove all rows containing only zeros
+    p_hist = p_hist[~np.all(p_hist == [0., 0., 0.27], axis=1)]  # remove all rows containing starting value.
+    pf_hist = pf_hist[~np.all(pf_hist == [0., 0., 0.], axis=1)]  # remove all rows containing only zeros
     ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
     ax.scatter(pf_list[:, 0], pf_list[:, 1], pf_list[:, 2],

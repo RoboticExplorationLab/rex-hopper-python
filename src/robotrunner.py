@@ -82,7 +82,7 @@ class Runner:
         self.t_horizon = self.N * self.dt_mpc  # time (seconds) of mpc horizon
         self.t_start = 0.5 * self.t_p * self.phi_switch  # start halfway through stance phase
 
-        self.step_adjustment = -135  # adjusts step to be ahead/behind local minima of traj by traj timesteps
+        self.step_adjustment = -145  # adjusts step to be ahead/behind local minima of traj by traj timesteps
         self.h_tran = self.h + self.amp + 0.025  # leg height for transition from contact to flight and vice versa
         self.n_idx = None
         self.pf_list = None
@@ -194,13 +194,13 @@ class Runner:
             k_f = self.kf_list[k]
 
             if self.ctrl_type == 'mpc':
+                # if state == 'Compress' and state_prev == 'Fall' and k > 10:  # if contact has just been made...
                 if sh == 1 and sh_prev == 0 and k > 10:
-                    # if state == 'Compress' and state_prev == 'Fall' and k > 10:  # if contact has just been made...
                     # C = self.contact_update_enter(C, k)  # update C to reflect new timing
                     self.pf_list[k_f, 0:2] = pf[0:2]  # update footstep list
                     pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update current footstep position
-                if state == 'Push' and state_prev == 'Compress':  # at the bottom of the trough...
-                    x_ref = self.traj_update(X_in=X_traj[k, :], x_ref=x_ref, k=k, k_f=k_f, k_c=0)  # update traj
+                # if state == 'Push' and state_prev == 'Compress':  # at the bottom of the trough...
+                #     x_ref = self.traj_update(X_in=X_traj[k, :], x_ref=x_ref, k=k, k_f=k_f, k_c=0)  # update traj
                 # elif state == 'Rise' and state_prev == 'Push':  # if we are leaving contact...
                 #     C = self.contact_update_leave(C, k)  # update C to reflect new timing
                 #     pdot_ref = x_ref[k, 6:9]
@@ -247,23 +247,25 @@ class Runner:
             sh_prev = sh
             c_prev = c
 
-            if k_f > 1 and self.ft_saved <= 0.5 * self.t_fl:
+            if k_f > 1 and (self.ft_saved <= 0.75 * self.t_fl or self.ft_saved >= 1.5 * self.t_fl):
                 print("Ending sim as robot has failed")
                 break
             # if k >= 3000:
             #     break
 
         if self.plot == True:
-            plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
-            # plots.tauplot(self.model, N_run, n_a, tau_hist, u_hist)
-            # plots.dqplot(self.model, N_run, n_a, dq_hist)
-            plots.f_plot(N_run, f_hist=f_hist, grf_hist=grf_hist, s_hist=s_hist, statem_hist=statem_hist)
             plots.posplot_3d(p_hist=X_traj[::N_dt, 0:3], pf_hist=pf_hist[::N_dt, :],
                              ref_traj=x_ref[::N_dt, 0:3], pf_ref=pf_ref[::N_dt, :],
                              pf_list=self.pf_list, pf_list0=pf_list0, dist=self.dist)
+            plots.vel_plot(N_run, vel_hist=X_traj[:, 7:10], vel_ref=x_ref[:N_run, 6:9],
+                           omega_hist=X_traj[:, 10:13], omega_ref=x_ref[:N_run, 9:12])
+            # plots.tauplot(self.model, N_run, n_a, tau_hist, u_hist)
+            # plots.dqplot(self.model, N_run, n_a, dq_hist)
+            plots.f_plot(N_run, f_hist=f_hist, grf_hist=grf_hist, s_hist=s_hist, statem_hist=statem_hist)
             plots.posplot_animate(p_hist=X_traj[::N_dt, 0:3], pf_hist=pf_hist[::N_dt, :],
                                   ref_traj=x_ref[::N_dt, 0:3], pf_ref=pf_ref[::N_dt, :],
                                   ref_traj0=x_ref0[::N_dt, 0:3], dist=self.dist)
+            plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
             # plots.currentplot(N_run, n_a, a_hist)
             # plots.voltageplot(N_run, n_a, v_hist)
             # plots.etotalplot(N_run, a_hist, v_hist, dt=self.dt)
@@ -321,32 +323,21 @@ class Runner:
         spline_i[:, 0:2] = x_ref[spline_k, 0:2]
         spline_i[:, 2] = sine_wave[spline_k]  # dependent variable
         spline_i[1:, 0] += -0.2  # make first step shorter
+        # x_adj = -0.2
+        # for i in range(1, 4):
+        #     spline_i[i:, 0] += x_adj
+        #     x_adj += 0.1
         ref_spline = CubicSpline(spline_k, spline_i, bc_type='natural')  # generate cubic spline
         x_ref[:, 0:3] = [ref_spline(k) for k in range(N_ref)]  # create z-spline
-        '''
-        N_p = self.N_c + self.N_f  # number of timesteps in period
-        N_steps = int(N_ref/N_p) - 1  # number of periods in N_ref
-        spline_k = np.array([0, 0.5 * N_p, N_p], dtype=int)
-        spline_i = np.array([x_in[2], x_in[2] + 2 * amp, x_in[2]])
-        N_p_0 = int(N_p * 0.6)
-        spline_k_0 = np.array([0, 0.5 * N_p_0, N_p_0], dtype=int)
-        ref_spline_0 = CubicSpline(spline_k_0, spline_i, bc_type='natural')  # generate cubic spline for one hop
-        x_ref[0:N_p_0, 2] = [ref_spline_0(k) for k in range(N_p_0)]  # first hop
-        ref_spline = CubicSpline(spline_k, spline_i, bc_type='natural')  # generate cubic spline for one hop
-        for i in range(N_steps):
-            x_ref[N_p_0 + (i * N_p):N_p_0 + (i * N_p + N_p), 2] = [ref_spline(k) for k in range(N_p)]  # create z-spline
-        x_ref[N_p_0 + (N_steps * N_p):, 2] = [ref_spline(k) for k in range(N_ref - N_steps * N_p - N_p_0)]  # last step
-        '''
+
         x_ref[:-1, 6:9] = [(x_ref[i + 1, 0:3] - x_ref[i, 0:3]) / dt for i in range(N_ref - 1)]  # interpolate linear vel
 
         idx = find_peaks(-x_ref[:, 2])[0]  # + self.step_adjustment  # indices of footstep positions
         adj = self.step_adjustment
-        adj_min = 0.5 * self.step_adjustment
+        adj_min = 0
         for i in range(len(idx)):
             idx[i] += adj
-            print(adj)
             adj += 30
-            # adj = np.clip(adj, adj_min, self.step_adjustment)
             adj = np.clip(adj, self.step_adjustment, adj_min)
 
         idx = np.hstack((0, idx))  # add initial footstep idx based on first timestep
@@ -394,9 +385,9 @@ class Runner:
             x_ref[i, 3] = np.pi/2 + utils.wrap_to_pi(np.arctan2(pf_b[2], pf_b[0]))  # get xz plane angle TODO: Check
             # print(x_ref[i, 3])'''
         # yaw compensation
-        for i in range(k, k + N_k):
-            vec_ref = x_ref[i+200, 0:3] - x_ref[i, 0:3]  # vector from current position to future position
-            x_ref[i, 5] = np.arctan2(vec_ref[1], vec_ref[0])  # desired yaw
+        # for i in range(k, k + N_k):
+        #     vec_ref = x_ref[i+200, 0:3] - x_ref[i, 0:3]  # vector from current position to future position
+        #     x_ref[i, 5] = np.arctan2(vec_ref[1], vec_ref[0])  # desired yaw
 
         # interpolate angular velocities
         x_ref[k:(k+N_k), 9:12] = [(x_ref[k + i + 1, 3:6] - x_ref[k + i, 3:6]) / self.dt for i in range(N_k)]
