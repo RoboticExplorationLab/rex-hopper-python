@@ -147,10 +147,10 @@ class Runner:
         pf_ref0 = copy(pf_ref)  # original unmodified pf_ref
         x_ref0 = copy(x_ref)  # original unmodified x_ref
 
-        if self.plot == True:
-            plots.posplot_animate(p_hist=X_traj[::N_dt*5, 0:3], pf_hist=np.zeros((N_run, 3))[::N_dt*5, :],
-                                  ref_traj=x_ref[::N_dt*5, 0:3], pf_ref=pf_ref[::N_dt*5, :],
-                                  ref_traj0=x_ref0[::N_dt*5, 0:3], dist=self.dist)
+        # if self.plot == True:
+        #     plots.posplot_animate(p_hist=X_traj[::N_dt*5, 0:3], pf_hist=np.zeros((N_run, 3))[::N_dt*5, :],
+        #                           ref_traj=x_ref[::N_dt*5, 0:3], pf_ref=pf_ref[::N_dt*5, :],
+        #                           ref_traj0=x_ref0[::N_dt*5, 0:3], dist=self.dist)
         init = True
         state_prev = str("Init")
         sh_prev = 1
@@ -201,12 +201,15 @@ class Runner:
                     pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update current footstep position
                 # if state == 'Push' and state_prev == 'Compress':  # at the bottom of the trough...
                 #     x_ref = self.traj_update(X_in=X_traj[k, :], x_ref=x_ref, k=k, k_f=k_f, k_c=0)  # update traj
-                # elif state == 'Rise' and state_prev == 'Push':  # if we are leaving contact...
-                #     C = self.contact_update_leave(C, k)  # update C to reflect new timing
-                #     pdot_ref = x_ref[k, 6:9]
-                #     pf_next = self.pf_list[k_f, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
-                #     self.pf_list[k_f, 0:2] = pf_next[0:2]  # update footstep list
-                #     pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update next footstep position
+                elif state == 'Rise' and state_prev == 'Push' and k_f > 3:  # if we are leaving contact...
+                    # C = self.contact_update_leave(C, k)  # update C to reflect new timing
+                    kr = 0.6
+                    pdot_ref = x_ref[k, 6:9]
+                    pf_next = self.pf_list[k_f, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
+                    print((pdot - pdot_ref) * kr)
+                    self.pf_list[k_f, 0:2] = pf_next[0:2]  # update footstep list
+                    # self.pf_list[k_f, 1] = pf_next[1]  # update footstep list
+                    pf_ref = self.footstep_update(pf_ref=pf_ref, C=C)  # update next footstep position
                 #     k_c = -1  # update traj
                 #     x_next = self.spline_i[int(k_f * 2) + k_c, :] + (pdot - pdot_ref) * kr  # Planned + Raibert
                 #     x_ref = self.traj_update(X_in=x_next, x_ref=x_ref, k=k, k_f=k_f, k_c=k_c)
@@ -247,7 +250,7 @@ class Runner:
             sh_prev = sh
             c_prev = c
 
-            if k_f > 1 and (self.ft_saved <= 0.75 * self.t_fl or self.ft_saved >= 1.5 * self.t_fl):
+            if k_f > 1 and (self.ft_saved <= 0.5 * self.t_fl or self.ft_saved >= 1.5 * self.t_fl):
                 print("Ending sim as robot has failed")
                 break
             # if k >= 3000:
@@ -374,16 +377,16 @@ class Runner:
         x_ref[:, 0:3] = [ref_spline(k) for k in range(N_ref)]  # create z-spline
         # interpolate linear vel
         x_ref[k:(k+N_k), 6:9] = [(x_ref[k + i + 1, 0:3] - x_ref[k + i, 0:3]) / self.dt for i in range(N_k)]
-        '''
-        for i in range(k, k+N_k):  # roll compensation
-            if x_ref[i, 8] >= 0:
-                k_f_i = k_f
-            else:
-                k_f_i = k_f + 1
-            pf_b = self.pf_list[k_f_i, :] - x_ref[i, 0:3]  # find vector b/t x_ref and pf_ref
-            # this only works if robot is facing exactly forward
-            x_ref[i, 3] = np.pi/2 + utils.wrap_to_pi(np.arctan2(pf_b[2], pf_b[0]))  # get xz plane angle TODO: Check
-            # print(x_ref[i, 3])'''
+        # # roll compensation
+        # for i in range(k, k+N_k):
+        #     if x_ref[i, 8] >= 0:
+        #         k_f_i = k_f
+        #     else:
+        #         k_f_i = k_f + 1
+        #     pf_b = self.pf_list[k_f_i, :] - x_ref[i, 0:3]  # find vector b/t x_ref and pf_ref
+        #     # this only works if robot is facing exactly forward
+        #     x_ref[i, 3] = np.pi/2 + utils.wrap_to_pi(np.arctan2(pf_b[2], pf_b[0]))  # get xz plane angle TODO: Check
+        #     # print(x_ref[i, 3])
         # yaw compensation
         # for i in range(k, k + N_k):
         #     vec_ref = x_ref[i+200, 0:3] - x_ref[i, 0:3]  # vector from current position to future position
