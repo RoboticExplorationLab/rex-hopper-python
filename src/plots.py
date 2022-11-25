@@ -5,7 +5,7 @@ Copyright (C) 2021 Benjamin Bokser
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+import scienceplots
 plt.style.use(['science', 'no-latex'])
 plt.rcParams['lines.linewidth'] = 2
 import matplotlib.ticker as plticker
@@ -235,6 +235,11 @@ def etotalplot(total, a_hist, v_hist, dt):
     energy = np.trapz(power_hist, dx=dt)
     print("Total energy used is ", energy, " Joules, or ", energy / (48 * 3600), " Ah in ", np.shape(power_hist)[0] * dt,
           " s")
+    energy_3 = np.trapz(power_hist[0:3000], dx=dt) / (48 * 3600)
+    total_available = 1.2
+    time = (total_available / energy_3) * 3 / 60  # time in minutes
+    print("Total energy used in the first 3 seconds is ", energy_3, " Joules, or ", energy_3 / (48 * 3600), " Ah")
+    print("Which means a ", total_available, " Ah battery will run out in ", time, " minutes.")
     plt.show()
 
 

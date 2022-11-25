@@ -250,6 +250,7 @@ class Runner:
             sh_prev = sh
             c_prev = c
 
+            # TODO: use better method here
             if k_f > 1 and (self.ft_saved <= 0.5 * self.t_fl or self.ft_saved >= 1.5 * self.t_fl):
                 print("Ending sim as robot has failed")
                 break
@@ -271,7 +272,7 @@ class Runner:
             plots.thetaplot(N_run, theta_hist, setp_hist, tau_hist, dq_hist)
             # plots.currentplot(N_run, n_a, a_hist)
             # plots.voltageplot(N_run, n_a, v_hist)
-            # plots.etotalplot(N_run, a_hist, v_hist, dt=self.dt)
+            plots.etotalplot(N_run, a_hist, v_hist, dt=self.dt)
 
         return ft_hist
 

@@ -17,12 +17,12 @@ This repository mainly contains Python code for simulation of the REx Hopper in 
 
 1. Clone this directory wherever you want.
 
-2. Make sure both Python 3.7 and pip are installed.
+2. Make sure both Python 3.8 and pip are installed.
 
 ```shell
-sudo apt install python3.7
+sudo apt install python3.8
 sudo apt-get install python3-pip
-python3.7 -m pip install --upgrade pip
+python3.8 -m pip install --upgrade pip
 ```
 
 2. I recommend setting up a virtual environment for this, as it requires the use of a number of specific Python packages.
@@ -30,15 +30,15 @@ python3.7 -m pip install --upgrade pip
 ```shell
 sudo apt-get install python3.7-venv
 cd rex_hopper_python/src
-python3.7 -m venv env
+python3.8 -m venv env
 ```
 For more information on virtual environments: https://docs.python.org/3/library/venv.html
     
-3. Activate the virtual environment, and then install numpy, scipy, matplotlib, sympy, transforms3d, pybullet, cvxpy, and argparse.
+3. Activate the virtual environment, and then install numpy, scipy, matplotlib, sympy, transforms3d, pybullet, cvxpy, argparse, and more.
 
 ```shell
 source env/bin/activate
-python3.7 -m pip install numpy scipy matplotlib sympy transforms3d pybullet cvxpy argparse
+python3.8 -m pip install numpy scipy matplotlib sympy transforms3d pybullet cvxpy argparse dill SciencePlots
 ```
 Don't use sudo here if you can help it, because it may modify your path and install the packages outside of the venv.
 
@@ -53,7 +53,7 @@ Here is some example code, which runs a simulation of a hopper standing with rea
 ```shell
 cd rex_hopper_python/src
 source env/bin/activate
-python3.7 run.py design_rw static_invkin
+python3.8 run.py design_rw static_invkin
 ```
 
 ### Argparse Arguments

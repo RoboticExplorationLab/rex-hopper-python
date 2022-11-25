@@ -72,7 +72,8 @@ class Gait:
         p = X_in[0:3]
         Q_base = X_in[3:7]
         pdot = X_in[7:10]
-        p_ref = x_ref[100, 0:3]  # raibert hopping only looks at position ref
+        # p_ref = x_ref[100, 0:3]  # raibert hopping only looks at position ref
+        p_ref = x_ref[0:3]
         z = 2 * np.arcsin(Q_base[3])  # z-axis of body quaternion
         # z = utils.quat2euler(Q_base)[2]
         Q_z = np.array([np.cos(z / 2), 0, 0, np.sin(z / 2)]).T
@@ -102,7 +103,7 @@ class Gait:
             raise NameError('INVALID STATE')
 
         Q_ref = utils.Q_inv(utils.vec_to_quat(self.x_des - p))
-        self.u[0:2] = self.controller.wb_pos_control(target=self.target)
+        self.u[0:2] = self.controller.wb_pos_control(target=self.target, target_vel=np.zeros(3))
         self.u[2:], thetar, setp = self.moment.rw_control(Q_ref, Q_base, self.z_ref)
         return self.u, thetar, setp
 
