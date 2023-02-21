@@ -169,6 +169,11 @@ class Runner:
         s_hist = np.zeros((N_run, 3), dtype=bool)
         statem_hist = np.zeros(N_run, dtype=bool)
         ft_hist = np.zeros(N_run)
+        f_sens0 = np.zeros((N_run, 3))
+        f_sens1 = np.zeros((N_run, 3))
+        f_sens2 = np.zeros((N_run, 3))
+        f_sens3 = np.zeros((N_run, 3))
+        tau_sens = np.zeros((N_run, 7))
         # f_max = self.f_max()
         # print("unaltered: ", self.pf_list[:, 0:2], "k_f = ", self.kf_list[0])
 
@@ -234,6 +239,7 @@ class Runner:
                 self.u, theta_hist[k, :], setp_hist[k, :] = \
                     self.gaitfn(state=state, state_prev=state_prev, X_in=X_traj[k, :], x_ref=x_ref[k+100, :])
 
+            
             ft_hist[k] = self.ft_saved
             grf_hist[k, :] = grf  # ground reaction force in world frame
             f_hist[k, :] = utils.Z(Q_base, U[0:3])  # body frame -> world frame output force
@@ -249,15 +255,25 @@ class Runner:
             state_prev = state
             sh_prev = sh
             c_prev = c
+            f_sens0[k, :] = self.simulator.f_sens[0, :]
+            f_sens1[k, :] = self.simulator.f_sens[1, :]
+            f_sens2[k, :] = self.simulator.f_sens[2, :]
+            f_sens3[k, :] = self.simulator.f_sens[3, :]
+            tau_sens[k, :] = self.simulator.tau_sens
 
             # TODO: use better method here
-            if k_f > 1 and (self.ft_saved <= 0.5 * self.t_fl or self.ft_saved >= 1.5 * self.t_fl):
-                print("Ending sim as robot has failed")
-                break
+            # if k_f > 1 and (self.ft_saved <= 0.5 * self.t_fl or self.ft_saved >= 1.5 * self.t_fl):
+            #     print("Ending sim as robot has failed")
+            #     break
             # if k >= 3000:
             #     break
 
         if self.plot == True:
+            plots.plot_gen(N_run, 3, hist=f_sens0, hist_ref=f_sens0, label="f_sens0")
+            plots.plot_gen(N_run, 3, hist=f_sens1, hist_ref=f_sens1, label="f_sens1")
+            plots.plot_gen(N_run, 3, hist=f_sens2, hist_ref=f_sens2, label="f_sens2")
+            plots.plot_gen(N_run, 3, hist=f_sens3, hist_ref=f_sens3, label="f_sens3")
+            plots.plot_gen(N_run, 7, hist=tau_sens, hist_ref=tau_sens, label="tau_sens")
             plots.posplot_3d(p_hist=X_traj[::N_dt, 0:3], pf_hist=pf_hist[::N_dt, :],
                              ref_traj=x_ref[::N_dt, 0:3], pf_ref=pf_ref[::N_dt, :],
                              pf_list=self.pf_list, pf_list0=pf_list0, dist=self.dist)

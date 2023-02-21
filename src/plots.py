@@ -13,6 +13,41 @@ import matplotlib.ticker as plticker
 plt.rcParams['font.size'] = 16
 
 
+def plot_gen(total, n_a, hist, hist_ref, label):
+    cols = 3
+    rows = n_a // cols
+    rows += n_a % cols
+    position = range(1, n_a + 1)
+    fig = plt.figure(1)
+    totalr = range(total)
+    for k in range(n_a):
+        ax = fig.add_subplot(rows, cols, position[k])
+        ax.plot(totalr, hist[:, k], c='r', label="actual")
+        ax.plot(totalr, hist_ref[:, k], c='g', label="ref")
+        ax.set_ylabel(label)
+        # ax.set_title(model["aname"][k])
+        ax.legend()
+    plt.xlabel("Timesteps")
+    plt.show()
+
+def plot_a(model, total, n_a, hist, hist_ref, label):
+    cols = 3
+    rows = n_a // cols
+    rows += n_a % cols
+    position = range(1, n_a + 1)
+    fig = plt.figure(1)
+    totalr = range(total)
+    for k in range(n_a):
+        ax = fig.add_subplot(rows, cols, position[k])
+        ax.plot(totalr, hist[:, k], c='r', label="actual")
+        ax.plot(totalr, hist_ref[:, k], c='g', label="ref")
+        ax.set_ylabel(label)
+        ax.set_title(model["aname"][k])
+        ax.legend()
+    plt.xlabel("Timesteps")
+    plt.show()
+
+
 def thetaplot(total, theta_hist, setp_hist, tau_hist, dq_hist):
     fig, axs = plt.subplots(3, 3, sharex='all', sharey='row')
     plt.xlabel("Timesteps")
@@ -54,44 +89,8 @@ def thetaplot(total, theta_hist, setp_hist, tau_hist, dq_hist):
     plt.show()
 
 
-def tauplot(model, total, n_a, tau_hist, u_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, tau_hist[:, k], c='r', label="actual")
-        ax.plot(totalr, u_hist[:, k], c='g', label="control")
-        ax.set_ylabel('Torque, Nm')
-        ax.set_title(model["aname"][k])
-        ax.legend()
-
-    plt.xlabel("Timesteps")
-
-    plt.show()
-
-
-def dqplot(model, total, n_a, dq_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, dq_hist[:, k] * 60 / (2 * np.pi))
-        ax.set_ylabel('Angular Velocity, RPM')
-        ax.set_title(model["aname"][k])
-    plt.xlabel("Timesteps")
-    plt.show()
-
-
 def f_plot(total, f_hist, grf_hist, s_hist, statem_hist):
-    fig, axs = plt.subplots(5, sharex='all')
+    fig, axs = plt.subplots(4, sharex='all')
     plt.xlabel("Timesteps")
 
     axs[0].plot(range(total), grf_hist[:, 0], color='r', label="Actual GRF")
@@ -117,15 +116,15 @@ def f_plot(total, f_hist, grf_hist, s_hist, statem_hist):
     fig.legend(lines, labels, loc='upper center')
 
     # axs[3].plot(range(total), s_hist[:, 0], color='green', lw='2', ls="--", label='Original Contact Schedule')
-    axs[3].plot(range(total), statem_hist, color='cyan', lw='1', ls="-", label='State Machine States')
-    axs[3].set_title('State Machine States')
-    axs[3].set_ylabel("True/False")
+    # axs[3].plot(range(total), statem_hist, color='cyan', lw='1', ls="-", label='State Machine States')
+    # axs[3].set_title('State Machine States')
+    # axs[3].set_ylabel("True/False")
 
-    axs[4].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Contact Schedule')
-    axs[4].plot(range(total), s_hist[:, 2], color='orange', lw='1', ls="-", label='Actual')
-    axs[4].set_title('Actual and Scheduled Contact')
-    axs[4].set_ylabel("True/False")
-    axs[4].legend(loc="upper right")
+    axs[3].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Contact Schedule')
+    axs[3].plot(range(total), s_hist[:, 2], color='orange', lw='1', ls="-", label='Actual')
+    axs[3].set_title('Actual and Scheduled Contact')
+    axs[3].set_ylabel("True/False")
+    axs[3].legend(loc="upper right")
 
     plt.show()
 
@@ -174,36 +173,6 @@ def vel_plot(total, vel_hist, vel_ref, omega_hist, omega_ref):
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels, loc='upper center')
 
-    plt.show()
-
-
-def currentplot(total, n_a, a_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, a_hist[:, k])
-        ax.set_ylabel("current (A)")
-    plt.xlabel("Timesteps")
-    plt.show()
-
-
-def voltageplot(total, n_a, v_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, v_hist[:, k])
-        ax.set_ylabel("voltage (V)")
-    plt.xlabel("Timesteps")
     plt.show()
 
 

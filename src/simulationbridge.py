@@ -38,7 +38,9 @@ class Sim:
         self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
         self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
         self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # r80kv110
-
+        self.f_sens = None
+        self.tau_sens = None
+        
         if gravoff == True:
             GRAVITY = 0
         else:
@@ -140,7 +142,7 @@ class Sim:
         self.X[7:10] = Z(Q_inv(Q_base), velocities[0])  # linear vel world -> body frame
         self.X[10:] = Z(Q_inv(Q_base), velocities[1])  # angular vel world -> body frame
 
-        # f_sens, tau_sens = reaction(self.numJoints, self.bot)
+        self.f_sens, self.tau_sens = reaction(self.numJoints, self.bot)
         contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
         if np.shape(contact)[0] == 0:  # prevent empty list from being passed
             grf = np.zeros(3)
