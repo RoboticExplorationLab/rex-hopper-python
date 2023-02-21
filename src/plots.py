@@ -5,12 +5,47 @@ Copyright (C) 2021 Benjamin Bokser
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+import scienceplots
 plt.style.use(['science', 'no-latex'])
 plt.rcParams['lines.linewidth'] = 2
 import matplotlib.ticker as plticker
 
 plt.rcParams['font.size'] = 16
+
+
+def plot_gen(total, n_a, hist, hist_ref, label):
+    cols = 3
+    rows = n_a // cols
+    rows += n_a % cols
+    position = range(1, n_a + 1)
+    fig = plt.figure(1)
+    totalr = range(total)
+    for k in range(n_a):
+        ax = fig.add_subplot(rows, cols, position[k])
+        ax.plot(totalr, hist[:, k], c='r', label="actual")
+        ax.plot(totalr, hist_ref[:, k], c='g', label="ref")
+        ax.set_ylabel(label)
+        # ax.set_title(model["aname"][k])
+        ax.legend()
+    plt.xlabel("Timesteps")
+    plt.show()
+
+def plot_a(model, total, n_a, hist, hist_ref, label):
+    cols = 3
+    rows = n_a // cols
+    rows += n_a % cols
+    position = range(1, n_a + 1)
+    fig = plt.figure(1)
+    totalr = range(total)
+    for k in range(n_a):
+        ax = fig.add_subplot(rows, cols, position[k])
+        ax.plot(totalr, hist[:, k], c='r', label="actual")
+        ax.plot(totalr, hist_ref[:, k], c='g', label="ref")
+        ax.set_ylabel(label)
+        ax.set_title(model["aname"][k])
+        ax.legend()
+    plt.xlabel("Timesteps")
+    plt.show()
 
 
 def thetaplot(total, theta_hist, setp_hist, tau_hist, dq_hist):
@@ -54,44 +89,8 @@ def thetaplot(total, theta_hist, setp_hist, tau_hist, dq_hist):
     plt.show()
 
 
-def tauplot(model, total, n_a, tau_hist, u_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, tau_hist[:, k], c='r', label="actual")
-        ax.plot(totalr, u_hist[:, k], c='g', label="control")
-        ax.set_ylabel('Torque, Nm')
-        ax.set_title(model["aname"][k])
-        ax.legend()
-
-    plt.xlabel("Timesteps")
-
-    plt.show()
-
-
-def dqplot(model, total, n_a, dq_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, dq_hist[:, k] * 60 / (2 * np.pi))
-        ax.set_ylabel('Angular Velocity, RPM')
-        ax.set_title(model["aname"][k])
-    plt.xlabel("Timesteps")
-    plt.show()
-
-
-def f_plot(total, f_hist, grf_hist, s_hist):
-    fig, axs = plt.subplots(5, sharex='all')
+def f_plot(total, f_hist, grf_hist, s_hist, statem_hist):
+    fig, axs = plt.subplots(4, sharex='all')
     plt.xlabel("Timesteps")
 
     axs[0].plot(range(total), grf_hist[:, 0], color='r', label="Actual GRF")
@@ -100,14 +99,14 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     axs[0].set_ylabel("Force, N")
     axs[0].set_ylim(-300, 300)
 
-    axs[1].plot(range(total), grf_hist[:, 1], color='b')
-    axs[1].plot(range(total), f_hist[:, 1], color='r')
+    axs[1].plot(range(total), grf_hist[:, 1], color='r')
+    axs[1].plot(range(total), f_hist[:, 1], color='b')
     axs[1].set_title('Y Ground Reaction Force')
     axs[1].set_ylabel("Force, N")
     axs[1].set_ylim(-300, 300)
 
-    axs[2].plot(range(total), grf_hist[:, 2], color='b')
-    axs[2].plot(range(total), f_hist[:, 2], color='r')
+    axs[2].plot(range(total), grf_hist[:, 2], color='r')
+    axs[2].plot(range(total), f_hist[:, 2], color='b')
     axs[2].set_title('Z Ground Reaction Force')
     axs[2].set_ylabel("Force, N")
     axs[2].set_ylim(-300, 300)
@@ -116,46 +115,64 @@ def f_plot(total, f_hist, grf_hist, s_hist):
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
     fig.legend(lines, labels, loc='upper center')
 
-    axs[3].plot(range(total), s_hist[:, 0], color='green', lw='3', ls="--")
-    axs[3].set_title('Original Contact Schedule')
+    # axs[3].plot(range(total), s_hist[:, 0], color='green', lw='2', ls="--", label='Original Contact Schedule')
+    # axs[3].plot(range(total), statem_hist, color='cyan', lw='1', ls="-", label='State Machine States')
+    # axs[3].set_title('State Machine States')
+    # axs[3].set_ylabel("True/False")
+
+    axs[3].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Contact Schedule')
+    axs[3].plot(range(total), s_hist[:, 2], color='orange', lw='1', ls="-", label='Actual')
+    axs[3].set_title('Actual and Scheduled Contact')
     axs[3].set_ylabel("True/False")
-
-    axs[4].plot(range(total), s_hist[:, 1], color='purple', lw='2', ls="--", label='Updated Schedule')
-    axs[4].plot(range(total), s_hist[:, 2], color='orange', lw='1', ls="-", label='Actual')
-    axs[4].set_title('Actual and Scheduled Contact')
-    axs[4].set_ylabel("True/False")
-    axs[4].legend(loc="upper right")
+    axs[3].legend(loc="upper right")
 
     plt.show()
 
 
-def currentplot(total, n_a, a_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, a_hist[:, k])
-        ax.set_ylabel("current (A)")
+def vel_plot(total, vel_hist, vel_ref, omega_hist, omega_ref):
+    fig, axs = plt.subplots(6, sharex='all')
     plt.xlabel("Timesteps")
-    plt.show()
 
+    axs[0].plot(range(total), vel_hist[:, 0], color='r', label="Vel Actual")
+    axs[0].plot(range(total), vel_ref[:, 0], color='b', label="Vel Ref")
+    axs[0].set_title('X Linear Velocity')
+    axs[0].set_ylabel("m/s")
+    # axs[0].set_ylim(-300, 300)
 
-def voltageplot(total, n_a, v_hist):
-    cols = 3
-    rows = n_a // cols
-    rows += n_a % cols
-    position = range(1, n_a + 1)
-    fig = plt.figure(1)
-    totalr = range(total)
-    for k in range(n_a):
-        ax = fig.add_subplot(rows, cols, position[k])
-        ax.plot(totalr, v_hist[:, k])
-        ax.set_ylabel("voltage (V)")
-    plt.xlabel("Timesteps")
+    axs[1].plot(range(total), vel_hist[:, 1], color='r')
+    axs[1].plot(range(total), vel_ref[:, 1], color='b')
+    axs[1].set_title('Y Linear Velocity')
+    axs[1].set_ylabel("m/s")
+    # axs[1].set_ylim(-300, 300)
+
+    axs[2].plot(range(total), vel_hist[:, 2], color='r')
+    axs[2].plot(range(total), vel_ref[:, 2], color='b')
+    axs[2].set_title('Z Linear Velocity')
+    axs[2].set_ylabel("m/s")
+    # axs[2].set_ylim(-300, 300)
+
+    axs[3].plot(range(total), omega_hist[:, 0], color='r')
+    axs[3].plot(range(total), omega_ref[:, 0], color='b')
+    axs[3].set_title('X Angular Velocity')
+    axs[3].set_ylabel("rad/s")
+    # axs[2].set_ylim(-300, 300)
+
+    axs[4].plot(range(total), omega_hist[:, 1], color='r')
+    axs[4].plot(range(total), omega_ref[:, 1], color='b')
+    axs[4].set_title('Y Angular Velocity')
+    axs[4].set_ylabel("rad/s")
+    # axs[2].set_ylim(-300, 300)
+
+    axs[5].plot(range(total), omega_hist[:, 2], color='r')
+    axs[5].plot(range(total), omega_ref[:, 2], color='b')
+    axs[5].set_title('Z Angular Velocity')
+    axs[5].set_ylabel("rad/s")
+    # axs[2].set_ylim(-300, 300)
+
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    fig.legend(lines, labels, loc='upper center')
+
     plt.show()
 
 
@@ -187,6 +204,11 @@ def etotalplot(total, a_hist, v_hist, dt):
     energy = np.trapz(power_hist, dx=dt)
     print("Total energy used is ", energy, " Joules, or ", energy / (48 * 3600), " Ah in ", np.shape(power_hist)[0] * dt,
           " s")
+    energy_3 = np.trapz(power_hist[0:3000], dx=dt) / (48 * 3600)
+    total_available = 1.2
+    time = (total_available / energy_3) * 3 / 60  # time in minutes
+    print("Total energy used in the first 3 seconds is ", energy_3, " Joules, or ", energy_3 / (48 * 3600), " Ah")
+    print("Which means a ", total_available, " Ah battery will run out in ", time, " minutes.")
     plt.show()
 
 
@@ -221,12 +243,15 @@ def posplot_3d(p_hist, pf_hist, ref_traj, pf_ref, pf_list, pf_list0, dist):
     ax.set_xlim3d(0, dist)
     ax.set_ylim3d(-dist/2, dist/2)
     ax.set_zlim3d(0, 2)
+
     ax.scatter(*p_hist[0, :], color='green', marker="*", s=200, label='Starting Position')
     ax.scatter(*ref_traj[-1, 0:3], marker="*", s=200, color='orange', label='Target Position')
     ax.plot(ref_traj[:, 0], ref_traj[:, 1], ref_traj[:, 2], color='green', ls='--', label='Ref CoM Traj')
     ax.plot(pf_ref[:, 0], pf_ref[:, 1], pf_ref[:, 2], color='cyan', ls='--', label='Ref Foot Traj')
     ax.scatter(pf_list0[:, 0], pf_list0[:, 1], pf_list0[:, 2], color='cyan', marker="x", s=200, label='Ref Footsteps')
 
+    p_hist = p_hist[~np.all(p_hist == [0., 0., 0.27], axis=1)]  # remove all rows containing starting value.
+    pf_hist = pf_hist[~np.all(pf_hist == [0., 0., 0.], axis=1)]  # remove all rows containing only zeros
     ax.plot(p_hist[:, 0], p_hist[:, 1], p_hist[:, 2], color='red', label='CoM Position')
     ax.plot(pf_hist[:, 0], pf_hist[:, 1], pf_hist[:, 2], color='blue', label='Foot Position')
     ax.scatter(pf_list[:, 0], pf_list[:, 1], pf_list[:, 2],

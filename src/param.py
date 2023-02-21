@@ -33,7 +33,7 @@ design_rw = {
     "springpolarity": 1,  # spring polarity
     "k": 5000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain
-    "mu": 0.5  # friction coeff at foot
+    "mu": 2  # friction coeff at foot
 }
 
 design_rw_alt = {
@@ -63,6 +63,6 @@ design_rw_alt = {
     "springpolarity": 1,  # spring polarity
     "k": 5000,  # wbc gain
     "k_k": [45, 45*0.02],  # inv kin gain
-    "mu": 0.5  # friction coeff at foot
+    "mu": 2  # friction coeff at foot
 }
 

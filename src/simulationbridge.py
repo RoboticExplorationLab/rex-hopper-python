@@ -23,7 +23,7 @@ def reaction(numJoints, bot):  # returns joint reaction force
 
 class Sim:
 
-    def __init__(self, X_0, model, spring, q_cal, dt, g=9.807, fixed=False,
+    def __init__(self, X_0, model, spring, q_cal, dt, mu, g=9.807, fixed=False,
                  record=False, scale=1, gravoff=False, direct=False):
         self.q_cal = q_cal
         self.dt = dt
@@ -38,7 +38,9 @@ class Sim:
         self.actuator_rw1 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
         self.actuator_rw2 = actuator.Actuator(dt=dt, model=actuator_param.actuator_r100kv90)
         self.actuator_rwz = actuator.Actuator(dt=dt, model=actuator_param.actuator_8318)  # r80kv110
-
+        self.f_sens = None
+        self.tau_sens = None
+        
         if gravoff == True:
             GRAVITY = 0
         else:
@@ -78,7 +80,7 @@ class Sim:
 
         # increase friction of toe to ideal
         # p.changeDynamics(self.bot, self.c_link, lateralFriction=2, contactStiffness=100000, contactDamping=10000)
-        p.changeDynamics(self.bot, self.c_link, lateralFriction=3)  # , restitution=0.01)
+        p.changeDynamics(self.bot, self.c_link, lateralFriction=mu)  # , restitution=0.01)
 
         for i in range(self.numJoints):
             # Disable the default velocity/position motor:
@@ -89,6 +91,7 @@ class Sim:
             # increase max joint velocity (default = 100 rad/s)
             p.changeDynamics(self.bot, i, maxJointVelocity=800)  # max 3800 rpm
 
+        p.resetBaseVelocity(self.bot, X_0[7:10], X_0[10:13])  # give initial lin & angular velocity (if there is any)
         self.X = np.zeros(13)  # initialize state
         self.init = True
         self.Q_calib = np.array([1, 0, 0, 0])
@@ -139,7 +142,7 @@ class Sim:
         self.X[7:10] = Z(Q_inv(Q_base), velocities[0])  # linear vel world -> body frame
         self.X[10:] = Z(Q_inv(Q_base), velocities[1])  # angular vel world -> body frame
 
-        # f_sens, tau_sens = reaction(self.numJoints, self.bot)
+        self.f_sens, self.tau_sens = reaction(self.numJoints, self.bot)
         contact = np.array(p.getContactPoints(self.bot, self.plane, self.c_link), dtype=object)
         if np.shape(contact)[0] == 0:  # prevent empty list from being passed
             grf = np.zeros(3)

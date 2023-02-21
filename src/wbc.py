@@ -34,13 +34,13 @@ class Control:
         self.kd = np.zeros((3, 3))
         np.fill_diagonal(self.kd, [kd*m, kd*m, kd])
 
-    def wb_pos_control(self, target):
+    def wb_pos_control(self, target, target_vel):
         leg = self.leg
         # target = utils.Z(self.Q, target)  # rotate the target from world to body frame
         x = leg.position()
         Ja = leg.gen_jacA()  # 3x2
         vel = leg.velocity()
-        x_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)  # .reshape((-1, 1))
+        x_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, (target_vel - vel))  # .reshape((-1, 1))
         Mx = leg.gen_Mx()
         fx = Mx @ x_dd_des
         tau = Ja.T @ fx
@@ -57,12 +57,12 @@ class Control:
         u = (Ja.T @ force).flatten() - self.spring.fn_spring(leg.q[0], leg.q[2])
         return -u
 
-    def qp_pos_control(self, target):
+    def qp_pos_control(self, target, target_vel):
         leg = self.leg
         # target = utils.Z(self.Q, target)  # rotate the target from world to body frame
         x = leg.position()
         vel = leg.velocity()
-        r_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, -vel)
+        r_dd_des = np.dot(self.kp, (target - x)) + np.dot(self.kd, target_vel - vel)
         u = self.cqp.qpcontrol(r_dd_des) - self.spring.fn_spring(leg.q[0], leg.q[2])
         return -u
 

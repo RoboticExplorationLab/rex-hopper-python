@@ -17,28 +17,28 @@ This repository mainly contains Python code for simulation of the REx Hopper in 
 
 1. Clone this directory wherever you want.
 
-2. Make sure both Python 3.7 and pip are installed.
+2. Make sure both Python 3.8 and pip are installed.
 
 ```shell
-sudo apt install python3.7
+sudo apt install python3.8
 sudo apt-get install python3-pip
-python3.7 -m pip install --upgrade pip
+python3.8 -m pip install --upgrade pip
 ```
 
 2. I recommend setting up a virtual environment for this, as it requires the use of a number of specific Python packages.
 
 ```shell
-sudo apt-get install python3.7-venv
+sudo apt-get install python3.8-venv
 cd rex_hopper_python/src
-python3.7 -m venv env
+python3.8 -m venv env
 ```
 For more information on virtual environments: https://docs.python.org/3/library/venv.html
     
-3. Activate the virtual environment, and then install numpy, scipy, matplotlib, sympy, transforms3d, pybullet, cvxpy, and argparse.
+3. Activate the virtual environment, and then install numpy, scipy, matplotlib, sympy, transforms3d, pybullet, cvxpy, argparse, and more.
 
 ```shell
 source env/bin/activate
-python3.7 -m pip install numpy scipy matplotlib sympy transforms3d pybullet cvxpy argparse
+python3.8 -m pip install numpy scipy matplotlib sympy transforms3d pybullet cvxpy argparse dill SciencePlots
 ```
 Don't use sudo here if you can help it, because it may modify your path and install the packages outside of the venv.
 
@@ -53,40 +53,30 @@ Here is some example code, which runs a simulation of a hopper standing with rea
 ```shell
 cd rex_hopper_python/src
 source env/bin/activate
-python3.7 run.py design_rw static_invkin
+python3.8 run.py design_rw ik_static --N_run=5000 --plot
 ```
 
 ### Argparse Arguments
 There are two required argparse arguments: model and control. In addition, there are a number of optional arguments.
 
-#### model
-Warning: Some of the older models have deprecated functionality.
+### model
 Choices:
-* design_rw (The design-based model with reaction wheels, unconstrained with the world frame.)
-* design (The design-based parallel leg.)
-* serial (A simple serial double-pendulum leg.)
-* parallel (A simple parallel leg.)
-* belt (A simple double-pendulum leg with a belt constraint that allows it to be driven with one motor. Mostly deprecated.)
+* `design_rw` (The design-based model with reaction wheels, unconstrained with the world frame.)
+* `design_rw_alt`
 
-#### ctrl
+### ctrl
 Choices:
-* simple_invkin (Jumps up and down using simple inverse kinematics and PID.)
-* static_invkin (Stands still.)
-* wbc_cycle (Uses whole-body control to jump up and down.)
+* `mpc` (model predictive controller)
+* `wbc_raibert` (raibert hopping with whole body leg controller)
+* `wbc_vert` (hopping straight up and down with whole body leg controller)
+* `wbc_static` (standing still with whole body leg controller)
+* `ik_vert` (Jumps up and down using simple inverse kinematics and PID.)
+* `ik_static` (Stands using simple inverse kinematics and PID.)
 
-#### optional arguments
-* --plot (Use Matplotlib to plot parameters.)
-* --fixed (Fixes the base of the robot to the world frame.)
-* --spring (Adds a parallel spring to a parallel leg. Does not work with serial or belt models.)
-* --record (Records video of sim.)
-* --scale (Changes size of the robot. Default=1.)
-* --gravoff (Turn off gravity.)
-
-### Scaling Analysis
-There's also an iterative analysis that checks how changing the size of the robot affects flight time. It also checks a range of PD control gains for each scale.
-
-```shell
-cd rex_hopper_python/src
-source env/bin/activate
-python3.7 run_scaling.py
-```
+### optional arguments
+* `--plot` (Use Matplotlib to plot parameters.)
+* `--fixed` (Fixes the base of the robot to the world frame.)
+* `--spring` (Adds a parallel spring to a parallel leg. Does not work with serial or belt models.)
+* `--record` (Records video of sim.)
+* `--recalc` (Recalculate leg kinematics, dynamics, jacobian, etc. Saves new solution for future runs.)
+* `--direct` (Turn off gravity.)

@@ -34,7 +34,7 @@ class Mpc:
         # self.Gd = np.zeros((self.n_x, 1))
         self.Gd = self.G * t  # doesn't change, doesn't need updating per timestep
         self.Q = np.eye(self.n_x)
-        np.fill_diagonal(self.Q, [50., 50., 50., 2., 1., 50., 1., 1., 1., 10., 10., 10.])
+        np.fill_diagonal(self.Q, [50., 1., 50., 10., 50., 50., 1., 1., 1., 10., 10., 10.])
         self.R = np.eye(self.n_u)
         np.fill_diagonal(self.R, [0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
         self.x = cp.Variable((N + 1, self.n_x))
@@ -64,6 +64,8 @@ class Mpc:
             x_guess[1:-1, :] = self.x.value[2:, :]  # time shift.
             x_guess[-1, :] = self.x.value[-1, :]  # copy last timestep as a dumb approx
 
+        # x_guess[:, 3:6] = 0
+        # x_guess[:, 9:] = 0
         # calculate control based on x_guess
         self.gen_dt_dynamics(x_guess, pf_ref)  # use new x as initial guess
         cost, constr = self.build_qp(x_in, x_ref_in, self.Ad, self.Bd, self.Gd, C)
@@ -136,6 +138,7 @@ class Mpc:
         Q = self.Q
         R = self.R
         u_ref = np.zeros(n_u)
+        u_ref_0 = np.zeros(n_u)
         cost = 0
         constr = []
         for k in range(0, N):
@@ -160,12 +163,13 @@ class Mpc:
             constr += [fy == 0]  # body frame y is always zero
             # constr += [z >= 0.1]
             if C[k] == 0:  # even
-                u_ref[2] = 0
+                u_ref = u_ref_0[:]  # force ref should be zeros during flight
                 cost += cp.quad_form(x[k + 1, :] - x_ref[k, :], Q * kf) + cp.quad_form(u[k, :] - u_ref, R * kuf)
                 constr += [x[k + 1, :] == Ak @ x[k, :] + Bk @ u[k, :] + Gd,
                            0 == fx,
                            0 == fz]
             else:  # odd
+                u_ref[0] = 40  # 26
                 u_ref[2] = m * g * 2
                 cost += cp.quad_form(x[k + 1, :] - x_ref[k, :], Q * kf) + cp.quad_form(u[k, :] - u_ref, R * kuf)
                 constr += [x[k + 1, :] == Ak @ x[k, :] + Bk @ u[k, :] + Gd,
@@ -182,7 +186,7 @@ class Mpc:
 
     def solve_qp(self, cost, constr):
         problem = cp.Problem(cp.Minimize(cost), constr)
-        problem.solve(solver=cp.OSQP)  # , verbose=True)
+        problem.solve(solver=cp.OSQP)  #, verbose=True)
         if self.u.value is None or self.x.value is None:
             raise Exception("\n *** QP FAILED *** \n")
         return None
