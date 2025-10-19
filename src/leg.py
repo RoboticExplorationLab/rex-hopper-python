@@ -38,17 +38,17 @@ class Leg:
             values_direct = list(zip(*(row for row in data_direct)))  # transpose rows to columns
             values_direct = np.array(values_direct)  # convert list of nested lists to array
 
-        ixx = values_direct[8].astype(np.float)
-        ixy = values_direct[9].astype(np.float)
-        ixz = values_direct[10].astype(np.float)
-        iyy = values_direct[11].astype(np.float)
-        iyz = values_direct[12].astype(np.float)
-        izz = values_direct[13].astype(np.float)
+        ixx = values_direct[8].astype(np.float64)
+        ixy = values_direct[9].astype(np.float64)
+        ixz = values_direct[10].astype(np.float64)
+        iyy = values_direct[11].astype(np.float64)
+        iyz = values_direct[12].astype(np.float64)
+        izz = values_direct[13].astype(np.float64)
 
-        self.mass = values_direct[7].astype(np.float)
+        self.mass = values_direct[7].astype(np.float64)
         self.m_total = sum(self.mass)
         self.mass = np.delete(self.mass, 0)  # remove body value
-        self.coml = values_direct[1:4].astype(np.float)
+        self.coml = values_direct[1:4].astype(np.float64)
         self.coml = np.delete(self.coml, 0, axis=1)  # remove body value
 
         # mass matrices and gravity
